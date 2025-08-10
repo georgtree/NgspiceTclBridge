@@ -18,9 +18,22 @@ All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay 
 
 ## Building & requirements
 
-- ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or ngspice.dll) with the sharedspice
+Requirements:
+
+- ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice
   interface (sharedspice.h).
 - Tcl headers/libs (8.6–9.0).
+
+To install, run following commands:
+- `git clone https://github.com/georgtree/NgspiceTclBridge.git`
+- `./configure`
+- `sudo make install`
+
+During installation manpages are also installed.
+
+For test package in place run `make test`.
+
+For package uninstall run `sudo make uninstall`.
 
 ## Quick start (synchronous operation)
 

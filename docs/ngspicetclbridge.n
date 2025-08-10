@@ -21,13 +21,26 @@ Fetch vector metadata and values (both asynchronously collected and on\-demand).
 .PP
 All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread.
 .SH Building & requirements
+.PP
+Requirements:
 .RS
 .IP \(bu 2
-ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or ngspice.dll) with the sharedspice
+ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice
 interface (sharedspice.h).
 .IP \(bu 2
 Tcl headers/libs (8.6–9.0).
 .RE
+.PP
+To install, run following commands:
+\- \fB\fCgit clone https://github.com/georgtree/NgspiceTclBridge.git\fR
+\- \fB\fC\&./configure\fR
+\- \fB\fCsudo make install\fR
+.PP
+During installation manpages are also installed.
+.PP
+For test package in place run \fB\fCmake test\fR\&.
+.PP
+For package uninstall run \fB\fCsudo make uninstall\fR\&.
 .SH Quick start (synchronous operation)
 .PP
 Package loading and initialization:
