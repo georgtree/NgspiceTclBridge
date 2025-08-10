@@ -102,8 +102,14 @@ $s1 messages -clear
 
 ## Availible commands (instance subcommands)
 
-Every `::ngspicetclbridge::new` returns a command (e.g. `::ngspicetclbridge::s1`). The following subcommands operate on
-that instance.
+### `::ngspicetclbridge::new path`
+
+Load dynamic library, path should be provided in native form for target OS.  Every `::ngspicetclbridge::new` returns a
+command (e.g. `::ngspicetclbridge::s1`). The following subcommands operate on that instance.
+
+``` tcl
+set sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
+```
 
 ### `init`
 

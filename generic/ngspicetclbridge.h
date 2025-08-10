@@ -11,7 +11,7 @@
 #include "portable_dl.h"
 
 enum CallbacksIds { SEND_CHAR, SEND_STAT, CONTROLLED_EXIT, SEND_DATA, SEND_INIT_DATA, BG_THREAD_RUNNING, NUM_EVTS };
-typedef enum { WAIT_OK = 0, WAIT_TIMEOUT = 1, WAIT_ABORTED = 2 } wait_rc;
+typedef enum { NGSPICE_WAIT_OK, NGSPICE_WAIT_TIMEOUT, NGSPICE_WAIT_ABORTED } wait_rc;
 /* Dvec flags from dvec.h of ngspice source files */
 enum dvec_flags {
     VF_REAL = (1 << 0),      /* The data is real. */

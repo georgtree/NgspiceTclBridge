@@ -122,9 +122,9 @@ static inline void BumpAndSignal(NgSpiceContext *ctx, int which) {
  *
  * Results:
  *      Returns one of:
- *          WAIT_OK       - event fired during the wait
- *          WAIT_TIMEOUT  - timeout expired before event fired
- *          WAIT_ABORTED  - context was marked for destruction before event fired
+ *          NGSPICE_WAIT_OK       - event fired during the wait
+ *          NGSPICE_WAIT_TIMEOUT  - timeout expired before event fired
+ *          NGSPICE_WAIT_ABORTED  - context was marked for destruction before event fired
  *
  * Side Effects:
  *      Locks and unlocks ctx->mutex around counter checks and condition waits.
@@ -148,7 +148,7 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, long timeout_ms, int *fi
         if (count_out) {
             *count_out = cnt;
         }
-        return WAIT_OK;
+        return NGSPICE_WAIT_OK;
     }
     if (timeout_ms <= 0) {
         while (!ctx->destroying && ctx->evt_counts[which] == start) {
@@ -174,12 +174,12 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, long timeout_ms, int *fi
         *count_out = cnt;
     }
     if (aborted) {
-        return WAIT_ABORTED;
+        return NGSPICE_WAIT_ABORTED;
     }
     if (!fired && timeout_ms > 0) {
-        return WAIT_TIMEOUT;
+        return NGSPICE_WAIT_TIMEOUT;
     }
-    return WAIT_OK;
+    return NGSPICE_WAIT_OK;
 }
 
 //** DataBuf helpers
@@ -1245,11 +1245,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         Tcl_Obj *res = Tcl_NewDictObj();
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("fired", -1), Tcl_NewBooleanObj(fired));
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("count", -1), Tcl_NewWideIntObj((Tcl_WideInt)count));
-        if (status == WAIT_TIMEOUT) {
+        if (status == NGSPICE_WAIT_TIMEOUT) {
             Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1), Tcl_NewStringObj("timeout", -1));
-        } else if (status == WAIT_ABORTED) {
+        } else if (status == NGSPICE_WAIT_ABORTED) {
             Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1), Tcl_NewStringObj("aborted", -1));
-        } else if (status == WAIT_OK) {
+        } else if (status == NGSPICE_WAIT_OK) {
             Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1), Tcl_NewStringObj("ok", -1));
         }
         Tcl_SetObjResult(interp, res);

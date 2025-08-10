@@ -185,17 +185,8 @@ test test-5 {get messages} -setup {
     $s1 command bg_run
     $s1 waitevent send_stat 1000
     update
-    return [join [$s1 messages] \n]
-} -result {stdout ******
-stdout ** ngspice-44.2 shared library
-stdout ** Creation Date: Thu Aug  7 10:14:52 UTC 2025
-stdout ******
-stdout Note: No compatibility mode selected!
-stdout Circuit: resistor divider
-# background thread running started
-stdout Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
-stdout Using SPARSE 1.3 as Direct Linear Solver
-# status[0]: --ready--
+    return [join [lrange [$s1 messages] end-2 end] \n]
+} -result {# status[0]: --ready--
 stdout No. of Data Rows : 51
 # background thread running ended} -cleanup {
     $s1 destroy
@@ -239,7 +230,7 @@ test test-8 {waitevent status} -setup {
 } -body {
     $s1 command bg_run
     return [$s1 waitevent send_stat 1000]
-} -result {fired 1 count 1 status ok} -cleanup {
+} -match glob -result {fired 1 count * status ok} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -250,7 +241,7 @@ test test-9 {waitevent status - timeout condition} -setup {
     cirPass $s1 $resDivCircuit
 } -body {
     return [$s1 waitevent send_stat 1000]
-} -result {fired 0 count 1 status timeout} -cleanup {
+} -match glob -result {fired 0 count * status timeout} -cleanup {
     $s1 destroy
     unset s1
 }

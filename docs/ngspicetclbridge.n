@@ -122,9 +122,16 @@ $s1 messages \-clear
 .fi
 .RE
 .SH Availible commands (instance subcommands)
+.SS \fB\fC::ngspicetclbridge::new path\fR
 .PP
-Every \fB\fC::ngspicetclbridge::new\fR returns a command (e.g. \fB\fC::ngspicetclbridge::s1\fR). The following subcommands operate on
-that instance.
+Load dynamic library, path should be provided in native form for target OS.  Every \fB\fC::ngspicetclbridge::new\fR returns a
+command (e.g. \fB\fC::ngspicetclbridge::s1\fR). The following subcommands operate on that instance.
+.PP
+.RS
+.nf
+set sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
+.fi
+.RE
 .SS \fB\fCinit\fR
 .PP
 Initialize the ngspice shared instance and the bridge’s data structures.
@@ -337,6 +344,9 @@ With \fB\fC\-clear\fR: zeros all counts and returns nothing.
 .PP
 Set an internal abort flag and wake any waiters (useful to force waitevent to return). This does \fBnot\fP free the
 instance.
+.SS \fB\fCisrunning\fR
+.PP
+Asynchronous call to check if background thread is running, return \fB\fC1\fR if true.
 .SS \fB\fCdestroy\fR
 .PP
 Delete the instance command. This:

@@ -318,21 +318,26 @@ class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb8-1"><a href="#c
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="dt">$s1</span> messages<span class="ot"> -clear</span></span></code></pre></div>
 <h2 id="availible-commands-instance-subcommands">Availible commands
 (instance subcommands)</h2>
-<p>Every <code>::ngspicetclbridge::new</code> returns a command
+<h3
+id="ngspicetclbridgenew-path"><code>::ngspicetclbridge::new path</code></h3>
+<p>Load dynamic library, path should be provided in native form for
+target OS. Every <code>::ngspicetclbridge::new</code> returns a command
 (e.g. <code>::ngspicetclbridge::s1</code>). The following subcommands
 operate on that instance.</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> sim <span class="kw">[</span>::ngspicetclbridge::new /usr/local/lib/libngspice.so<span class="kw">]</span></span></code></pre></div>
 <h3 id="init"><code>init</code></h3>
 <p>Initialize the ngspice shared instance and the bridge’s data
 structures.</p>
-<div class="sourceCode" id="cb9"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> init  ;<span class="co"># returns ngspice init code (int)</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> init  ;<span class="co"># returns ngspice init code (int)</span></span></code></pre></div>
 <h3 id="command-string"><code>command string</code></h3>
 <p>Send an arbitrary Ngspice command line (e.g., <code>bg_run</code>,
 <code>circbyline</code> …, <code>.save</code>, <code>.tran</code>,
 <code>.dc</code>).</p>
-<div class="sourceCode" id="cb10"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> <span class="ot">command</span> <span class="st">&quot;circbyline v1 in 0 1&quot;</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> <span class="ot">command</span> bg_run</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> <span class="ot">command</span> <span class="st">&quot;circbyline v1 in 0 1&quot;</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> <span class="ot">command</span> bg_run</span></code></pre></div>
 <p>Returns the ngspice result code (int).</p>
 <h3
 id="waitevent-name-timeout_ms"><code>waitevent name ?timeout_ms?</code></h3>
@@ -514,12 +519,12 @@ far</li>
 <li><code>status</code> — <code>ok | timeout | aborted</code></li>
 </ul>
 <p>Examples:</p>
-<div class="sourceCode" id="cb11"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> waitevent send_stat <span class="dv">1000</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {fired 1 count 1 status ok}</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> waitevent send_stat <span class="dv">1000</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {fired 0 count 1 status timeout}  ;# nothing new in the next 1s</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> waitevent send_stat <span class="dv">1000</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {fired 1 count 1 status ok}</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> waitevent send_stat <span class="dv">1000</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {fired 0 count 1 status timeout}  ;# nothing new in the next 1s</span></span></code></pre></div>
 <p>If you want “fresh” waits, you can clear counts with
 <code>eventcounts -clear</code>.</p>
 <h3 id="vectors--clear"><code>vectors ?-clear?</code></h3>
@@ -531,12 +536,12 @@ class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb11-1"><a href="#
 <strong>nothing</strong>.</li>
 </ul>
 <p>Examples:</p>
-<div class="sourceCode" id="cb12"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> vectors</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; v(out) {0.0 0.1 0.2 ...} v(in) {...} v-sweep {...}</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> vectors<span class="ot"> -clear</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; (no result; succeeds)</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> vectors</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; v(out) {0.0 0.1 0.2 ...} v(in) {...} v-sweep {...}</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> vectors<span class="ot"> -clear</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; (no result; succeeds)</span></span></code></pre></div>
 <p><strong>Warning</strong>: accumulation of data continues even if you
 run new circuit or analysis until you explicitly clear the data
 storage.</p>
@@ -547,9 +552,9 @@ send_init_data) in a dict:</p>
 <li>Without flags: returns the dict.</li>
 <li>With <code>-clear</code>: empties the dict and returns nothing.</li>
 </ul>
-<div class="sourceCode" id="cb13"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> initvectors</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> initvectors</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}</span></span></code></pre></div>
 <p><strong>Warning</strong>: accumulation of data <strong>do
 not</strong> continues after call <code>bg_run</code>, new metadata
 replace the old one in the storage.</p>
@@ -562,12 +567,12 @@ data (not necessarily the complete vector).</p>
 <li>Complex vectors return a list of <code>{re im}</code> pairs.</li>
 </ul>
 <p>Examples:</p>
-<div class="sourceCode" id="cb14"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> asyncvector out</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {0.0 0.066666... 0.133333... ...}</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> asyncvector V(<span class="dv">9</span>)</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {{0.01 0.00} {0.02 0.00} ...}   ;# if complex</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> asyncvector out</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {0.0 0.066666... 0.133333... ...}</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="dt">$sim</span> asyncvector V(<span class="dv">9</span>)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># -&gt; {{0.01 0.00} {0.02 0.00} ...}   ;# if complex</span></span></code></pre></div>
 <p>Return error if the vector does not exist.</p>
 <h3 id="messages--clear"><code>messages ?-clear?</code></h3>
 <p>Queue of textual messages captured from Ngspice (stdout/stderr) and
@@ -577,12 +582,12 @@ bridge status lines.</p>
 <li>With <code>-clear</code>: empties the queue and returns
 nothing.</li>
 </ul>
-<div class="sourceCode" id="cb15"><pre
-class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">join</span> <span class="kw">[</span><span class="dt">$sim</span> messages<span class="kw">]</span> <span class="ch">\n</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># stdout ******</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># stdout ** ngspice-44.x shared library</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># # status[0]: --ready--</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">join</span> <span class="kw">[</span><span class="dt">$sim</span> messages<span class="kw">]</span> <span class="ch">\n</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># stdout ******</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># stdout ** ngspice-44.x shared library</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co"># # status[0]: --ready--</span></span></code></pre></div>
 <p><strong>Warning</strong>: accumulation of messages continues even if
 you run new circuit or analysis until you explicitly clear the data
 storage.</p>
@@ -599,6 +604,9 @@ storage.</p>
 <p>Set an internal abort flag and wake any waiters (useful to force
 waitevent to return). This does <strong>not</strong> free the
 instance.</p>
+<h3 id="isrunning"><code>isrunning</code></h3>
+<p>Asynchronous call to check if background thread is running, return
+<code>1</code> if true.</p>
 <h3 id="destroy"><code>destroy</code></h3>
 <p>Delete the instance command. This:</p>
 <ul>
