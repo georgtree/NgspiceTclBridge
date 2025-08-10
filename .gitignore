@@ -1,0 +1,9 @@
+*.o
+*.a
+*.so
+Makefile
+config.status
+config.log
+pkgIndex.tcl
+configure~
+*.pdf

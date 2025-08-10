@@ -1,0 +1,382 @@
+.TH NgspiceTclBridge — drive ngspice (shared library) from Tcl
+.PP
+\fB\fCngspicetclbridge\fR is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small, thread\-safe
+command API for loading circuits, running analyses in the ngspice background thread, and receiving data/messages/events
+back into Tcl.
+.PP
+It targets Tcl 8.6–9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.
+.SH What it gives you (at a glance)
+.RS
+.IP \(bu 2
+Create one or more ngspice instances inside Tcl.
+.IP \(bu 2
+Issue ngspice commands (e.g. bg_run, circbyline ...).
+.IP \(bu 2
+Wait for events (send\fIstat, send\fPdata, etc.) with optional timeouts.
+.IP \(bu 2
+Collect messages from ngspice stdout/stderr.
+.IP \(bu 2
+Fetch vector metadata and values (both asynchronously collected and on\-demand).
+.RE
+.PP
+All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread.
+.SH Building & requirements
+.RS
+.IP \(bu 2
+ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or ngspice.dll) with the sharedspice
+interface (sharedspice.h).
+.IP \(bu 2
+Tcl headers/libs (8.6–9.0).
+.RE
+.SH Quick start (synchronous operation)
+.PP
+Package loading and initialization:
+.PP
+.RS
+.nf
+package require ngspicetclbridge
+
+# Path to your ngspice shared library
+set ngspiceLibPath /path/to/libngspice.so
+
+# Create a new instance bound to a Tcl command
+set sim [ngspicetclbridge::new $ngspiceLibPath]
+
+# Initialize callbacks and internal structures
+$sim init
+.fi
+.RE
+.PP
+To feed a circuit one line at a time via ngspice’s circbyline:
+.PP
+.RS
+.nf
+proc cirPass {sim circuitText} {
+    foreach line [split $circuitText "\\n"] {
+        if {[string trim $line] ne ""} {
+            $sim command [concat circbyline $line]
+        }
+    }
+}
+set resDivCircuit {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    .dc v1 0 5 0.1
+    .save all
+    .end
+}
+.fi
+.RE
+.PP
+Pass resistor divider circuit to Ngspice, and start the run background thread:
+.PP
+.RS
+.nf
+cirPass $sim $resDivCircuit
+$sim command bg_run
+.fi
+.RE
+.PP
+Wait for an event (e.g., status becoming ready):
+.PP
+.RS
+.nf
+set res [$sim waitevent send_stat 1000]
+.fi
+.RE
+.PP
+Explicitly process pending events handlers (without processing the events the messages, vector data and status will
+not be written into internal data storages)
+.PP
+.RS
+.nf
+update
+.fi
+.RE
+.PP
+Get vector data dictionary saved in internal buffer:
+.PP
+.RS
+.nf
+$sim vectors
+.fi
+.RE
+.PP
+Destroy instance of simulator (removes instance command, frees internal storages and simulator context)
+.PP
+.RS
+.nf
+$sim destroy
+.fi
+.RE
+.PP
+If you want to continue work with current simulator instance, you need to clear internal vector/messages storage
+with next commands (otherwise data will be appended to data from previous simulation):
+.PP
+.RS
+.nf
+$s1 vectors \-clear
+$s1 messages \-clear
+.fi
+.RE
+.SH Availible commands (instance subcommands)
+.PP
+Every \fB\fC::ngspicetclbridge::new\fR returns a command (e.g. \fB\fC::ngspicetclbridge::s1\fR). The following subcommands operate on
+that instance.
+.SS \fB\fCinit\fR
+.PP
+Initialize the ngspice shared instance and the bridge’s data structures.
+.PP
+.RS
+.nf
+$sim init  ;# returns ngspice init code (int)
+.fi
+.RE
+.SS \fB\fCcommand string\fR
+.PP
+Send an arbitrary Ngspice command line (e.g., \fB\fCbg_run\fR, \fB\fCcircbyline\fR ..., \fB\fC\&.save\fR, \fB\fC\&.tran\fR, \fB\fC\&.dc\fR).
+.PP
+.RS
+.nf
+$sim command "circbyline v1 in 0 1"
+$sim command bg_run
+.fi
+.RE
+.PP
+Returns the ngspice result code (int).
+.SS \fB\fCwaitevent name ?timeout_ms?\fR
+.PP
+Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires.
+.PP
+The table of possible events:
+.TS
+allbox;
+cb cb cb
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+.
+Event name	Ngspice callback function name	When it is called
+\fB\fCsend_char\fR	\fB\fCSendChar\fR	Whenever Ngspice produces a line of text on stdout or stderr.
+\fB\fCsend_stat\fR	\fB\fCSendStat\fR	When Ngspice’s simulation status changes (e.g., \-\-ready\-\-, tran 50.1%, convergence messages).
+\fB\fCcontrolled_exit\fR	\fB\fCControlledExit\fR	When Ngspice exits, either due to an error or after a quit command from Tcl/Ngspice.
+\fB\fCsend_data\fR	\fB\fCSendData\fR	During an analysis, whenever Ngspice sends a row of vector values (time step or sweep point) to the callback.
+\fB\fCsend_init_data\fR	\fB\fCSendInitData\fR	At the start of a run, when Ngspice sends metadata for all vectors in the current plot (names, types, indexes, real/complex).
+\fB\fCbg_running\fR	\fB\fCBGThreadRunning\fR	When the Ngspice background thread changes state: running=false means it just started running, running=true means it has stopped.
+.TE
+.PP
+The table with typical run timeline:
+.TS
+allbox;
+cb cb cb cb cb
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+l l l l l
+.
+Time	Tcl Script Action	Ngspice Core Activity	Bridge Callback Fired	Tcl Event Name Seen
+t0	\fB\fCset s [..::new ..]\fR	Library loaded	\fI(none)\fP	\fI(none)\fP
+t1	\fB\fC$s init\fR	Initialization completed	\fI(none)\fP	\fI(none)\fP
+t2	\fB\fCcirPass …\fR	Parses circuit line	\fB\fCsend_char("...")\fR	\fB\fCsend_char\fR
+t3	\fI(more circbyline calls)\fP	Parses circuit line	\fB\fCsend_char("...")\fR	\fB\fCsend_char\fR
+t4	\fB\fC$s command bg_run\fR	Start background simulation	\fB\fCbg_running(false)\fR	\fB\fCbg_running\fR
+t5	\fI(analysis setup)\fP	Build vector table	\fB\fCsend_init_data()\fR	\fB\fCsend_init_data\fR
+t6	\fI(analysis running)\fP	First data point	\fB\fCsend_data(...)\fR	\fB\fCsend_data\fR
+t7	\fI(analysis running)\fP	More points	\fB\fCsend_data(...)\fR	\fB\fCsend_data\fR
+t8	\fI(analysis running)\fP	Status change	\fB\fCsend_stat("...")\fR	\fB\fCsend_stat\fR
+t9	\fI(analysis completed)\fP	Simulation ready	\fB\fCsend_stat("\-\-ready\-\-")\fR	\fB\fCsend_stat\fR
+t10	\fI(BG thread exits)\fP	Background thread exits	\fB\fCbg_running(true)\fR	\fB\fCbg_running\fR
+t11	\fB\fC$s command quit\fR	ngspice quits	\fB\fCcontrolled_exit(...)\fR	\fB\fCcontrolled_exit\fR
+t12	\fB\fC$s destroy\fR	Teardown	\fI(no further calls)\fP	\fI(command removed)\fP
+.TE
+.PP
+Result dictionary of the command:
+.RS
+.IP \(bu 2
+\fB\fCfired\fR — \fB\fC0|1\fR, whether the event occurred during this wait
+.IP \(bu 2
+\fB\fCcount\fR — cumulative total count for that event so far
+.IP \(bu 2
+\fB\fCstatus\fR — \fB\fCok | timeout | aborted\fR
+.RE
+.PP
+Examples:
+.PP
+.RS
+.nf
+$sim waitevent send_stat 1000
+# \-> {fired 1 count 1 status ok}
+
+$sim waitevent send_stat 1000
+# \-> {fired 0 count 1 status timeout}  ;# nothing new in the next 1s
+.fi
+.RE
+.PP
+If you want “fresh” waits, you can clear counts with \fB\fCeventcounts \-clear\fR\&.
+.SS \fB\fCvectors ?\-clear?\fR
+.PP
+Holds \fBasynchronously accumulated\fP vector values (built from \fB\fCsend_data\fR events) in a dict:
+.RS
+.IP \(bu 2
+Without flags: returns the dict.
+.IP \(bu 2
+With \fB\fC\-clear\fR: empties the dict and returns \fBnothing\fP\&.
+.RE
+.PP
+Examples:
+.PP
+.RS
+.nf
+$sim vectors
+# \-> v(out) {0.0 0.1 0.2 ...} v(in) {...} v\-sweep {...}
+
+$sim vectors \-clear
+# \-> (no result; succeeds)
+.fi
+.RE
+.PP
+\fBWarning\fP: accumulation of data continues even if you run new circuit or analysis until you explicitly clear the data
+storage.
+.SS \fB\fCinitvectors ?\-clear?\fR
+.PP
+Holds \fBinitial vector metadata\fP (built from send\fIinit\fPdata) in a dict:
+.RS
+.IP \(bu 2
+Without flags: returns the dict.
+.IP \(bu 2
+With \fB\fC\-clear\fR: empties the dict and returns nothing.
+.RE
+.PP
+.RS
+.nf
+$sim initvectors
+# \-> out {number 1 real 1} in {number 2 real 1} v\-sweep {number 3 real 1}
+.fi
+.RE
+.PP
+\fBWarning\fP: accumulation of data \fBdo not\fP continues after call \fB\fCbg_run\fR, new metadata replace the old one in the
+storage.
+.SS \fB\fCasyncvector name\fR
+.PP
+Fetch the current values of a named vector on demand via ngspice \fB\fCngGet_Vec_Info\fR\&. Works after the simulation has
+produced any data (not necessarily the complete vector).
+.RS
+.IP \(bu 2
+Real vectors return a flat list of doubles.
+.IP \(bu 2
+Complex vectors return a list of \fB\fC{re im}\fR pairs.
+.RE
+.PP
+Examples:
+.PP
+.RS
+.nf
+$sim asyncvector out
+# \-> {0.0 0.066666... 0.133333... ...}
+
+$sim asyncvector V(9)
+# \-> {{0.01 0.00} {0.02 0.00} ...}   ;# if complex
+.fi
+.RE
+.PP
+Return error if the vector does not exist.
+.SS \fB\fCmessages ?\-clear?\fR
+.PP
+Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
+.RS
+.IP \(bu 2
+Without flags: returns the list of messages.
+.IP \(bu 2
+With \fB\fC\-clear\fR: empties the queue and returns nothing.
+.RE
+.PP
+.RS
+.nf
+join [$sim messages] \\n
+# stdout ******
+# stdout ** ngspice\-44.x shared library
+# ...
+# # status[0]: \-\-ready\-\-
+.fi
+.RE
+.PP
+\fBWarning\fP: accumulation of messages continues even if you run new circuit or analysis until you explicitly clear the
+data storage.
+.SS \fB\fCeventcounts ?\-clear?\fR
+.PP
+Get or reset the cumulative event counters for this instance.
+.RS
+.IP \(bu 2
+Without flags: returns a dict:
+.RE
+.PP
+.RS
+.nf
+send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N
+.fi
+.RE
+.RS
+.IP \(bu 2
+With \fB\fC\-clear\fR: zeros all counts and returns nothing.
+.RE
+.SS \fB\fCabort\fR
+.PP
+Set an internal abort flag and wake any waiters (useful to force waitevent to return). This does \fBnot\fP free the
+instance.
+.SS \fB\fCdestroy\fR
+.PP
+Delete the instance command. This:
+.RS
+.IP \(bu 2
+Marks the context as destroying
+.IP \(bu 2
+Wakes any waiters
+.IP \(bu 2
+Quiesces the ngspice background thread
+.IP \(bu 2
+Defers and performs full cleanup
+.RE
+.SH Notes & internals
+.RS
+.IP \(bu 2
+\fBThreading\fP: ngspice callbacks arrive on ngspice’s side; the bridge queues Tcl events and processes them on the
+thread that created the instance. Synchronization uses \fB\fCTcl_Mutex\fR and \fB\fCTcl_Condition\fR\&. Waiters use either
+\fB\fCTcl_ConditionWait\fR (no timeout) or a short sleep/poll loop (with timeout).
+.IP \(bu 2
+\fBEvent counts\fP: The count returned by waitevent is cumulative since instance creation (not “just this wait”). Use
+eventcounts \-clear if you prefer to measure deltas from a known zero.
+.IP \(bu 2
+\fBComplex vs real vectors\fP: asyncvector checks \fB\fCvinfo\->v_flags & VF_COMPLEX\fR\&. If set, you get \fB\fC{re im}\fR pairs,
+otherwise doubles.
+.IP \(bu 2
+\fBPortability\fP: \fB\fCPDl_OpenFromObj/PDl_Sym/PDl_Close\fR abstract \fB\fCdlopen/GetProcAddress/FreeLibrary\fR\&. The library path is
+taken from a Tcl path object to handle platform Unicode semantics.
+.RE
+.SH Troubleshooting
+.RS
+.IP \(bu 2
+\fB\fCwaitevent\fR \fBalways times out\fP: make sure you actually started the background run (\fB\fC$sim command bg_run\fR) and you
+allow the Tcl event loop to process events (update) between waits when appropriate.
+.IP \(bu 2
+\fBCircuit is not loaded\fP: ensure your circuit issues \fB\fC\&.end\fR directive.
+.IP \(bu 2
+\fBComplex data surprises\fP: if you expected real data but get \fB\fC{re im}\fR pairs, your vector is complex per
+ngspice. Handle both cases in your Tcl code if needed.
+.IP \(bu 2
+\fBMultiple runs\fP: clear old data between runs if you want pristine buffers: \fB\fC$sim vectors \-clear\fR, \fB\fC$sim initvectors
+\-clear\fR, and optionally \fB\fC$sim eventcounts \-clear\fR\&.
+.RE
