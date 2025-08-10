@@ -1167,6 +1167,9 @@ static void InstDeleteProc(void *cdata) {
  *          - Without -clear: returns a dict mapping event names to their counts.
  *          - With -clear: zeros all event counters (no result returned).
  *
+ *      isrunning
+ *          - Returns 1 if background thread is running, 0 otherwise.
+ *
  *      destroy
  *          - Deletes the instance command, triggering InstDeleteProc().
  *
