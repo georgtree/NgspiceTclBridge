@@ -118,12 +118,7 @@ set res [$sim waitevent send_stat 1000]
 .RE
 .PP
 Explicitly process pending events handlers (without processing the events the messages, vector data and status will
-.PP
-.RS 4n
-.nf
-                                        not be written into internal data storages)
-.fi
-.RE
+not be written into internal data storages)
 .PP
 .RS 4n
 .nf

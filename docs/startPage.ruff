@@ -93,7 +93,7 @@ variable startPage {
     ```
 
     Explicitly process pending events handlers (without processing the events the messages, vector data and status will
-                                                not be written into internal data storages)
+    not be written into internal data storages)
 
     ```
     update
