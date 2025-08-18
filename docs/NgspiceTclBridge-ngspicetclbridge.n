@@ -1,0 +1,470 @@
+'\"
+'\" '\" Copyright (c) George Yashin
+'\"
+.TH "ngspicetclbridge" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.SH NAME
+ngspicetclbridge - Commands in namespace ngspicetclbridge
+.SH SYNOPSIS
+\fBabort\fP
+.br
+\fBasyncvector\fP \fIname\fP
+.br
+\fBcommand\fP \fIstring\fP
+.br
+\fBdestroy\fP
+.br
+\fBeventcounts\fP \fI?-clear?\fP
+.br
+\fBinit\fP
+.br
+\fBinitvectors\fP \fI?-clear?\fP
+.br
+\fBisrunning\fP
+.br
+\fBmessages\fP \fI?-clear?\fP
+.br
+\fBnew\fP \fIpath\fP
+.br
+\fBvectors\fP \fI?-clear?\fP
+.br
+\fBwaitevent\fP \fIname ?timeout_ms?\fP
+.br
+.SH ::NGSPICETCLBRIDGE
+.SH COMMANDS
+.PP
+.RS -4n
+\fBabort\fR (::ngspicetclbridge)
+.RE
+.PP
+Set an internal abort flag and wake any waiters (useful to force waitevent to return)\&. This does \fBnot\fP free
+the instance\&.
+.RS 4n
+\fBabort\fP
+.br
+.RE
+.PP
+.RS -4n
+\fBasyncvector\fR (::ngspicetclbridge)
+.RE
+.PP
+Fetches the current values of a named vector on demand via ngspice ngGet_Vec_Info\&. Works after the
+simulation has produced any data (not necessarily the complete vector)\&.
+.RS 4n
+\fBasyncvector\fP \fIname\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+name
+Name of the vector\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim initvectors
+$sim asyncvector out
+# -> {0\&.0 0\&.066666\&.\&.\&. 0\&.133333\&.\&.\&. \&.\&.\&.}
+
+$sim asyncvector V(9)
+# -> {{0\&.01 0\&.00} {0\&.02 0\&.00} \&.\&.\&.}   ;# if complex
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+real vectors as a flat list of doubles, complex vectors as a list of {re im} pairs\&. Error if vector
+does not exists\&.
+.PP
+.RS -4n
+\fBcommand\fR (::ngspicetclbridge)
+.RE
+.PP
+Send an arbitrary Ngspice command line (e\&.g\&., bg_run, circbyline \&.\&.\&., \&.save, \&.tran, \&.dc)\&.
+.RS 4n
+\fBcommand\fP \fIstring\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+string
+Command string\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim command {circbyline v1 in 0 1}
+$sim command bg_run
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Ngspice result code
+.PP
+.RS -4n
+\fBdestroy\fR (::ngspicetclbridge)
+.RE
+.PP
+Delete the instance command\&. In details:
+.RS 4n
+\fBdestroy\fP
+.br
+.RE
+.PP
+\fBDescription\fR
+.TP
+\(bu
+Marks the context as destroying
+.TP
+\(bu
+Wakes any waiters
+.TP
+\(bu
+Quiesces the ngspice background thread
+.TP
+\(bu
+Defers and performs full cleanup
+.PP
+.RS -4n
+\fBeventcounts\fR (::ngspicetclbridge)
+.RE
+.PP
+Get or reset the cumulative event counters for this simulator instance\&.
+.RS 4n
+\fBeventcounts\fP \fI?-clear?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-clear
+Zeros all counts and returns nothing\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim eventcounts
+# -> send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+returns a dict with keys as events names, and counts for each event as a value
+.PP
+.RS -4n
+\fBinit\fR (::ngspicetclbridge)
+.RE
+.PP
+Initialize the ngspice shared instance and the bridge’s data structures\&.
+.RS 4n
+\fBinit\fP
+.br
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim init
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Ngspice init code
+.PP
+.RS -4n
+\fBinitvectors\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.
+dict with initial vector metadata saved in internal structure
+.RS 4n
+\fBinitvectors\fP \fI?-clear?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-clear
+Empties the internal memory structure and returns \fBnothing\fP\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim initvectors
+# -> out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}
+.fi
+.RE
+.PP
+\fBWarning\fP: accumulation of data \fBdo not\fP continues after call bg_run, new metadata replace the old one
+in the storage\&.
+.PP
+\fBReturn value\fR
+.PP
+Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.
+dict with initial vector metadata saved in internal structure
+.PP
+.RS -4n
+\fBisrunning\fR (::ngspicetclbridge)
+.RE
+.PP
+Asynchronous call to check if background thread is running\&.
+.RS 4n
+\fBisrunning\fP
+.br
+.RE
+.PP
+\fBReturn value\fR
+.PP
+1 if thread is running, 0 otherwise\&.
+.PP
+.RS -4n
+\fBmessages\fR (::ngspicetclbridge)
+.RE
+.PP
+Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines\&.
+.RS 4n
+\fBmessages\fP \fI?-clear?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-clear
+Empties the internal queue structure and returns \fBnothing\fP\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+join [$sim messages] \\n
+# stdout ******
+# stdout ** ngspice-44\&.x shared library
+# \&.\&.\&.
+# # status[0]: --ready--
+.fi
+.RE
+.PP
+\fBWarning\fP: accumulation of messages continues even if you run new circuit or analysis until you explicitly
+clear the data storage\&.
+.PP
+\fBReturn value\fR
+.PP
+list of messages
+.PP
+.RS -4n
+\fBnew\fR (::ngspicetclbridge)
+.RE
+.PP
+Load dynamic library, path should be provided in native form for target OS\&.  Every ::ngspicetclbridge::new
+returns a command (e\&.g\&. ::ngspicetclbridge::s1)\&. The following subcommands operate on that instance\&.
+.RS 4n
+\fBnew\fP \fIpath\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+path
+Absolute full path to dynamic library\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+set sim [::ngspicetclbridge::new /usr/local/lib/libngspice\&.so]
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+command name to work with Ngspice instance
+.PP
+.RS -4n
+\fBvectors\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns held \fBasynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
+dict with vectors values accumulated up to this point in internal structure
+.RS 4n
+\fBvectors\fP \fI?-clear?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-clear
+Empties the internal memory structure and returns \fBnothing\fP\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim vectors
+# -> v(out) {0\&.0 0\&.1 0\&.2 \&.\&.\&.} v(in) {\&.\&.\&.} v-sweep {\&.\&.\&.}
+
+$sim vectors -clear
+# -> (no result; succeeds)
+.fi
+.RE
+.PP
+\fBWarning\fP: accumulation of data continues even if you run new circuit or analysis until you explicitly clear
+the data storage\&.
+.PP
+\fBReturn value\fR
+.PP
+Returns held \fBasynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
+dict with vectors values accumulated up to this point in internal structure
+.PP
+.RS -4n
+\fBwaitevent\fR (::ngspicetclbridge)
+.RE
+.PP
+Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided)\&.
+.RS 4n
+\fBwaitevent\fP \fIname ?timeout_ms?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+name
+Name of the event\&.
+.TP
+timeout_ms
+Timeout in miliseconds, optional\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+.RS 4n
+.nf
+┌───────────────────┬──────────────────────────────┬───────────────────────────────────────────────────────┐
+│ Event name        │ Ngspice callback function    │ When it is called                                     │
+├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
+│ send_char         │ SendChar                     │ Whenever Ngspice produces a line of text              │
+│                   │                              │ on stdout or stderr\&.                                  │
+├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
+│ send_stat         │ SendStat                     │ When Ngspice’s simulation status changes              │
+│                   │                              │ (e\&.g\&., --ready--, tran 50\&.1%, convergence messages)\&.  │
+├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
+│ controlled_exit   │ ControlledExit               │ When Ngspice exits, either due to an error            │
+│                   │                              │ or after a quit command from Tcl/Ngspice\&.             │
+├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
+│ send_data         │ SendData                     │ During an analysis, whenever Ngspice sends            │
+│                   │                              │ a row of vector values (time step or sweep point)     │
+│                   │                              │ to the callback\&.                                      │
+├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
+│ send_init_data    │ SendInitData                 │ At the start of a run, when Ngspice sends metadata    │
+│                   │                              │ for all vectors in the current plot                   │
+│                   │                              │ (names, types, indexes, real/complex)\&.                │
+├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
+│ bg_running        │ BGThreadRunning              │ When the Ngspice background thread changes state:     │
+│                   │                              │ running=false → it just started running               │
+│                   │                              │ running=true  → it has stopped\&.                       │
+└───────────────────┴──────────────────────────────┴───────────────────────────────────────────────────────┘
+.fi
+.RE
+.PP
+.RS 4n
+.nf
+┌─────┬─────────────────────────┬─────────────────────────────┬─────────────────────────┬─────────────────────┐
+│ Time│ Tcl Script Action       │ Ngspice Core Activity       │ Bridge Callback Fired   │ Tcl Event Name Seen │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t0  │ set s [\&.\&.::new \&.\&.]      │ Library loaded              │ (none)                  │ (none)              │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t1  │ $s init                 │ Initialization completed    │ (none)                  │ (none)              │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t2  │ cirPass …               │ Parses circuit line         │ send_char("\&.\&.\&.")        │ send_char           │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t3  │ (more circbyline calls) │ Parses circuit line         │ send_char("\&.\&.\&.")        │ send_char           │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t4  │ $s command bg_run       │ Start background simulation │ bg_running(false)       │ bg_running          │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t5  │ (analysis setup)        │ Build vector table          │ send_init_data()        │ send_init_data      │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t6  │ (analysis running)      │ First data point            │ send_data(\&.\&.\&.)          │ send_data           │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t7  │ (analysis running)      │ More points                 │ send_data(\&.\&.\&.)          │ send_data           │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t8  │ (analysis running)      │ Status change               │ send_stat("\&.\&.\&.")        │ send_stat           │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t9  │ (analysis completed)    │ Simulation ready            │ send_stat("--ready--")  │ send_stat           │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t10 │ (BG thread exits)       │ Background thread exits     │ bg_running(true)        │ bg_running          │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t11 │ $s command quit         │ ngspice quits               │ controlled_exit(\&.\&.\&.)    │ controlled_exit     │
+├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
+│ t12 │ $s destroy              │ Teardown                    │ (no further calls)      │ (command removed)   │
+└─────┴─────────────────────────┴─────────────────────────────┴─────────────────────────┴─────────────────────┘
+.fi
+.RE
+.PP
+Result dictionary of the command:
+.TP
+\(bu
+fired - 0|1, whether the event occurred during this wait
+.TP
+\(bu
+count - cumulative total count for that event so far
+.TP
+\(bu
+status - ok | timeout | aborted
+.PP
+Examples:
+.PP
+.RS 4n
+.nf
+$sim waitevent send_stat 1000
+# -> {fired 1 count 1 status ok}
+
+$sim waitevent send_stat 1000
+# -> {fired 0 count 1 status timeout}  ;# nothing new in the next 1s
+.fi
+.RE
+.PP
+If you want “fresh” waits, you can clear counts with eventcounts -clear\&.
+.PP
+\fBReturn value\fR
+.PP
+dictionary with information about event
+

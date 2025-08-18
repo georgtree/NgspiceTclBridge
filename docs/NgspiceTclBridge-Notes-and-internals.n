@@ -1,0 +1,20 @@
+'\"
+'\" '\" Copyright (c) George Yashin
+'\"
+.TH "Notes and internals" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.SH NAME
+Notes and internals - Commands in namespace Notes and internals
+.SH "NOTES AND INTERNALS"
+.TP
+\(bu
+\fBThreading\fP: ngspice callbacks arrive on ngspice’s side; the bridge queues Tcl events and processes them on the thread that created the instance\&. Synchronization uses Tcl_Mutex and Tcl_Condition\&. Waiters use either Tcl_ConditionWait (no timeout) or a short sleep/poll loop (with timeout)\&.
+.TP
+\(bu
+\fBEvent counts\fP: The count returned by waitevent is cumulative since instance creation (not “just this wait”)\&. Use eventcounts -clear if you prefer to measure deltas from a known zero\&.
+.TP
+\(bu
+\fBComplex vs real vectors\fP: asyncvector checks vinfo->v_flags & VF_COMPLEX\&. If set, you get {re im} pairs, otherwise doubles\&.
+.TP
+\(bu
+\fBPortability\fP: PDl_OpenFromObj/PDl_Sym/PDl_Close abstract dlopen/GetProcAddress/FreeLibrary\&. The library path is taken from a Tcl path object to handle platform Unicode semantics\&.
+

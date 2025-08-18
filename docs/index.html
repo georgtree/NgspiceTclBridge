@@ -1,0 +1,126 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>Tcl NgspiceTclBridge package</title>
+<link rel='stylesheet' type='text/css' href='assets/ruff-min.css' />
+<script type='text/javascript' src='assets/ruff-min.js'></script>
+</head>
+<body>
+<div class='ruff-layout'>
+<header class='ruff-layout-header ruff-hd'>
+<a style='text-decoration:none;' href='index.html'>Tcl NgspiceTclBridge package (v0.1)</a>
+
+
+            <div id="ruffButtonBar">
+            <button id="ruffNavMove" onclick="ruffMoveNavPane()"></button>
+            <button id="ruffToggleTheme" onclick="ruffNextTheme()"></button>
+            </div>
+        </header><main class='ruff-layout-main ruff-bd'><h1 class='ruff'><a name='NgspiceTclBridge — drive ngspice (shared library) from Tcl'></a>NgspiceTclBridge — drive ngspice (shared library) from Tcl<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h1>
+<div style='clear:both;'></div>
+<p class='ruff'><code>ngspicetclbridge</code> is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small, thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving data/messages/events back into Tcl.</p>
+<p class='ruff'>It targets Tcl 8.6–9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.</p>
+<h2 class='ruff'><a name='What it gives you (at a glance)'></a>What it gives you (at a glance)<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
+<div style='clear:both;'></div>
+<ul class='ruff'>
+<li>Create one or more ngspice instances inside Tcl.</li>
+<li>Issue ngspice commands (e.g. bg_run, circbyline ...).</li>
+<li>Wait for events (send_stat, send_data, etc.) with optional timeouts.</li>
+<li>Collect messages from ngspice stdout/stderr.</li>
+<li>Fetch vector metadata and values (both asynchronously collected and on-demand).</li>
+</ul>
+<p class='ruff'>All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread.</p>
+<h2 class='ruff'><a name='Building &amp; requirements'></a>Building &amp; requirements<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
+<div style='clear:both;'></div>
+<p class='ruff'>Requirements:</p>
+<ul class='ruff'>
+<li>ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice interface (sharedspice.h).</li>
+<li>Tcl headers/libs (8.6–9.0).</li>
+</ul>
+<p class='ruff'>To install, run following commands:</p>
+<ul class='ruff'>
+<li><code>git clone https://github.com/georgtree/NgspiceTclBridge.git</code></li>
+<li><code>./configure</code></li>
+<li><code>sudo make install</code></li>
+</ul>
+<p class='ruff'>During installation manpages are also installed.</p>
+<p class='ruff'>For test package in place run <code>make test</code>.</p>
+<p class='ruff'>For package uninstall run <code>sudo make uninstall</code>.</p>
+<h2 class='ruff'><a name='Documentation'></a>Documentation<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
+<div style='clear:both;'></div>
+<p class='ruff'>Documentation could be found <a href="https://georgtree.github.io/NgspiceTclBridge/" >here</a>.</p>
+<h2 class='ruff'><a name='Quick start (synchronous operation)'></a>Quick start (synchronous operation)<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
+<div style='clear:both;'></div>
+<p class='ruff'>Package loading and initialization:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>package</font></b> require ngspicetclbridge
+
+<i><font color=#4b5d50># Path to your ngspice shared library</font></i>
+<b><font color=#923B23>set</font></b> ngspiceLibPath /path/to/libngspice.so
+
+<i><font color=#4b5d50># Create a new instance bound to a Tcl command</font></i>
+<b><font color=#923B23>set</font></b> sim [ngspicetclbridge::new <font color=#4A181B>$ngspiceLibPath</font>]
+
+<i><font color=#4b5d50># Initialize callbacks and internal structures</font></i>
+<font color=#4A181B>$sim</font> init
+</pre>
+
+</figure><p class='ruff'>To feed a circuit one line at a time via ngspice’s circbyline:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#ca14ca>proc</font></b> cirPass {sim circuitText} {
+    <b><font color=#923B23>foreach</font></b> line [<b><font color=#923B23>split</font></b> <font color=#4A181B>$circuitText</font> <font color=#035103>&quot;\n&quot;</font>] {
+        <b><font color=#923B23>if</font></b> {[<b><font color=#923B23>string</font></b> trim <font color=#4A181B>$line</font>] ne <font color=#035103>&quot;&quot;</font>} {
+            <font color=#4A181B>$sim</font> command [<b><font color=#923B23>concat</font></b> circbyline <font color=#4A181B>$line</font>]
+        }
+    }
+}
+<b><font color=#923B23>set</font></b> resDivCircuit {
+    <b><font color=#923B23>Resistor</font></b> divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    .dc v1 0 5 0.1
+    .save all
+    .end
+}
+</pre>
+
+</figure><p class='ruff'>Pass resistor divider circuit to Ngspice, and start the run background thread:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>cirPass <font color=#4A181B>$sim</font> <font color=#4A181B>$resDivCircuit</font>
+<font color=#4A181B>$sim</font> command bg_run
+</pre>
+
+</figure><p class='ruff'>Wait for an event (e.g., status becoming ready):</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> res [<font color=#4A181B>$sim</font> waitevent send_stat 1000]
+</pre>
+
+</figure><p class='ruff'>Explicitly process pending events handlers (without processing the events the messages, vector data and status will</p>
+<pre class='ruff'>                                        not be written into internal data storages)
+</pre>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>update</font></b>
+</pre>
+
+</figure><p class='ruff'>Get vector data dictionary saved in internal buffer:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> vectors
+</pre>
+
+</figure><p class='ruff'>Destroy instance of simulator (removes instance command, frees internal storages and simulator context)</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> destroy
+</pre>
+
+</figure><p class='ruff'>If you want to continue work with current simulator instance, you need to clear internal vector/messages storage with next commands (otherwise data will be appended to data from previous simulation):</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$s1</font> vectors <font color=#463e11>-clear</font>
+<font color=#4A181B>$s1</font> messages <font color=#463e11>-clear</font>
+</pre>
+
+</figure></main><nav class='ruff-nav'><ul ><li class='ruff-toc1'><a class='ruff-highlight' style='padding-top:2px;' href='index.html'>Start page</a></li>
+<li class='ruff-toc1'><a href='index-docindex.html' accesskey='i'>Index</a></li>
+<hr>
+<li class='ruff-toc1'><a href='index-ngspicetclbridge.html'>ngspicetclbridge</a></li>
+<li class='ruff-toc1'><a href='index-Notes-and-internals.html'>Notes and internals</a></li>
+<li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
+<hr><li class='ruff-toc2'><a href='#What it gives you (at a glance)'>What it gives you (at a glance)</a></li><li class='ruff-toc2'><a href='#Building &amp; requirements'>Building &amp; requirements</a></li><li class='ruff-toc2'><a href='#Documentation'>Documentation</a></li><li class='ruff-toc2'><a href='#Quick start (synchronous operation)'>Quick start (synchronous operation)</a></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
+</div></body></html>

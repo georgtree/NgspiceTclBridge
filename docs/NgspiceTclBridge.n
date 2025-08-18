@@ -1,0 +1,159 @@
+'\"
+'\" '\" Copyright (c) George Yashin
+'\"
+.TH "NgspiceTclBridge" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.SH NAME
+Introduction - Tcl NgspiceTclBridge package
+.SH "NGSPICETCLBRIDGE — DRIVE NGSPICE (SHARED LIBRARY) FROM TCL"
+.PP
+ngspicetclbridge is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small,
+thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving
+data/messages/events back into Tcl\&.
+.PP
+It targets Tcl 8\&.6–9\&.0 and works on Linux/macOS/Windows\&. Dynamic loading is abstracted via a tiny portability layer\&.
+.SH "WHAT IT GIVES YOU (AT A GLANCE)"
+.TP
+\(bu
+Create one or more ngspice instances inside Tcl\&.
+.TP
+\(bu
+Issue ngspice commands (e\&.g\&. bg_run, circbyline \&.\&.\&.)\&.
+.TP
+\(bu
+Wait for events (send_stat, send_data, etc\&.) with optional timeouts\&.
+.TP
+\(bu
+Collect messages from ngspice stdout/stderr\&.
+.TP
+\(bu
+Fetch vector metadata and values (both asynchronously collected and on-demand)\&.
+.PP
+All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread\&.
+.SH "BUILDING & REQUIREMENTS"
+.PP
+Requirements:
+.TP
+\(bu
+ngspice built as a shared library (e\&.g\&. libngspice\&.so, libngspice\&.dylib, or libngspice\&.dll) with the sharedspice interface (sharedspice\&.h)\&.
+.TP
+\(bu
+Tcl headers/libs (8\&.6–9\&.0)\&.
+.PP
+To install, run following commands:
+.TP
+\(bu
+git clone https://github\&.com/georgtree/NgspiceTclBridge\&.git
+.TP
+\(bu
+\&./configure
+.TP
+\(bu
+sudo make install
+.PP
+During installation manpages are also installed\&.
+.PP
+For test package in place run make test\&.
+.PP
+For package uninstall run sudo make uninstall\&.
+.SH DOCUMENTATION
+.PP
+Documentation could be found \fIhere\fP [URL: https://georgtree\&.github\&.io/NgspiceTclBridge/]\&.
+.SH "QUICK START (SYNCHRONOUS OPERATION)"
+.PP
+Package loading and initialization:
+.PP
+.RS 4n
+.nf
+package require ngspicetclbridge
+
+# Path to your ngspice shared library
+set ngspiceLibPath /path/to/libngspice\&.so
+
+# Create a new instance bound to a Tcl command
+set sim [ngspicetclbridge::new $ngspiceLibPath]
+
+# Initialize callbacks and internal structures
+$sim init
+.fi
+.RE
+.PP
+To feed a circuit one line at a time via ngspice’s circbyline:
+.PP
+.RS 4n
+.nf
+proc cirPass {sim circuitText} {
+    foreach line [split $circuitText "\\n"] {
+        if {[string trim $line] ne ""} {
+            $sim command [concat circbyline $line]
+        }
+    }
+}
+set resDivCircuit {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    \&.dc v1 0 5 0\&.1
+    \&.save all
+    \&.end
+}
+.fi
+.RE
+.PP
+Pass resistor divider circuit to Ngspice, and start the run background thread:
+.PP
+.RS 4n
+.nf
+cirPass $sim $resDivCircuit
+$sim command bg_run
+.fi
+.RE
+.PP
+Wait for an event (e\&.g\&., status becoming ready):
+.PP
+.RS 4n
+.nf
+set res [$sim waitevent send_stat 1000]
+.fi
+.RE
+.PP
+Explicitly process pending events handlers (without processing the events the messages, vector data and status will
+.PP
+.RS 4n
+.nf
+                                        not be written into internal data storages)
+.fi
+.RE
+.PP
+.RS 4n
+.nf
+update
+.fi
+.RE
+.PP
+Get vector data dictionary saved in internal buffer:
+.PP
+.RS 4n
+.nf
+$sim vectors
+.fi
+.RE
+.PP
+Destroy instance of simulator (removes instance command, frees internal storages and simulator context)
+.PP
+.RS 4n
+.nf
+$sim destroy
+.fi
+.RE
+.PP
+If you want to continue work with current simulator instance, you need to clear internal vector/messages storage
+with next commands (otherwise data will be appended to data from previous simulation):
+.PP
+.RS 4n
+.nf
+$s1 vectors -clear
+$s1 messages -clear
+.fi
+.RE
+

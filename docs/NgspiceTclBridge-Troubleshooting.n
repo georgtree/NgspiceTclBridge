@@ -1,0 +1,20 @@
+'\"
+'\" '\" Copyright (c) George Yashin
+'\"
+.TH "Troubleshooting" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.SH NAME
+Troubleshooting - Commands in namespace Troubleshooting
+.SH TROUBLESHOOTING
+.TP
+\(bu
+waitevent \fBalways times out\fP: make sure you actually started the background run ($sim command bg_run) and you allow the Tcl event loop to process events (update) between waits when appropriate\&.
+.TP
+\(bu
+\fBCircuit is not loaded\fP: ensure your circuit issues \&.end directive\&.
+.TP
+\(bu
+\fBComplex data surprises\fP: if you expected real data but get {re im} pairs, your vector is complex per ngspice\&. Handle both cases in your Tcl code if needed\&.
+.TP
+\(bu
+\fBMultiple runs\fP: clear old data between runs if you want pristine buffers: $sim vectors -clear, $sim initvectors -clear, and optionally $sim eventcounts -clear\&.
+

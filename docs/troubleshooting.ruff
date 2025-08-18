@@ -1,0 +1,16 @@
+namespace eval Troubleshooting {
+    variable _ruff_preamble {
+
+        - `waitevent` **always times out**: make sure you actually started the background run (`$sim command bg_run`)
+        and you allow the Tcl event loop to process events (update) between waits when appropriate.
+
+        - **Circuit is not loaded**: ensure your circuit issues `.end` directive.
+
+        - **Complex data surprises**: if you expected real data but get `{re im}` pairs, your vector is complex per
+        ngspice. Handle both cases in your Tcl code if needed.
+
+        - **Multiple runs**: clear old data between runs if you want pristine buffers: `$sim vectors -clear`,
+        `$sim initvectors -clear`, and optionally `$sim eventcounts -clear`.
+
+    } 
+}
