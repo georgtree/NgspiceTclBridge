@@ -4,7 +4,7 @@
 .TH "NgspiceTclBridge" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Introduction - Tcl NgspiceTclBridge package
-.SH "NGSPICETCLBRIDGE — DRIVE NGSPICE (SHARED LIBRARY) FROM TCL"
+.SH "NGSPICETCLBRIDGE - DRIVE NGSPICE (SHARED LIBRARY) FROM TCL"
 .PP
 ngspicetclbridge is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small,
 thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving

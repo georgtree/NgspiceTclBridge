@@ -1,4 +1,4 @@
-# NgspiceTclBridge — drive ngspice (shared library) from Tcl
+# NgspiceTclBridge - drive ngspice (shared library) from Tcl
 
 `ngspicetclbridge` is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small, thread-safe
 command API for loading circuits, running analyses in the ngspice background thread, and receiving data/messages/events
@@ -37,7 +37,7 @@ For package uninstall run `sudo make uninstall`.
 
 ## Documentation
 
-Documentation could be found [here](https://georgtree.github.io/NgspiceTclBridge/). 
+Documentation could be found [here](https://georgtree.github.io//). 
 
 ## Quick start (synchronous operation)
 
