@@ -1,7 +1,7 @@
 set path_to_hl_tcl "/home/georgtree/tcl/hl_tcl"
 
 #package require ruff
-source /home/georgtree/ruff/src/ruff.tcl
+source /home/georgtree/tcl/ruff/src/ruff.tcl
 package require fileutil
 package require hl_tcl
 

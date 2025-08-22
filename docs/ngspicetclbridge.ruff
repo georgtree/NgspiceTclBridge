@@ -41,8 +41,8 @@ namespace eval ::ngspicetclbridge {
         #  timeout_ms -  timeout in miliseconds, optional
         # Returns: dictionary with information about event
         #
-        
-        #ruff include html
+        #
+        #ruffopt includedformats html
         # <div style="ruff_bd">
         # <table class="ruff_deflist">
         # <tbody>
@@ -59,8 +59,8 @@ namespace eval ::ngspicetclbridge {
         # <tr><td><code>bg_running</code></td><td>BGThreadRunning</td><td>When the Ngspice background thread changes
         # state: <code>running=false</code> means it just started running, <code>running=true</code> means it has
         # stopped.</td></tr> </tbody> </table> </div>
-
-        #ruff include nroff
+        #
+        #ruffopt includedformats nroff
         #```
         # ┌───────────────────┬──────────────────────────────┬───────────────────────────────────────────────────────┐
         # │ Event name        │ Ngspice callback function    │ When it is called                                     │
@@ -87,8 +87,8 @@ namespace eval ::ngspicetclbridge {
         # │                   │                              │ running=true  → it has stopped.                       │
         # └───────────────────┴──────────────────────────────┴───────────────────────────────────────────────────────┘
         #```
-
-        #ruff include markdown
+        #
+        #ruffopt includedformats markdown
         # | Event name        | Ngspice callback function name | When it is called                                                                                                                 |
         # |:------------------|:-------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
         # | `send_char`       | `SendChar`                     | Whenever Ngspice produces a line of text on stdout or stderr.                                                                     |
@@ -97,19 +97,19 @@ namespace eval ::ngspicetclbridge {
         # | `send_data`       | `SendData`                     | During an analysis, whenever Ngspice sends a row of vector values (time step or sweep point) to the callback.                     |
         # | `send_init_data`  | `SendInitData`                 | At the start of a run, when Ngspice sends metadata for all vectors in the current plot (names, types, indexes, real/complex).     |
         # | `bg_running`      | `BGThreadRunning`              | When the Ngspice background thread changes state: running=false means it just started running, running=true means it has stopped. |
-        #ruff
-
-        #ruff include html
+        #
+        #
+        #ruffopt includedformats html
         # <div style="ruff_bd"> <table class="ruff_deflist"> <tbody> <tr><th>Time</th><th>Tcl Script
         # Action</th><th>Ngspice Core Activity</th><th>Bridge Callback Fired</th><th>Tcl Event Name Seen</th></tr>
         # <tr><td>t0</td><td><code>set s [..::new ..]</code></td><td>Library
-        # loaded</td><td><em>(none)</em></td><td><em>(none)</em></td></tr> <tr><td>t1</td><td><code>$s
-        # init</code></td><td>Initialization completed</td><td><em>(none)</em></td><td><em>(none)</em></td></tr>
+        # loaded</td><td><em>(none)</em></td><td><em>(none)</em></td></tr> <tr><td>t1</td><td>$s<code>init</code></td>
+        # <td>Initialization completed</td><td><em>(none)</em></td><td><em>(none)</em></td></tr>
         # <tr><td>t2</td><td><code>cirPass …</code></td><td>Parses circuit
         # line</td><td><code>send_char("...")</code></td><td><code>send_char</code></td></tr>
         # <tr><td>t3</td><td><em>(more circbyline calls)</em></td><td>Parses circuit
         # line</td><td><code>send_char("...")</code></td><td><code>send_char</code></td></tr>
-        # <tr><td>t4</td><td><code>$s command bg_run</code></td><td>Start background
+        # <tr><td>t4</td><td>$s<code>command bg_run</code></td><td>Start background
         # simulation</td><td><code>bg_running(false)</code></td><td><code>bg_running</code></td></tr>
         # <tr><td>t5</td><td><em>(analysis setup)</em></td><td>Build vector
         # table</td><td><code>send_init_data()</code></td><td><code>send_init_data</code></td></tr>
@@ -123,12 +123,12 @@ namespace eval ::ngspicetclbridge {
         # ready</td><td><code>send_stat("--ready--")</code></td><td><code>send_stat</code></td></tr>
         # <tr><td>t10</td><td><em>(BG thread exits)</em></td><td>Background thread
         # exits</td><td><code>bg_running(true)</code></td><td><code>bg_running</code></td></tr>
-        # <tr><td>t11</td><td><code>$s command quit</code></td><td>ngspice
+        # <tr><td>t11</td><td>$s<code>command quit</code></td><td>ngspice
         # quits</td><td><code>controlled_exit(...)</code></td><td><code>controlled_exit</code></td></tr>
-        # <tr><td>t12</td><td><code>$s destroy</code></td><td>Teardown</td><td><em>(no further
+        # <tr><td>t12</td><td>$s<code>destroy</code></td><td>Teardown</td><td><em>(no further
         # calls)</em></td><td><em>(command removed)</em></td></tr> </tbody> </table> </div>
-
-        #ruff include nroff
+        #
+        #ruffopt includedformats nroff
         #```
         # ┌─────┬─────────────────────────┬─────────────────────────────┬─────────────────────────┬─────────────────────┐
         # │ Time│ Tcl Script Action       │ Ngspice Core Activity       │ Bridge Callback Fired   │ Tcl Event Name Seen │
@@ -160,8 +160,8 @@ namespace eval ::ngspicetclbridge {
         # │ t12 │ $s destroy              │ Teardown                    │ (no further calls)      │ (command removed)   │
         # └─────┴─────────────────────────┴─────────────────────────────┴─────────────────────────┴─────────────────────┘
         #```
-
-        #ruff include markdown
+        #
+        #ruffopt includedformats markdown
         # | Time | Tcl Script Action         | Ngspice Core Activity       | Bridge Callback Fired    | Tcl Event Name Seen |
         # |------|---------------------------|-----------------------------|--------------------------|---------------------|
         # | t0   | `set s [..::new ..]`      | Library loaded              | *(none)*                 | *(none)*            |
@@ -177,8 +177,7 @@ namespace eval ::ngspicetclbridge {
         # | t10  | *(BG thread exits)*       | Background thread exits     | `bg_running(true)`       | `bg_running`        |
         # | t11  | `$s command quit`         | ngspice quits               | `controlled_exit(...)`   | `controlled_exit`   |
         # | t12  | `$s destroy`              | Teardown                    | *(no further calls)*     | *(command removed)* |
-
-        #ruff
+        #
         # Result dictionary of the command:
         #   - `fired` \- `0|1`, whether the event occurred during this wait
         #   - `count` \- cumulative total count for that event so far

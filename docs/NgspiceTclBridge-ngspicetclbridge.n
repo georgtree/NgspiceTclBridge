@@ -27,7 +27,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBvectors\fP \fI?-clear?\fP
 .br
-\fBwaitevent\fP \fIname ?timeout_ms?\fP
+\fBwaitevent\fP \fI?args?\fP
 .br
 .SH ::NGSPICETCLBRIDGE
 .SH COMMANDS
@@ -360,7 +360,7 @@ dict with vectors values accumulated up to this point in internal structure
 .PP
 Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided)\&.
 .RS 4n
-\fBwaitevent\fP \fIname ?timeout_ms?\fP
+\fBwaitevent\fP \fI?args?\fP
 .br
 .RE
 .PP
@@ -438,31 +438,6 @@ Timeout in miliseconds, optional\&.
 └─────┴─────────────────────────┴─────────────────────────────┴─────────────────────────┴─────────────────────┘
 .fi
 .RE
-.PP
-Result dictionary of the command:
-.TP
-\(bu
-fired - 0|1, whether the event occurred during this wait
-.TP
-\(bu
-count - cumulative total count for that event so far
-.TP
-\(bu
-status - ok | timeout | aborted
-.PP
-Examples:
-.PP
-.RS 4n
-.nf
-$sim waitevent send_stat 1000
-# -> {fired 1 count 1 status ok}
-
-$sim waitevent send_stat 1000
-# -> {fired 0 count 1 status timeout}  ;# nothing new in the next 1s
-.fi
-.RE
-.PP
-If you want “fresh” waits, you can clear counts with eventcounts -clear\&.
 .PP
 \fBReturn value\fR
 .PP
