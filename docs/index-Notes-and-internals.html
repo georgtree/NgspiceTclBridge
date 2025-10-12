@@ -21,11 +21,65 @@
 <li><strong>Complex vs real vectors</strong>: asyncvector checks <code>vinfo-&gt;v_flags & VF_COMPLEX</code>. If set, you get <code>{re im}</code> pairs, otherwise doubles.</li>
 <li><strong>Portability</strong>: <code>PDl_OpenFromObj/PDl_Sym/PDl_Close</code> abstract <code>dlopen/GetProcAddress/FreeLibrary</code>. The library path is taken from a Tcl path object to handle platform Unicode semantics.</li>
 </ul>
+<h2 class='ruff'><a name='::Notes and internals-General implementation details'></a>General implementation details<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
+<div style='clear:both;'></div>
+<p class='ruff'>This part is mostly for me (and other contributors) to quick recall many implementation details and decisions. All information provided here could be found in source code comments, but in more spreaded form.</p>
+<h3 class='ruff'><a name='::Notes and internals-How instance subcommands are implemented'></a>How instance subcommands are implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>In initialization function <code>Ngspicetclbridge_Init</code> for package we register the single command <code>::ngspicetclbridge::new</code> that accepts path to shared library. This command does initialization of simulator instance and returns handle that could be used to control this particular simulator instance.</p>
+<p class='ruff'>The implementation of this command is done by C function <code>NgSpiceNewCmd</code>. It does a lot of stuff inside:</p>
+<ul class='ruff'>
+<li>Allocates <code>NgSpiceContext</code> structure that holds all information related to this particular instance of simulator</li>
+<li>Initializes message queue inside <code>NgSpiceContext</code></li>
+<li>Initializes data buffer inside <code>NgSpiceContext</code></li>
+<li>Open shared library and resolve all required symbols</li>
+<li>Creates unique handle command that is used later to work with this particular simulator instance in form <code>::ngspicetclbridge::s&lt;N&gt;</code> where N is a monotonically increasing sequence number</li>
+</ul>
+<p class='ruff'>When we register that new unique handle command by <code>Tcl_CreateObjCommand2</code>, we provide the pointer to <code>NgSpiceContext</code> as a client data, that now &quot;tied&quot; to this unique handle command. Also we provide function that deletes the handler and frees assosiated <code>NgSpiceContext</code>.</p>
+<p class='ruff'>Implementation of this command is done by <code>InstObjCmd</code> function. This is the location where actual implementations of subcommands like <code>init</code>, <code>command</code>, <code>waitevent</code> etc are residing. Because we provide the pointer to <code>NgSpiceContext</code> as a <code>ClientData</code>, we can access and manipulate all internal structures that are assosiated with that simulator instance, like the message queue <code>MsgQueue msgq</code>, data buffer <code>DataBuf prod</code>, processed vector data <code>Tcl_Obj *vectorData</code>, etc.</p>
+<h3 class='ruff'><a name='::Notes and internals-How sync callbacks from Ngspice is implemented'></a>How sync callbacks from Ngspice is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Ngspice can call the certain function when some things happened inside running background thread, or when it needs to send a message to the caller. For that purpose we register callback functions by calling <code>ngSpice_Init</code> function with pointers to our functions inside <code>InstObjCmd</code>:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>int rc = ctx-&gt;ngSpice_Init(SendCharCallback, SendStatCallback, ControlledExitCallback, SendDataCallback,
+                           SendInitDataCallback, BGThreadRunningCallback, ctx);
+</pre>
+
+</figure><p class='ruff'>From Ngspice manual, the declaration of the function <code>ngSpice_Init</code> is:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>int ngSpice_Init(SendChar*, SendStat*, ControlledExit*, SendData*, SendInitData*, BGThreadRunning*, void*)
+</pre>
+
+</figure><p class='ruff'>Each function pointer provided makes a connection between certain Ngspice call and callback function in Tcl C code. The last element could be used to pass certain information to callback from Ngspice, and we use it to pass pointer to <code>NgSpiceContext</code>.</p>
+<p class='ruff'>Because callback could be fired at any moment of Tcl script execution, it is done by untilizing Tcl event loop, where each callback function adds event to event queue to further processing at the desirable moment.</p>
+<h3 class='ruff'><a name='::Notes and internals-How event queue interaction is implemented'></a>How event queue interaction is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>First step is to add declaration to Tcl event structure that represents the event from Ngspice:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct {
+    Tcl_Event header;
+    NgSpiceContext *ctx;
+    int callbackId;
+} NgSpiceEvent;
+</pre>
+
+</figure><p class='ruff'>It contains <code>Tcl_Event header</code> object that is mandatory for each event that will be registered in Tcl event loop. <code>NgSpiceContext *ctx</code> pointer defines the context event belongs. <code>int callbackId</code> shows the type of this particular Ngspice event. Callbacks ids are declared with enumeration <code>CallbacksIds</code>.</p>
+<p class='ruff'>Each callback function provided to Ngspice adds event to Tcl event queue by calling function <code>static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId)</code>, where the appropriated callback id is provided.</p>
+<p class='ruff'><code>NgSpiceQueueEvent</code> function adds event to Tcl event loop by calling <code>Tcl_QueueEvent</code>, along with providing processing function as pointer saved in <code>header.proc</code> member of <code>NgSpiceEvent</code> structure member <code>header</code>. Events are delivered to the same thread that created the <code>NgSpiceContext</code>, regardless of the calling thread.</p>
+<p class='ruff'>Function <code>NgSpiceEventProc</code> is using in the event processing stage, when the actual event is processing by Tcl interpreter. Most of defined Ngspice events don't need additional processing besides the saving messages in the message queue and incrementing event counter. The two elements that are needed to be additionally processed are the events <code>SEND_INIT_DATA</code> and <code>SEND_DATA</code> - Ngspice does callbacks which tells that initial data, or new data is availible. At each callback we write data into <code>DataBuf</code> member of <code>NgSpiceContext</code> (or initial data into <code>InitSnap</code> member). When we process the events that are registered at each such callback, we transfer data from that buffer to another members of <code>NgSpiceContext</code> - <code>Tcl_Obj *vectorData</code> and <code>Tcl_Obj *vectorInit</code>. These members contains processed vector data in form of Tcl dictionary objects.</p>
+<p class='ruff'>When events <code>SEND_INIT_DATA</code> and <code>SEND_DATA</code> are processed, the certain rows of <code>DataBuf</code> is cleared.</p>
+<p class='ruff'>There is an events counter that stores information how many times each Ngspice event type was occured. It is stored as a member of <code>NgSpiceContext</code> in form of <code>uint64_t</code> array <code>evt_counts[NUM_EVTS]</code>.</p>
+<h3 class='ruff'><a name='::Notes and internals-How data processing is implemented'></a>How data processing is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<h3 class='ruff'><a name='::Notes and internals-How message queue is implemented'></a>How message queue is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<h3 class='ruff'><a name='::Notes and internals-How asynchronous access to Ngspice data is implemented'></a>How asynchronous access to Ngspice data is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
 </main><nav class='ruff-nav'><ul ><li class='ruff-toc1'><a style='padding-top:2px;' href='index.html'>Start page</a></li>
 <li class='ruff-toc1'><a href='index-docindex.html' accesskey='i'>Index</a></li>
 <hr>
 <li class='ruff-toc1'><a href='index-ngspicetclbridge.html'>ngspicetclbridge</a></li>
 <li class='ruff-toc1'><a class='ruff-highlight' href='index-Notes-and-internals.html'>Notes and internals</a></li>
 <li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
-<hr></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
+<hr><li class='ruff-toc2'><a href='#::Notes and internals-General implementation details'>General implementation details</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How instance subcommands are implemented'>How instance subcommands are implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How sync callbacks from Ngspice is implemented'>How sync callbacks from Ngspice is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How event queue interaction is implemented'>How event queue interaction is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How data processing is implemented'>How data processing is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How message queue is implemented'>How message queue is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How asynchronous access to Ngspice data is implemented'>How asynchronous access to Ngspice data is implemented</a></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
 </div></body></html>

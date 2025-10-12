@@ -48,7 +48,7 @@ typedef struct {
 
 typedef struct {
     DataRow *rows;
-    size_t   count, cap;
+    size_t count, cap;
 } DataBuf;
 
 //** define message queue

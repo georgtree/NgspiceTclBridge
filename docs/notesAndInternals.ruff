@@ -14,5 +14,102 @@ namespace eval {Notes and internals} {
         - **Portability**: `PDl_OpenFromObj/PDl_Sym/PDl_Close` abstract `dlopen/GetProcAddress/FreeLibrary`. The library
         path is taken from a Tcl path object to handle platform Unicode semantics.
 
+        ## General implementation details
+
+        This part is mostly for me (and other contributors) to quick recall many implementation details and decisions.
+        All information provided here could be found in source code comments, but in more spreaded form.
+
+        ### How instance subcommands are implemented
+
+        In initialization function `Ngspicetclbridge_Init` for package we register the single command 
+        `::ngspicetclbridge::new` that accepts path to shared library. This command does initialization of simulator 
+        instance and returns handle that could be used to control this particular simulator instance.
+
+        The implementation of this command is done by C function `NgSpiceNewCmd`. It does a lot of stuff inside:
+
+        - Allocates `NgSpiceContext` structure that holds all information related to this particular instance of
+        simulator
+        - Initializes message queue inside `NgSpiceContext`
+        - Initializes data buffer inside `NgSpiceContext`
+        - Open shared library and resolve all required symbols
+        - Creates unique handle command that is used later to work with this particular simulator instance in form
+        `::ngspicetclbridge::s<N>` where N is a monotonically increasing sequence number
+
+        When we register that new unique handle command by `Tcl_CreateObjCommand2`, we provide the pointer to
+        `NgSpiceContext` as a client data, that now "tied" to this unique handle command. Also we provide function
+        that deletes the handler and frees assosiated `NgSpiceContext`.
+
+        Implementation of this command is done by `InstObjCmd` function. This is the location where actual
+        implementations of subcommands like `init`, `command`, `waitevent` etc are residing. Because we provide the
+        pointer to `NgSpiceContext` as a `ClientData`, we can access and manipulate all internal structures that are
+        assosiated with that simulator instance, like the message queue `MsgQueue msgq`, data buffer `DataBuf prod`,
+        processed vector data `Tcl_Obj *vectorData`, etc.
+
+        ### How sync callbacks from Ngspice is implemented
+
+        Ngspice can call the certain function when some things happened inside running background thread, or when
+        it needs to send a message to the caller. For that purpose we register callback functions by calling 
+        `ngSpice_Init` function with pointers to our functions inside `InstObjCmd`:
+        ```c
+        int rc = ctx->ngSpice_Init(SendCharCallback, SendStatCallback, ControlledExitCallback, SendDataCallback,
+                                   SendInitDataCallback, BGThreadRunningCallback, ctx);
+        ```
+
+        From Ngspice manual, the declaration of the function `ngSpice_Init` is:
+        ```c
+        int ngSpice_Init(SendChar*, SendStat*, ControlledExit*, SendData*, SendInitData*, BGThreadRunning*, void*)
+        ```
+
+        Each function pointer provided makes a connection between certain Ngspice call and callback function in Tcl C
+        code. The last element could be used to pass certain information to callback from Ngspice, and we use it to
+        pass pointer to `NgSpiceContext`.
+
+        Because callback could be fired at any moment of Tcl script execution, it is done by untilizing Tcl event loop,
+        where each callback function adds event to event queue to further processing at the desirable moment.
+
+        ### How event queue interaction is implemented
+
+        First step is to add declaration to Tcl event structure that represents the event from Ngspice:
+        ```tcl
+        typedef struct {
+            Tcl_Event header;
+            NgSpiceContext *ctx;
+            int callbackId;
+        } NgSpiceEvent;
+        ```
+
+        It contains `Tcl_Event header` object that is mandatory for each event that will be registered in Tcl event
+        loop. `NgSpiceContext *ctx` pointer defines the context event belongs. `int callbackId` shows the type of this
+        particular Ngspice event. Callbacks ids are declared with enumeration `CallbacksIds`.
+
+        Each callback function provided to Ngspice adds event to Tcl event queue by calling function 
+        `static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId)`, where the appropriated callback id
+        is provided.
+
+        `NgSpiceQueueEvent` function adds event to Tcl event loop by calling `Tcl_QueueEvent`, along with providing
+        processing function as pointer saved in `header.proc` member of `NgSpiceEvent` structure member `header`.
+        Events are delivered to the same thread that created the `NgSpiceContext`, regardless of the calling thread.
+
+        Function `NgSpiceEventProc` is using in the event processing stage, when the actual event is processing by Tcl
+        interpreter. Most of defined Ngspice events don't need additional processing besides the saving messages in the
+        message queue and incrementing event counter. The two elements that are needed to be additionally processed are
+        the events `SEND_INIT_DATA` and `SEND_DATA` - Ngspice does callbacks which tells that initial data, or new data
+        is availible. At each callback we write data into `DataBuf` member of `NgSpiceContext` (or initial data into
+        `InitSnap` member). When we process the events that are registered at each such callback, we transfer data
+        from that buffer to another members of `NgSpiceContext` - `Tcl_Obj *vectorData` and `Tcl_Obj *vectorInit`. These
+        members contains processed vector data in form of Tcl dictionary objects.
+
+        When events `SEND_INIT_DATA` and `SEND_DATA` are processed, the certain rows of `DataBuf` is cleared.
+
+        There is an events counter that stores information how many times each Ngspice event type was occured. It is
+        stored as a member of `NgSpiceContext` in form of `uint64_t` array `evt_counts[NUM_EVTS]`.
+
+        ### How thread safety is ensured
+
+        ### How data processing is implemented
+
+        ### How message queue is implemented
+
+        ### How asynchronous access to Ngspice data is implemented
     }
 }
