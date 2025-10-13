@@ -4,7 +4,7 @@
 command API for loading circuits, running analyses in the ngspice background thread, and receiving data/messages/events
 back into Tcl.
 
-It targets Tcl 8.6–9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.
+It targets Tcl 9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.
 
 ## What it gives you (at a glance)
 
@@ -22,7 +22,7 @@ Requirements:
 
 - ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice
   interface (sharedspice.h).
-- Tcl headers/libs (8.6–9.0).
+- Tcl headers/libs (9.0).
 
 To install, run following commands:
 - `git clone https://github.com/georgtree/NgspiceTclBridge.git`
@@ -109,13 +109,14 @@ Destroy instance of simulator (removes instance command, frees internal storages
 $sim destroy
 ```
 
-If you want to continue work with current simulator instance, you need to clear internal vector/messages storage
-with next commands (otherwise data will be appended to data from previous simulation):
+If you want to continue work with current simulator instance, you need to clear internal messages storage
+with next commands:
 
 ``` tcl
-$s1 vectors -clear
 $s1 messages -clear
 ```
+
+Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data.
 
 ## Troubleshooting
 
@@ -127,5 +128,6 @@ $s1 messages -clear
 - **Complex data surprises**: if you expected real data but get `{re im}` pairs, your vector is complex per
   ngspice. Handle both cases in your Tcl code if needed.
 
-- **Multiple runs**: clear old data between runs if you want pristine buffers: `$sim vectors -clear`, `$sim initvectors
-  -clear`, and optionally `$sim eventcounts -clear`.
+- **Multiple runs**: clear old event data between runs if you want pristine event counters and messages buffer:
+  `$sim messages -clear` and  `$sim eventcounts -clear`. Data buffer and saved vectors resetted after run of
+  the new simulation to prevent data mixing.

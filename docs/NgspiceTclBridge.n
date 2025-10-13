@@ -10,7 +10,7 @@ ngspicetclbridge is a Tcl C extension that embeds Ngspice (built as a shared lib
 thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving
 data/messages/events back into Tcl\&.
 .PP
-It targets Tcl 8\&.6–9\&.0 and works on Linux/macOS/Windows\&. Dynamic loading is abstracted via a tiny portability layer\&.
+It targets Tcl 9\&.0 and works on Linux/macOS/Windows\&. Dynamic loading is abstracted via a tiny portability layer\&.
 .SH "WHAT IT GIVES YOU (AT A GLANCE)"
 .TP
 \(bu
@@ -37,7 +37,7 @@ Requirements:
 ngspice built as a shared library (e\&.g\&. libngspice\&.so, libngspice\&.dylib, or libngspice\&.dll) with the sharedspice interface (sharedspice\&.h)\&.
 .TP
 \(bu
-Tcl headers/libs (8\&.6–9\&.0)\&.
+Tcl headers/libs (9\&.0)\&.
 .PP
 To install, run following commands:
 .TP

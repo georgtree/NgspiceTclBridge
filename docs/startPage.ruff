@@ -6,7 +6,7 @@ variable startPage {
     thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving
     data/messages/events back into Tcl.
 
-    It targets Tcl 8.6–9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.
+    It targets Tcl 9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.
 
     ## What it gives you (at a glance)
 
@@ -24,7 +24,7 @@ variable startPage {
 
     - ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice
     interface (sharedspice.h).
-    - Tcl headers/libs (8.6–9.0).
+    - Tcl headers/libs (9.0).
 
     To install, run following commands:
     - `git clone https://github.com/georgtree/NgspiceTclBridge.git`
