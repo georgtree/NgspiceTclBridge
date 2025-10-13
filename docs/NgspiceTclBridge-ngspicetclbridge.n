@@ -318,7 +318,7 @@ command name to work with Ngspice instance
 \fBvectors\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns held \fBasynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
+Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
 dict with vectors values accumulated up to this point in internal structure
 .RS 4n
 \fBvectors\fP \fI?-clear?\fP
@@ -346,12 +346,9 @@ $sim vectors -clear
 .fi
 .RE
 .PP
-\fBWarning\fP: accumulation of data continues even if you run new circuit or analysis until you explicitly clear
-the data storage\&.
-.PP
 \fBReturn value\fR
 .PP
-Returns held \fBasynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
+Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
 dict with vectors values accumulated up to this point in internal structure
 .PP
 .RS -4n

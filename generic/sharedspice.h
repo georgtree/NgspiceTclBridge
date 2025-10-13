@@ -162,7 +162,7 @@ extern "C" {
 struct ngcomplex {
     double cx_real;
     double cx_imag;
-} ;
+};
 
 typedef struct ngcomplex ngcomplex_t;
 #endif

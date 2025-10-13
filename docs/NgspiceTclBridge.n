@@ -142,13 +142,14 @@ $sim destroy
 .fi
 .RE
 .PP
-If you want to continue work with current simulator instance, you need to clear internal vector/messages storage
-with next commands (otherwise data will be appended to data from previous simulation):
+If you want to continue work with current simulator instance, you need to clear internal messages storage
+with next commands:
 .PP
 .RS 4n
 .nf
-$s1 vectors -clear
 $s1 messages -clear
 .fi
 .RE
+.PP
+Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data\&.
 

@@ -7,6 +7,8 @@
 #include <tclThread.h>
 #include <stdint.h>
 #include <tcl.h>
+
+#define XSPICE 1
 #include "sharedspice.h"
 #include "portable_dl.h"
 
@@ -113,6 +115,9 @@ typedef struct {
     MsgQueue msgq;
     uint64_t evt_counts[NUM_EVTS];
     int destroying;
+
+    uint64_t gen;            // <— current generation (run_id)
+    int new_run_pending;     // <— optional: for the one-shot auto-reset in INIT processing
 } NgSpiceContext;
 
 //** Define a Tcl event record
@@ -120,4 +125,5 @@ typedef struct {
     Tcl_Event header;
     NgSpiceContext *ctx;
     int callbackId;
+    uint64_t gen;
 } NgSpiceEvent;

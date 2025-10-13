@@ -75,12 +75,15 @@ namespace eval {Notes and internals} {
             Tcl_Event header;
             NgSpiceContext *ctx;
             int callbackId;
+            uint64_t gen;
         } NgSpiceEvent;
         ```
 
         It contains `Tcl_Event header` object that is mandatory for each event that will be registered in Tcl event
         loop. `NgSpiceContext *ctx` pointer defines the context event belongs. `int callbackId` shows the type of this
-        particular Ngspice event. Callbacks ids are declared with enumeration `CallbacksIds`.
+        particular Ngspice event. Callbacks ids are declared with enumeration `CallbacksIds`. Member `gen` represents
+        "generation" to which event belongs - generation counter increased after each initializing callback
+        `SendInitDataCallback`. 
 
         Each callback function provided to Ngspice adds event to Tcl event queue by calling function 
         `static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId)`, where the appropriated callback id
@@ -89,6 +92,7 @@ namespace eval {Notes and internals} {
         `NgSpiceQueueEvent` function adds event to Tcl event loop by calling `Tcl_QueueEvent`, along with providing
         processing function as pointer saved in `header.proc` member of `NgSpiceEvent` structure member `header`.
         Events are delivered to the same thread that created the `NgSpiceContext`, regardless of the calling thread.
+        Function also has current generation of the event as an argument.
 
         Function `NgSpiceEventProc` is using in the event processing stage, when the actual event is processing by Tcl
         interpreter. Most of defined Ngspice events don't need additional processing besides the saving messages in the
@@ -99,7 +103,10 @@ namespace eval {Notes and internals} {
         from that buffer to another members of `NgSpiceContext` - `Tcl_Obj *vectorData` and `Tcl_Obj *vectorInit`. These
         members contains processed vector data in form of Tcl dictionary objects.
 
-        When events `SEND_INIT_DATA` and `SEND_DATA` are processed, the certain rows of `DataBuf` is cleared.
+        `NgSpiceEventProc` ignores events not from current generation, so not processed events from previous runs are
+        ignored.
+
+        When event `SEND_DATA` is processed, the certain rows of `DataBuf` is cleared.
 
         There is an events counter that stores information how many times each Ngspice event type was occured. It is
         stored as a member of `NgSpiceContext` in form of `uint64_t` array `evt_counts[NUM_EVTS]`.
@@ -108,8 +115,171 @@ namespace eval {Notes and internals} {
 
         ### How data processing is implemented
 
+        #### Asynchronous access structures
+
+        Data from simulation is stored in special structures defined in `sharedspice.h` header of Ngspice. First
+        structure is `vector_info`, and is used for asynchronous access to vector data at any given times by request
+        of interpreter with function `ngGet_Vec_Info`:
+        ```c
+        typedef struct vector_info {
+            char *v_name;		        /* Same as so_vname. */
+            int v_type;			        /* Same as so_vtype. */
+            short v_flags;		        /* Flags (a combination of VF_*). */
+            double *v_realdata;		    /* Real data. */
+            ngcomplex_t *v_compdata;	/* Complex data. */
+            int v_length;		        /* Length of the vector. */
+        } vector_info, *pvector_info;
+        ```
+
+        It contains vector name, vector type, flags byte that contains additional information about the nature of the
+        vector. Enumeration definition `dvec_flags` for these flags is copied from `dvec.h` Ngspice header:
+        ```c
+        enum dvec_flags {
+            VF_REAL = (1 << 0),      /* The data is real. */
+            VF_COMPLEX = (1 << 1),   /* The data is complex. */
+            VF_ACCUM = (1 << 2),     /* writedata should save this vector. */
+            VF_PLOT = (1 << 3),      /* writedata should incrementally plot it. */
+            VF_PRINT = (1 << 4),     /* writedata should print this vector. */
+            VF_MINGIVEN = (1 << 5),  /* The v_minsignal value is valid. */
+            VF_MAXGIVEN = (1 << 6),  /* The v_maxsignal value is valid. */
+            VF_PERMANENT = (1 << 7), /* Don't garbage collect this vector. */
+            VF_EVENT_NODE = (1 << 8) /* Derived from and XSPICE event node. */
+        };
+        ```
+
+        If the bit `VF_REAL` of flags byte is set, the vector data is stored into array of doubles `v_realdata`, 
+        if `VF_COMPLEX` bit is set, data is stored into array `v_compdata` of structures representing complex numbers.
+
+        Each structure `ngcomplex_t` contains real and imaginary double number:
+        ```c
+        struct ngcomplex {
+            double cx_real;
+            double cx_imag;
+        } ;
+        ```
+
+        `v_length` member of `vector_info` contains the length of the vector.
+
+        To get that data we use call to `ngGet_Vec_Info` function from simulator handler subcommand `asyncvector`. It
+        can be called at any moment of simulation after initialization, so it is defined as an asynchronous access to
+        data. `asyncvector` returns a Tcl list (not a dict): real vectors as a flat list of doubles; complex as a list of
+        {re im} pairs.
+
+        The data is not stored in any temporary buffer inside `NgSpiceContext`, just readed from internal Ngspice
+        storage and returned as data stored in Tcl variables.
+
+        #### Synchronous access structures
+
+        Second important structures are `vecvaluesall` and `vecvalues`:
+        ```c
+        typedef struct vecvalues {
+            char* name;           /* name of a specific vector */
+            double creal;         /* actual data value */
+            double cimag;         /* actual data value */
+            NG_BOOL is_scale;     /* if 'name' is the scale vector */
+            NG_BOOL is_complex;   /* if the data are complex numbers */
+        } vecvalues, *pvecvalues;
+
+        typedef struct vecvaluesall {
+            int veccount;      /* number of vectors in plot */
+            int vecindex;      /* index of actual set of vectors. i.e. the number of accepted data points */
+            pvecvalues *vecsa; /* values of actual set of vectors, indexed from 0 to veccount - 1 */
+        } vecvaluesall, *pvecvaluesall;
+        ```
+
+        These structures are passed to callback function `SendDataCallback` when new data is availible during the 
+        Ngspice simulation. This is the core of synchronous access to the data during the simulation process.
+
+        Structure `vecvaluesall` contains array of pointers to structures `vecvalues` that holds the actual value for
+        the certain vector at a given time/sweep point. So our task is to collect that data at each callback, push it
+        into event queue and append to internal buffer `DataBuf`, and then process them into the actual Tcl variables
+        during event processing.
+
+        Another structure that is filled at the start of the simulation is the `InitSnap` structure:
+        ```c
+        typedef struct {
+            int veccount;
+            struct {
+                char *name;
+                int number;
+                int is_real;
+            } *vecs;
+        } InitSnap;
+        ```
+
+        It is filled in `SendInitDataCallback` that Ngspice calls at the start of simulation after completing the 
+        initialization. The structures that provides that information to callback are:
+        ```c
+        typedef struct vecinfo
+        {
+            int number;     /* number of vector, as postion in the linked list of vectors, starts with 0 */
+            char *vecname;  /* name of the actual vector */
+            NG_BOOL is_real;   /* TRUE if the actual vector has real data */
+            void *pdvec;    /* a void pointer to struct dvec *d, the actual vector */
+            void *pdvecscale; /* a void pointer to struct dvec *ds, the scale vector */
+        } vecinfo, *pvecinfo;
+
+        typedef struct vecinfoall
+        {
+            /* the plot */
+            char *name;
+            char *title;
+            char *date;
+            char *type;
+            int veccount;
+
+            /* the data as an array of vecinfo with length equal to the number of vectors in the plot */
+            pvecinfo *vecs;
+
+        } vecinfoall, *pvecinfoall;
+        ```
+
+        In the callback we read the `vecinfoall` members, get the pointers to vectors structures `vecinfo` that
+        contains metadata and actual data for each initialized vector, and store that metadata into `InitSnap
+        *init_snap` member inside `NgSpiceContext`. To get that data as a Tcl variables, we need to process the
+        related event in the event queue.
+
+        Internal data buffer for storage of each vector is organized into rows and columns via nested structures:
+        ```c
+        typedef struct {
+            char *name;
+            int is_complex;
+            double creal, cimag;
+        } DataCell;
+
+        typedef struct {
+            int veccount;
+            DataCell *vecs;   // length = veccount
+        } DataRow;
+
+        typedef struct {
+            DataRow *rows;
+            size_t count, cap;
+        } DataBuf;
+        ```
+
+        Each cell structure holds vector value at a given time/sweep point with name and values, each row is the
+        collection of the vectors values, and `DataBuf` structure holds all rows and information about number of rows
+        and total memory allocated. Internal buffer keeps accumulating data until the data is processed, then 
+        the buffer is freed.
+
+        If data is not proceed before running next simulation, internal buffer `DataBuf prod` is cleared, and 
+        Tcl dictionary that holds vectors data is also cleared.
+
         ### How message queue is implemented
 
-        ### How asynchronous access to Ngspice data is implemented
+        Message queue is a member of `NgSpiceContext` structure. It is defined as a structure that contains array of 
+        strings, counter, and the cap that holds the size of allocated memory buffer.
+        ```c
+        typedef struct {
+            char **items;
+            size_t count, cap;
+        } MsgQueue;
+        ```
+
+        Message queue is filled during each callback that calls `QueueMsg` function. Queue could be cleared with 
+        `MsgQ_Clear` function and freed with `MsgQ_Free`. Access to messages itself is done via handle subcommand 
+        `messages`.
+
     }
 }

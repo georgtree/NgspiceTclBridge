@@ -19,7 +19,7 @@
 <li><code>waitevent</code> <strong>always times out</strong>: make sure you actually started the background run (<code><font color=#4A181B>$sim</font> command bg_run</code>) and you allow the Tcl event loop to process events (update) between waits when appropriate.</li>
 <li><strong>Circuit is not loaded</strong>: ensure your circuit issues <code>.end</code> directive.</li>
 <li><strong>Complex data surprises</strong>: if you expected real data but get <code>{re im}</code> pairs, your vector is complex per ngspice. Handle both cases in your Tcl code if needed.</li>
-<li><strong>Multiple runs</strong>: clear old data between runs if you want pristine buffers: <code><font color=#4A181B>$sim</font> vectors <font color=#463e11>-clear</font></code>, <code><font color=#4A181B>$sim</font> initvectors <font color=#463e11>-clear</font></code>, and optionally <code><font color=#4A181B>$sim</font> eventcounts <font color=#463e11>-clear</font></code>.</li>
+<li><strong>Multiple runs</strong>: clear old event data between runs if you want pristine event counters and messages buffer: <code><font color=#4A181B>$sim</font> messages <font color=#463e11>-clear</font></code> and  <code><font color=#4A181B>$sim</font> eventcounts <font color=#463e11>-clear</font></code>. Data buffer and saved vectors resetted after run of the new simulation to prevent data mixing.</li>
 </ul>
 </main><nav class='ruff-nav'><ul ><li class='ruff-toc1'><a style='padding-top:2px;' href='index.html'>Start page</a></li>
 <li class='ruff-toc1'><a href='index-docindex.html' accesskey='i'>Index</a></li>

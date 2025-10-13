@@ -525,7 +525,8 @@ static void QueueMsg(NgSpiceContext *ctx, const char *msg) {
  *      Tcl event handler for processing deferred ngspice callbacks in the main interpreter thread.
  *      This procedure is invoked via Tcl's event loop when ngspice-related events are queued from background
  *      threads or asynchronous callbacks. It unpacks the event data, updates shared state in NgSpiceContext,
- *      and performs any required Tcl_Obj manipulations in a thread-safe manner.
+ *      and performs any required Tcl_Obj manipulations in a thread-safe manner. If generation of the event is not the
+ *      same as the current generation, skip event processing.
  *
  * Parameters:
  *      Tcl_Event *ev                - input: pointer to the queued Tcl event, castable to NgSpiceEvent
@@ -537,6 +538,7 @@ static void QueueMsg(NgSpiceContext *ctx, const char *msg) {
  * Side Effects:
  *      For SEND_INIT_DATA:
  *          - Retrieves and clears ctx->init_snap under ctx->mutex.
+ *          - Resets previous generation vectorData
  *          - Builds a Tcl dictionary mapping vector names to metadata ("number" and "real").
  *          - Stores the dictionary in ctx->vectorInit, updating reference counts appropriately.
  *          - Frees the InitSnap structure.
@@ -562,12 +564,21 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
     NgSpiceEvent *sp = (NgSpiceEvent *)ev;
     NgSpiceContext *ctx = sp->ctx;
     Tcl_Interp *interp = ctx->interp;
+    Tcl_MutexLock(&ctx->mutex);
+    uint64_t curgen = ctx->gen;
+    Tcl_MutexUnlock(&ctx->mutex);
+    if (sp->gen != curgen) {              // <— stale; belongs to an older run
+        Tcl_Release((ClientData)ctx);
+        return 1;                          // drop silently
+    }
     switch ((enum CallbacksIds)sp->callbackId) {
     case SEND_INIT_DATA: {
         InitSnap *isnap = NULL;
         Tcl_MutexLock(&ctx->mutex);
         isnap = ctx->init_snap;
         ctx->init_snap = NULL;
+        int do_reset = ctx->new_run_pending;
+        ctx->new_run_pending = 0;
         Tcl_MutexUnlock(&ctx->mutex);
         if (isnap) {
             Tcl_Obj *dict = Tcl_NewDictObj();
@@ -583,6 +594,14 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             }
             ctx->vectorInit = dict;
             Tcl_IncrRefCount(dict);
+            if (do_reset) {
+                if (ctx->vectorData) {
+                    Tcl_DecrRefCount(ctx->vectorData);
+                }
+                ctx->vectorData = Tcl_NewDictObj();
+                Tcl_IncrRefCount(ctx->vectorData);
+                /* NOTE: prod was already cleared in the callback; don't touch it here */
+            }
             Tcl_MutexUnlock(&ctx->mutex);
             /* free snapshot */
             FreeInitSnap(isnap);
@@ -642,6 +661,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
  * Parameters:
  *      NgSpiceContext *ctx          - input/output: pointer to the ngspice context that owns the event
  *      int callbackId               - input: identifier for the type of callback/event to be processed
+ *      uint64_t gen                 - input: generation identifier of the event
  *
  * Results:
  *      None.
@@ -657,7 +677,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId) {
+static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId, uint64_t gen) {
     if (ctx->destroying) {
         return;
     }
@@ -667,6 +687,7 @@ static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId) {
     ev->header.nextPtr = NULL;
     ev->ctx = ctx;
     ev->callbackId = callbackId;
+    ev->gen = gen;
     if (Tcl_GetCurrentThread() == ctx->tclid) {
         Tcl_QueueEvent((Tcl_Event *)ev, TCL_QUEUE_TAIL);
     } else {
@@ -776,12 +797,16 @@ static void QuiesceNgspice(NgSpiceContext *ctx) {
 int SendCharCallback(char *msg, int id, void *user) {
     /* ngspice make callback each time new message appears in stdout or stderr */
     NgSpiceContext *ctx = (NgSpiceContext *)user;
+    uint64_t mygen;
     if (!ctx || !msg || ctx->destroying) {
         return 0;
     }
     QueueMsg(ctx, msg);
     BumpAndSignal(ctx, SEND_CHAR);
-    NgSpiceQueueEvent(ctx, SEND_CHAR);
+    Tcl_MutexLock(&ctx->mutex);
+    mygen = ctx->gen;
+    Tcl_MutexUnlock(&ctx->mutex);
+    NgSpiceQueueEvent(ctx, SEND_CHAR, mygen);
     return 0;
 }
 //***  SendStatCallback function
@@ -816,6 +841,7 @@ int SendCharCallback(char *msg, int id, void *user) {
 int SendStatCallback(char *msg, int id, void *user) {
     /* ngspice make callback each time status of simulation changed */
     NgSpiceContext *ctx = (NgSpiceContext *)user;
+    uint64_t mygen;
     if (!ctx || ctx->destroying) {
         return 0;
     }
@@ -823,7 +849,10 @@ int SendStatCallback(char *msg, int id, void *user) {
     snprintf(line, sizeof line, "# status[%d]: %s", id, msg);
     QueueMsg(ctx, line);
     BumpAndSignal(ctx, SEND_STAT);
-    NgSpiceQueueEvent(ctx, SEND_STAT);
+    Tcl_MutexLock(&ctx->mutex);
+    mygen = ctx->gen;
+    Tcl_MutexUnlock(&ctx->mutex);
+    NgSpiceQueueEvent(ctx, SEND_STAT, mygen);
     return 0;
 }
 //***  ControlledExitCallback function
@@ -861,6 +890,7 @@ int SendStatCallback(char *msg, int id, void *user) {
 int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int id, void *user) {
     /* ngspice make callback when ngspice is exited, because of error or quit command */
     NgSpiceContext *ctx = (NgSpiceContext *)user;
+    uint64_t mygen;
     if (!ctx || ctx->destroying) {
         return 0;
     }
@@ -869,7 +899,10 @@ int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int 
              exit_upon_exit);
     QueueMsg(ctx, line);
     BumpAndSignal(ctx, CONTROLLED_EXIT);
-    NgSpiceQueueEvent(ctx, CONTROLLED_EXIT);
+    Tcl_MutexLock(&ctx->mutex);
+    mygen = ctx->gen;
+    Tcl_MutexUnlock(&ctx->mutex);
+    NgSpiceQueueEvent(ctx, CONTROLLED_EXIT, mygen);
     return 0;
 }
 //***  SendDataCallback function
@@ -908,6 +941,7 @@ int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int 
  */
 static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
+    uint64_t mygen;
     if (!ctx || !all || count <= 0 || ctx->destroying) {
         return 0;
     }
@@ -922,11 +956,12 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
         row.vecs[i].cimag = v->cimag;
     }
     Tcl_MutexLock(&ctx->mutex);
+    mygen = ctx->gen;
     DataBuf_Ensure(&ctx->prod, ctx->prod.count + 1);
     ctx->prod.rows[ctx->prod.count++] = row;
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_DATA);
-    NgSpiceQueueEvent(ctx, SEND_DATA);
+    NgSpiceQueueEvent(ctx, SEND_DATA, mygen);
     return 0;
 }
 //***  SendInitDataCallback function
@@ -960,6 +995,7 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
  *          - Unlocks ctx->mutex.
  *          - Increments the SEND_INIT_DATA event counter and signals waiters via BumpAndSignal().
  *          - Queues a SEND_INIT_DATA Tcl event via NgSpiceQueueEvent() for deferred processing.
+ *          - Frees DataBuf and reinitializes it
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -986,9 +1022,15 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         Tcl_Free(ctx->init_snap);
     }
     ctx->init_snap = snap;
+    ctx->gen++;                 // <— bump generation
+    ctx->new_run_pending = 1;   // <— request reset in event proc
+    uint64_t mygen = ctx->gen;  // capture for queuing
+    DataBuf_Free(&ctx->prod);
+    DataBuf_Init(&ctx->prod);
+    ctx->new_run_pending = 1;
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_INIT_DATA);
-    NgSpiceQueueEvent(ctx, SEND_INIT_DATA);
+    NgSpiceQueueEvent(ctx, SEND_INIT_DATA, mygen);
     return 0;
 }
 //***  BGThreadRunningCallback function
@@ -1022,12 +1064,16 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
  */
 static int BGThreadRunningCallback(bool running, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
+    uint64_t mygen;
     if (!ctx || ctx->destroying) {
         return 0;
     }
     QueueMsg(ctx, running ? "# background thread running ended" : "# background thread running started");
     BumpAndSignal(ctx, BG_THREAD_RUNNING);
-    NgSpiceQueueEvent(ctx, BG_THREAD_RUNNING);
+    Tcl_MutexLock(&ctx->mutex);
+    mygen = ctx->gen;
+    Tcl_MutexUnlock(&ctx->mutex);
+    NgSpiceQueueEvent(ctx, BG_THREAD_RUNNING, mygen);
     return 0;
 }
 //** free functions

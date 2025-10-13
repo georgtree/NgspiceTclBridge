@@ -16,5 +16,5 @@ waitevent \fBalways times out\fP: make sure you actually started the background 
 \fBComplex data surprises\fP: if you expected real data but get {re im} pairs, your vector is complex per ngspice\&. Handle both cases in your Tcl code if needed\&.
 .TP
 \(bu
-\fBMultiple runs\fP: clear old data between runs if you want pristine buffers: $sim vectors -clear, $sim initvectors -clear, and optionally $sim eventcounts -clear\&.
+\fBMultiple runs\fP: clear old event data between runs if you want pristine event counters and messages buffer: $sim messages -clear and  $sim eventcounts -clear\&. Data buffer and saved vectors resetted after run of the new simulation to prevent data mixing\&.
 

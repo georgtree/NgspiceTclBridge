@@ -198,7 +198,7 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc vectors {args} {
-        # Returns held **asynchronously accumulated** vector values (built from `send_data` events) in a dict.
+        # Returns held **synchronously accumulated** vector values (built from `send_data` events) in a dict.
         #  -clear - empties the internal memory structure and returns **nothing**.
         # Returns: dict with vectors values accumulated up to this point in internal structure
         #
@@ -210,9 +210,6 @@ namespace eval ::ngspicetclbridge {
         # $sim vectors -clear
         # # -> (no result; succeeds)
         #```
-        #
-        # **Warning**: accumulation of data continues even if you run new circuit or analysis until you explicitly clear
-        # the data storage.
         #
         # Synopsis: ?-clear?
     }

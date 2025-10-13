@@ -111,11 +111,12 @@ variable startPage {
     $sim destroy
     ```
 
-    If you want to continue work with current simulator instance, you need to clear internal vector/messages storage
-    with next commands (otherwise data will be appended to data from previous simulation):
+    If you want to continue work with current simulator instance, you need to clear internal messages storage
+    with next commands:
 
     ```
-    $s1 vectors -clear
     $s1 messages -clear
     ```
+
+    Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data.
 }

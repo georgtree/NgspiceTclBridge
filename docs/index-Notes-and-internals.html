@@ -60,26 +60,159 @@
     Tcl_Event header;
     NgSpiceContext *ctx;
     int callbackId;
+    uint64_t gen;
 } NgSpiceEvent;
 </pre>
 
-</figure><p class='ruff'>It contains <code>Tcl_Event header</code> object that is mandatory for each event that will be registered in Tcl event loop. <code>NgSpiceContext *ctx</code> pointer defines the context event belongs. <code>int callbackId</code> shows the type of this particular Ngspice event. Callbacks ids are declared with enumeration <code>CallbacksIds</code>.</p>
+</figure><p class='ruff'>It contains <code>Tcl_Event header</code> object that is mandatory for each event that will be registered in Tcl event loop. <code>NgSpiceContext *ctx</code> pointer defines the context event belongs. <code>int callbackId</code> shows the type of this particular Ngspice event. Callbacks ids are declared with enumeration <code>CallbacksIds</code>. Member <code>gen</code> represents &quot;generation&quot; to which event belongs - generation counter increased after each initializing callback <code>SendInitDataCallback</code>.</p>
 <p class='ruff'>Each callback function provided to Ngspice adds event to Tcl event queue by calling function <code>static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId)</code>, where the appropriated callback id is provided.</p>
-<p class='ruff'><code>NgSpiceQueueEvent</code> function adds event to Tcl event loop by calling <code>Tcl_QueueEvent</code>, along with providing processing function as pointer saved in <code>header.proc</code> member of <code>NgSpiceEvent</code> structure member <code>header</code>. Events are delivered to the same thread that created the <code>NgSpiceContext</code>, regardless of the calling thread.</p>
+<p class='ruff'><code>NgSpiceQueueEvent</code> function adds event to Tcl event loop by calling <code>Tcl_QueueEvent</code>, along with providing processing function as pointer saved in <code>header.proc</code> member of <code>NgSpiceEvent</code> structure member <code>header</code>. Events are delivered to the same thread that created the <code>NgSpiceContext</code>, regardless of the calling thread. Function also has current generation of the event as an argument.</p>
 <p class='ruff'>Function <code>NgSpiceEventProc</code> is using in the event processing stage, when the actual event is processing by Tcl interpreter. Most of defined Ngspice events don't need additional processing besides the saving messages in the message queue and incrementing event counter. The two elements that are needed to be additionally processed are the events <code>SEND_INIT_DATA</code> and <code>SEND_DATA</code> - Ngspice does callbacks which tells that initial data, or new data is availible. At each callback we write data into <code>DataBuf</code> member of <code>NgSpiceContext</code> (or initial data into <code>InitSnap</code> member). When we process the events that are registered at each such callback, we transfer data from that buffer to another members of <code>NgSpiceContext</code> - <code>Tcl_Obj *vectorData</code> and <code>Tcl_Obj *vectorInit</code>. These members contains processed vector data in form of Tcl dictionary objects.</p>
-<p class='ruff'>When events <code>SEND_INIT_DATA</code> and <code>SEND_DATA</code> are processed, the certain rows of <code>DataBuf</code> is cleared.</p>
+<p class='ruff'><code>NgSpiceEventProc</code> ignores events not from current generation, so not processed events from previous runs are ignored.</p>
+<p class='ruff'>When event <code>SEND_DATA</code> is processed, the certain rows of <code>DataBuf</code> is cleared.</p>
 <p class='ruff'>There is an events counter that stores information how many times each Ngspice event type was occured. It is stored as a member of <code>NgSpiceContext</code> in form of <code>uint64_t</code> array <code>evt_counts[NUM_EVTS]</code>.</p>
+<h3 class='ruff'><a name='::Notes and internals-How thread safety is ensured'></a>How thread safety is ensured<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
 <h3 class='ruff'><a name='::Notes and internals-How data processing is implemented'></a>How data processing is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
+<h4 class='ruff'><a name='::Notes and internals-Asynchronous access structures'></a>Asynchronous access structures<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h4>
+<div style='clear:both;'></div>
+<p class='ruff'>Data from simulation is stored in special structures defined in <code>sharedspice.h</code> header of Ngspice. First structure is <code>vector_info</code>, and is used for asynchronous access to vector data at any given times by request of interpreter with function <code>ngGet_Vec_Info</code>:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct vector_info {
+    char *v_name;                       /* Same as so_vname. */
+    int v_type;                         /* Same as so_vtype. */
+    short v_flags;                      /* Flags (a combination of VF_*). */
+    double *v_realdata;             /* Real data. */
+    ngcomplex_t *v_compdata;    /* Complex data. */
+    int v_length;                       /* Length of the vector. */
+} vector_info, *pvector_info;
+</pre>
+
+</figure><p class='ruff'>It contains vector name, vector type, flags byte that contains additional information about the nature of the vector. Enumeration definition <code>dvec_flags</code> for these flags is copied from <code>dvec.h</code> Ngspice header:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>enum dvec_flags {
+    VF_REAL = (1 &lt;&lt; 0),      /* The data is real. */
+    VF_COMPLEX = (1 &lt;&lt; 1),   /* The data is complex. */
+    VF_ACCUM = (1 &lt;&lt; 2),     /* writedata should save this vector. */
+    VF_PLOT = (1 &lt;&lt; 3),      /* writedata should incrementally plot it. */
+    VF_PRINT = (1 &lt;&lt; 4),     /* writedata should print this vector. */
+    VF_MINGIVEN = (1 &lt;&lt; 5),  /* The v_minsignal value is valid. */
+    VF_MAXGIVEN = (1 &lt;&lt; 6),  /* The v_maxsignal value is valid. */
+    VF_PERMANENT = (1 &lt;&lt; 7), /* Don't garbage collect this vector. */
+    VF_EVENT_NODE = (1 &lt;&lt; 8) /* Derived from and XSPICE event node. */
+};
+</pre>
+
+</figure><p class='ruff'>If the bit <code>VF_REAL</code> of flags byte is set, the vector data is stored into array of doubles <code>v_realdata</code>, if <code>VF_COMPLEX</code> bit is set, data is stored into array <code>v_compdata</code> of structures representing complex numbers.</p>
+<p class='ruff'>Each structure <code>ngcomplex_t</code> contains real and imaginary double number:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>struct ngcomplex {
+    double cx_real;
+    double cx_imag;
+} ;
+</pre>
+
+</figure><p class='ruff'><code>v_length</code> member of <code>vector_info</code> contains the length of the vector.</p>
+<p class='ruff'>To get that data we use call to <code>ngGet_Vec_Info</code> function from simulator handler subcommand <code>asyncvector</code>. It can be called at any moment of simulation after initialization, so it is defined as an asynchronous access to data. <code>asyncvector</code> returns a Tcl list (not a dict): real vectors as a flat list of doubles; complex as a list of {re im} pairs.</p>
+<p class='ruff'>The data is not stored in any temporary buffer inside <code>NgSpiceContext</code>, just readed from internal Ngspice storage and returned as data stored in Tcl variables.</p>
+<h4 class='ruff'><a name='::Notes and internals-Synchronous access structures'></a>Synchronous access structures<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h4>
+<div style='clear:both;'></div>
+<p class='ruff'>Second important structures are <code>vecvaluesall</code> and <code>vecvalues</code>:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct vecvalues {
+    char* name;           /* name of a specific vector */
+    double creal;         /* actual data value */
+    double cimag;         /* actual data value */
+    NG_BOOL is_scale;     /* if 'name' is the scale vector */
+    NG_BOOL is_complex;   /* if the data are complex numbers */
+} vecvalues, *pvecvalues;
+
+typedef struct vecvaluesall {
+    int veccount;      /* number of vectors in plot */
+    int vecindex;      /* index of actual set of vectors. i.e. the number of accepted data points */
+    pvecvalues *vecsa; /* values of actual set of vectors, indexed from 0 to veccount - 1 */
+} vecvaluesall, *pvecvaluesall;
+</pre>
+
+</figure><p class='ruff'>These structures are passed to callback function <code>SendDataCallback</code> when new data is availible during the Ngspice simulation. This is the core of synchronous access to the data during the simulation process.</p>
+<p class='ruff'>Structure <code>vecvaluesall</code> contains array of pointers to structures <code>vecvalues</code> that holds the actual value for the certain vector at a given time/sweep point. So our task is to collect that data at each callback, push it into event queue and append to internal buffer <code>DataBuf</code>, and then process them into the actual Tcl variables during event processing.</p>
+<p class='ruff'>Another structure that is filled at the start of the simulation is the <code>InitSnap</code> structure:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct {
+    int veccount;
+    struct {
+        char *name;
+        int number;
+        int is_real;
+    } *vecs;
+} InitSnap;
+</pre>
+
+</figure><p class='ruff'>It is filled in <code>SendInitDataCallback</code> that Ngspice calls at the start of simulation after completing the initialization. The structures that provides that information to callback are:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct vecinfo
+{
+    int number;     /* number of vector, as postion in the linked list of vectors, starts with 0 */
+    char *vecname;  /* name of the actual vector */
+    NG_BOOL is_real;   /* TRUE if the actual vector has real data */
+    void *pdvec;    /* a void pointer to struct dvec *d, the actual vector */
+    void *pdvecscale; /* a void pointer to struct dvec *ds, the scale vector */
+} vecinfo, *pvecinfo;
+
+typedef struct vecinfoall
+{
+    /* the plot */
+    char *name;
+    char *title;
+    char *date;
+    char *type;
+    int veccount;
+
+    /* the data as an array of vecinfo with length equal to the number of vectors in the plot */
+    pvecinfo *vecs;
+
+} vecinfoall, *pvecinfoall;
+</pre>
+
+</figure><p class='ruff'>In the callback we read the <code>vecinfoall</code> members, get the pointers to vectors structures <code>vecinfo</code> that contains metadata and actual data for each initialized vector, and store that metadata into <code>InitSnap *init_snap</code> member inside <code>NgSpiceContext</code>. To get that data as a Tcl variables, we need to process the related event in the event queue.</p>
+<p class='ruff'>Internal data buffer for storage of each vector is organized into rows and columns via nested structures:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct {
+    char *name;
+    int is_complex;
+    double creal, cimag;
+} DataCell;
+
+typedef struct {
+    int veccount;
+    DataCell *vecs;   // length = veccount
+} DataRow;
+
+typedef struct {
+    DataRow *rows;
+    size_t count, cap;
+} DataBuf;
+</pre>
+
+</figure><p class='ruff'>Each cell structure holds vector value at a given time/sweep point with name and values, each row is the collection of the vectors values, and <code>DataBuf</code> structure holds all rows and information about number of rows and total memory allocated. Internal buffer keeps accumulating data until the data is processed, then the buffer is freed.</p>
+<p class='ruff'>If data is not proceed before running next simulation, internal buffer <code>DataBuf prod</code> is cleared, and Tcl dictionary that holds vectors data is also cleared.</p>
 <h3 class='ruff'><a name='::Notes and internals-How message queue is implemented'></a>How message queue is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<h3 class='ruff'><a name='::Notes and internals-How asynchronous access to Ngspice data is implemented'></a>How asynchronous access to Ngspice data is implemented<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
+<p class='ruff'>Message queue is a member of <code>NgSpiceContext</code> structure. It is defined as a structure that contains array of strings, counter, and the cap that holds the size of allocated memory buffer.</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'>typedef struct {
+    char **items;
+    size_t count, cap;
+} MsgQueue;
+</pre>
+
+</figure><p class='ruff'>Message queue is filled during each callback that calls <code>QueueMsg</code> function. Queue could be cleared with <code>MsgQ_Clear</code> function and freed with <code>MsgQ_Free</code>. Access to messages itself is done via handle subcommand <code>messages</code>.</p>
 </main><nav class='ruff-nav'><ul ><li class='ruff-toc1'><a style='padding-top:2px;' href='index.html'>Start page</a></li>
 <li class='ruff-toc1'><a href='index-docindex.html' accesskey='i'>Index</a></li>
 <hr>
 <li class='ruff-toc1'><a href='index-ngspicetclbridge.html'>ngspicetclbridge</a></li>
 <li class='ruff-toc1'><a class='ruff-highlight' href='index-Notes-and-internals.html'>Notes and internals</a></li>
 <li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
-<hr><li class='ruff-toc2'><a href='#::Notes and internals-General implementation details'>General implementation details</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How instance subcommands are implemented'>How instance subcommands are implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How sync callbacks from Ngspice is implemented'>How sync callbacks from Ngspice is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How event queue interaction is implemented'>How event queue interaction is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How data processing is implemented'>How data processing is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How message queue is implemented'>How message queue is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How asynchronous access to Ngspice data is implemented'>How asynchronous access to Ngspice data is implemented</a></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
+<hr><li class='ruff-toc2'><a href='#::Notes and internals-General implementation details'>General implementation details</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How instance subcommands are implemented'>How instance subcommands are implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How sync callbacks from Ngspice is implemented'>How sync callbacks from Ngspice is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How event queue interaction is implemented'>How event queue interaction is implemented</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How thread safety is ensured'>How thread safety is ensured</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How data processing is implemented'>How data processing is implemented</a></li><li class='ruff-toc4'><a href='#::Notes and internals-Asynchronous access structures'>Asynchronous access structures</a></li><li class='ruff-toc4'><a href='#::Notes and internals-Synchronous access structures'>Synchronous access structures</a></li><li class='ruff-toc3'><a href='#::Notes and internals-How message queue is implemented'>How message queue is implemented</a></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
 </div></body></html>

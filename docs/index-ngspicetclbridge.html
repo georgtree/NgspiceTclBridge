@@ -140,7 +140,7 @@
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>command name to work with Ngspice instance</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::vectors'>vectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Returns held <strong>asynchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
+<p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal memory structure and returns <strong>nothing</strong>.</td></tr>
@@ -154,8 +154,7 @@
 <i><font color=#4b5d50># -&gt; (no result; succeeds)</font></i>
 </pre>
 
-</figure><p class='ruff'><strong>Warning</strong>: accumulation of data continues even if you run new circuit or analysis until you explicitly clear the data storage.</p>
-<h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>asynchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::waitevent'>waitevent</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).</p>
@@ -183,7 +182,7 @@
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::isrunning'>isrunning</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>isrunning</span> </pre>Asynchronous call to check if background thread is running.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::messages'>messages</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>messages</span> <span class='ruff_arg'>?-clear?</span></pre>Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::new'>new</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>new</span> <span class='ruff_arg'>path</span></pre>Load dynamic library, path should be provided in native form for target OS.  Every <code>::ngspicetclbridge::new</code> returns a command (e.g. <code>::ngspicetclbridge::s1</code>). The following subcommands operate on that instance.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::vectors'>vectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>asynchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::vectors'>vectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::waitevent'>waitevent</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></pre>Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
 </span></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
 </div></body></html>
