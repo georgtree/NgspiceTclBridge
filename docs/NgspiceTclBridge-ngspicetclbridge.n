@@ -9,6 +9,8 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBasyncvector\fP \fIname\fP
 .br
+\fBcircuit\fP \fIlist\fP
+.br
 \fBcommand\fP \fIstring\fP
 .br
 \fBdestroy\fP
@@ -25,6 +27,10 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBnew\fP \fIpath\fP
 .br
+\fBplot\fP \fI-all\fP
+.br
+\fBplot\fP \fI-vecs name\fP
+.br
 \fBvectors\fP \fI?-clear?\fP
 .br
 \fBwaitevent\fP \fI?args?\fP
@@ -36,7 +42,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 \fBabort\fR (::ngspicetclbridge)
 .RE
 .PP
-Set an internal abort flag and wake any waiters (useful to force waitevent to return)\&. This does \fBnot\fP free
+Sets an internal abort flag and wake any waiters (useful to force waitevent to return)\&. This does \fBnot\fP free
 the instance\&.
 .RS 4n
 \fBabort\fP
@@ -82,10 +88,51 @@ real vectors as a flat list of doubles, complex vectors as a list of {re im} pai
 does not exists\&.
 .PP
 .RS -4n
+\fBcircuit\fR (::ngspicetclbridge)
+.RE
+.PP
+Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist\&.
+.RS 4n
+\fBcircuit\fP \fIlist\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+list
+List of string\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+set resDivCircuit {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    \&.dc v1 0 5 0\&.1
+    \&.save all
+    \&.end
+}
+$sim circuit [split $resDivCircuit \\n]
+$sim command bg_run
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Ngspice result code
+.PP
+.RS -4n
 \fBcommand\fR (::ngspicetclbridge)
 .RE
 .PP
-Send an arbitrary Ngspice command line (e\&.g\&., bg_run, circbyline \&.\&.\&., \&.save, \&.tran, \&.dc)\&.
+Sends an arbitrary Ngspice command line (e\&.g\&., bg_run, circbyline \&.\&.\&., \&.save, \&.tran, \&.dc)\&.
 .RS 4n
 \fBcommand\fP \fIstring\fP
 .br
@@ -117,7 +164,7 @@ Ngspice result code
 \fBdestroy\fR (::ngspicetclbridge)
 .RE
 .PP
-Delete the instance command\&. In details:
+Deletes the instance command\&. In details:
 .RS 4n
 \fBdestroy\fP
 .br
@@ -141,7 +188,7 @@ Defers and performs full cleanup
 \fBeventcounts\fR (::ngspicetclbridge)
 .RE
 .PP
-Get or reset the cumulative event counters for this simulator instance\&.
+Gets or reset the cumulative event counters for this simulator instance\&.
 .RS 4n
 \fBeventcounts\fP \fI?-clear?\fP
 .br
@@ -173,7 +220,7 @@ returns a dict with keys as events names, and counts for each event as a value
 \fBinit\fR (::ngspicetclbridge)
 .RE
 .PP
-Initialize the ngspice shared instance and the bridge’s data structures\&.
+Initializes the ngspice shared instance and the bridge’s data structures\&.
 .RS 4n
 \fBinit\fP
 .br
@@ -234,7 +281,7 @@ dict with initial vector metadata saved in internal structure
 \fBisrunning\fR (::ngspicetclbridge)
 .RE
 .PP
-Asynchronous call to check if background thread is running\&.
+Calls asynchronously to check if background thread is running\&.
 .RS 4n
 \fBisrunning\fP
 .br
@@ -248,7 +295,7 @@ Asynchronous call to check if background thread is running\&.
 \fBmessages\fR (::ngspicetclbridge)
 .RE
 .PP
-Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines\&.
+Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines\&.
 .RS 4n
 \fBmessages\fP \fI?-clear?\fP
 .br
@@ -315,6 +362,36 @@ set sim [::ngspicetclbridge::new /usr/local/lib/libngspice\&.so]
 command name to work with Ngspice instance
 .PP
 .RS -4n
+\fBplot\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to
+name of the provided plot\&.
+current plot, or list of all plots, or list of all vectors
+.RS 4n
+\fBplot\fP \fI-all\fP
+.br
+\fBplot\fP \fI-vecs name\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-all
+Switch to return all plots names\&.
+.TP
+-vecs plotname
+Switch with argument to get all vectors names belonging to name plot\&.
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to
+name of the provided plot\&.
+current plot, or list of all plots, or list of all vectors
+.PP
+.RS -4n
 \fBvectors\fR (::ngspicetclbridge)
 .RE
 .PP
@@ -355,7 +432,7 @@ dict with vectors values accumulated up to this point in internal structure
 \fBwaitevent\fR (::ngspicetclbridge)
 .RE
 .PP
-Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided)\&.
+Blocks until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided)\&.
 .RS 4n
 \fBwaitevent\fP \fI?args?\fP
 .br

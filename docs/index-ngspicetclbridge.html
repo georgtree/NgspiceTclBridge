@@ -19,7 +19,7 @@
 <div style='clear:both;'></div>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::abort'>abort</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Set an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.</p>
+<p class='ruff'>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>abort</span> </div>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
@@ -39,9 +39,32 @@
 </pre>
 
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>real vectors as a flat list of doubles, complex vectors as a list of <code>{re im}</code> pairs. Error if vector does not exists.</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::circuit'>circuit</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>circuit</span> <span class='ruff_arg'>list</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><b><font color=#923B23>list</font></b></code></nobr></td><td>List of string.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> resDivCircuit {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    .dc v1 0 5 0.1
+    .save all
+    .end
+}
+<font color=#4A181B>$sim</font> circuit [<b><font color=#923B23>split</font></b> <font color=#4A181B>$resDivCircuit</font> \n]
+<font color=#4A181B>$sim</font> command bg_run
+</pre>
+
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>Ngspice result code</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::command'>command</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Send an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>).</p>
+<p class='ruff'>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>).</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>command</span> <span class='ruff_arg'>string</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code><b><font color=#923B23>string</font></b></code></nobr></td><td>Command string.</td></tr>
@@ -55,7 +78,7 @@
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>Ngspice result code</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::destroy'>destroy</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Delete the instance command. In details:</p>
+<p class='ruff'>Deletes the instance command. In details:</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>destroy</span> </div>
 <h5 class='ruff'>Description</h5><ul class='ruff'>
 <li>Marks the context as destroying</li>
@@ -65,7 +88,7 @@
 </ul>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::eventcounts'>eventcounts</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Get or reset the cumulative event counters for this simulator instance.</p>
+<p class='ruff'>Gets or reset the cumulative event counters for this simulator instance.</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>eventcounts</span> <span class='ruff_arg'>?-clear?</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Zeros all counts and returns nothing.</td></tr>
@@ -79,7 +102,7 @@
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>returns a dict with keys as events names, and counts for each event as a value</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::init'>init</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Initialize the ngspice shared instance and the bridge’s data structures.</p>
+<p class='ruff'>Initializes the ngspice shared instance and the bridge’s data structures.</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>init</span> </div>
 <h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
 
@@ -104,12 +127,12 @@
 <h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::isrunning'>isrunning</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Asynchronous call to check if background thread is running.</p>
+<p class='ruff'>Calls asynchronously to check if background thread is running.</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>isrunning</span> </div>
 <h5 class='ruff'>Return value</h5><p class='ruff'><code>1</code> if thread is running, <code>0</code> otherwise.</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::messages'>messages</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
+<p class='ruff'>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>messages</span> <span class='ruff_arg'>?-clear?</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal queue structure and returns <strong>nothing</strong>.</td></tr>
@@ -138,6 +161,15 @@
 </pre>
 
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>command name to work with Ngspice instance</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::plot'>plot</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-all</span><br><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-vecs name</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-all</font></code></nobr></td><td>Switch to return all plots names.</td></tr>
+<tr><td><nobr><code><font color=#463e11>-vecs</font> plotname</code></nobr></td><td>Switch with argument to get all vectors names belonging to <code>name</code> plot.</td></tr>
+</table>
+<h5 class='ruff'>Return value</h5><p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::vectors'>vectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
@@ -157,7 +189,7 @@
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::waitevent'>waitevent</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).</p>
+<p class='ruff'>Blocks until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).</p>
 <div class='ruff_synopsis'><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code>name</code></nobr></td><td>Name of the event.</td></tr>
@@ -172,17 +204,20 @@
 <li class='ruff-toc1'><a class='ruff-highlight' href='index-ngspicetclbridge.html'>ngspicetclbridge</a></li>
 <li class='ruff-toc1'><a href='index-Notes-and-internals.html'>Notes and internals</a></li>
 <li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
-<hr><li class='ruff-toc2'><a href='#::ngspicetclbridge-Commands'>Commands</a></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::abort'>abort</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>abort</span> </pre>Set an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.
+<hr><li class='ruff-toc2'><a href='#::ngspicetclbridge-Commands'>Commands</a></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::abort'>abort</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>abort</span> </pre>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>name</span></pre>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector).
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::command'>command</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>command</span> <span class='ruff_arg'>string</span></pre>Send an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>).
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::destroy'>destroy</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>destroy</span> </pre>Delete the instance command. In details:
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::eventcounts'>eventcounts</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>eventcounts</span> <span class='ruff_arg'>?-clear?</span></pre>Get or reset the cumulative event counters for this simulator instance.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::init'>init</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>init</span> </pre>Initialize the ngspice shared instance and the bridge’s data structures.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::circuit'>circuit</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>circuit</span> <span class='ruff_arg'>list</span></pre>Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::command'>command</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>command</span> <span class='ruff_arg'>string</span></pre>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>).
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::destroy'>destroy</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>destroy</span> </pre>Deletes the instance command. In details:
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::eventcounts'>eventcounts</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>eventcounts</span> <span class='ruff_arg'>?-clear?</span></pre>Gets or reset the cumulative event counters for this simulator instance.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::init'>init</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>init</span> </pre>Initializes the ngspice shared instance and the bridge’s data structures.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::initvectors'>initvectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>initvectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::isrunning'>isrunning</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>isrunning</span> </pre>Asynchronous call to check if background thread is running.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::messages'>messages</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>messages</span> <span class='ruff_arg'>?-clear?</span></pre>Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::isrunning'>isrunning</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>isrunning</span> </pre>Calls asynchronously to check if background thread is running.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::messages'>messages</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>messages</span> <span class='ruff_arg'>?-clear?</span></pre>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::new'>new</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>new</span> <span class='ruff_arg'>path</span></pre>Load dynamic library, path should be provided in native form for target OS.  Every <code>::ngspicetclbridge::new</code> returns a command (e.g. <code>::ngspicetclbridge::s1</code>). The following subcommands operate on that instance.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::plot'>plot</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-all</span>
+<span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-vecs name</span></pre>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::vectors'>vectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::waitevent'>waitevent</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></pre>Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::waitevent'>waitevent</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></pre>Blocks until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
 </span></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
 </div></body></html>

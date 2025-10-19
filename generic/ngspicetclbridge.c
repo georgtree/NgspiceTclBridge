@@ -1267,6 +1267,30 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         code = TCL_OK;
         goto done;
     }
+    if (strcmp(sub, "circuit") == 0) {
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "list");
+            code = TCL_ERROR;
+            goto done;
+        }
+        Tcl_Size cirLinesListLen;
+        Tcl_Obj **cirLinesElems;
+        if (Tcl_ListObjGetElements(interp, objv[2], &cirLinesListLen, &cirLinesElems) != TCL_OK) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("error getting circuit list", -1));
+            code = TCL_ERROR;
+            goto done;
+        }
+        char **circuit = Tcl_Alloc((cirLinesListLen + 1) * sizeof(char *));
+        for (Tcl_Size i = 0; i < cirLinesListLen; ++i) {
+            circuit[i] = Tcl_GetString(cirLinesElems[i]);
+        }
+        circuit[cirLinesListLen] = NULL;
+        int rc = ctx->ngSpice_Circ(circuit);
+        Tcl_Free(circuit);
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
+        code = TCL_OK;
+        goto done;
+    }
     if (strcmp(sub, "waitevent") == 0) {
         if (objc < 3 || objc > 4) {
             Tcl_WrongNumArgs(interp, 2, objv, "name ?timeout_ms?");
@@ -1335,6 +1359,51 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_SetObjResult(interp, ctx->vectorData);
             Tcl_MutexUnlock(&ctx->mutex);
             code = TCL_OK;
+            goto done;
+        }
+    }
+    if (strcmp(sub, "plot") == 0) {
+        if (objc == 2) {
+            Tcl_Obj *currentPlot = Tcl_NewStringObj(ctx->ngSpice_CurPlot(), -1);
+            Tcl_SetObjResult(interp, currentPlot);
+            code = TCL_OK;
+            goto done;
+        } else if (objc == 3) {
+            const char *opt = Tcl_GetString(objv[2]);
+            if (strcmp(opt, "-all") == 0) {
+                char **plots = ctx->ngSpice_AllPlots();
+                Tcl_Obj *plotsNamesList = Tcl_NewListObj(0, NULL);
+                for (Tcl_Size i = 0; plots[i] != NULL; ++i) {
+                    Tcl_ListObjAppendElement(interp, plotsNamesList, Tcl_NewStringObj(plots[i], -1));
+                }
+                Tcl_SetObjResult(interp, plotsNamesList);
+                code = TCL_OK;
+                goto done;
+            } else {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -all)", opt));
+                code = TCL_ERROR;
+                goto done;
+            }
+        } else if (objc == 4) {
+            const char *opt = Tcl_GetString(objv[2]);
+            char *arg = Tcl_GetString(objv[3]);
+            if (strcmp(opt, "-vecs") == 0) {
+                char **vecsNames = ctx -> ngSpice_AllVecs(arg);
+                Tcl_Obj *vecsNamesList = Tcl_NewListObj(0, NULL);
+                for (Tcl_Size i = 0; vecsNames[i] != NULL; ++i) {
+                    Tcl_ListObjAppendElement(interp, vecsNamesList, Tcl_NewStringObj(vecsNames[i], -1));
+                }
+                Tcl_SetObjResult(interp, vecsNamesList);
+                code = TCL_OK;
+                goto done;
+            } else {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -vecs)", opt));
+                code = TCL_ERROR;
+                goto done;
+            }
+        } else {
+            Tcl_WrongNumArgs(interp, 2, objv, "?-all?|?-vecs plotname?");
+            code = TCL_ERROR;
             goto done;
         }
     }

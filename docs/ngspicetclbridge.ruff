@@ -14,7 +14,7 @@ namespace eval ::ngspicetclbridge {
     }
     
     proc init {} {
-        # Initialize the ngspice shared instance and the bridge’s data structures.
+        # Initializes the ngspice shared instance and the bridge’s data structures.
         # Returns: Ngspice init code
         #
         # Example:
@@ -24,7 +24,7 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc command {string} {
-        # Send an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`).
+        # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`).
         #  string -  command string
         # Returns: Ngspice result code
         #
@@ -35,8 +35,40 @@ namespace eval ::ngspicetclbridge {
         #```
     }
 
+    proc circuit {list} {
+        # Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist.
+        #  list -  list of string
+        # Returns: Ngspice result code
+        #
+        # Example:
+        #```
+        # set resDivCircuit {
+        #     Resistor divider
+        #     v1 in 0 1
+        #     r1 in out 1e3
+        #     r2 out 0 2e3
+        #     .dc v1 0 5 0.1
+        #     .save all
+        #     .end
+        # }
+        # $sim circuit [split $resDivCircuit \n]
+        # $sim command bg_run
+        #```
+    }
+
+    proc plot {args} {
+        # Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to
+        # name of the provided plot.
+        #  -all - switch to return all plots names
+        #  -vecs plotname - switch with argument to get all vectors names belonging to `name` plot
+        # Returns: current plot, or list of all plots, or list of all vectors
+        #
+        # Synopsis: -all
+        # Synopsis: -vecs name
+    }
+
     proc waitevent {args} {
-        # Block until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
+        # Blocks until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
         #  name -  name of the event
         #  timeout_ms -  timeout in miliseconds, optional
         # Returns: dictionary with information about event
@@ -252,7 +284,7 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc messages {args} {
-        # Queue of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
+        # Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
         #  -clear - empties the internal queue structure and returns **nothing**.
         # Returns: list of messages
         #
@@ -272,7 +304,7 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc eventcounts {args} {
-        # Get or reset the cumulative event counters for this simulator instance.
+        # Gets or reset the cumulative event counters for this simulator instance.
         #  -clear - zeros all counts and returns nothing.
         # Returns: returns a dict with keys as events names, and counts for each event as a value
         #
@@ -286,17 +318,17 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc abort {} {
-        # Set an internal abort flag and wake any waiters (useful to force waitevent to return). This does **not** free
+        # Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does **not** free
         # the instance.
     }
 
     proc isrunning {} {
-        # Asynchronous call to check if background thread is running.
+        # Calls asynchronously to check if background thread is running.
         # Returns: `1` if thread is running, `0` otherwise.
     }
 
     proc destroy {} {
-        # Delete the instance command. In details:
+        # Deletes the instance command. In details:
         # - Marks the context as destroying
         # - Wakes any waiters
         # - Quiesces the ngspice background thread
