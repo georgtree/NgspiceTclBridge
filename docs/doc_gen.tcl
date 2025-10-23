@@ -6,11 +6,12 @@ package require fileutil
 package require hl_tcl
 
 set docDir [file dirname [file normalize [info script]]]
-set sourceDir "${docDir}"
+set sourceDir [file join $docDir ..]
 source [file join $docDir startPage.ruff]
 source [file join $docDir notesAndInternals.ruff]
 source [file join $docDir troubleshooting.ruff]
-source [file join $sourceDir ngspicetclbridge.ruff]
+source [file join $docDir ngspicetclbridge.ruff]
+source [file join $sourceDir ngspicetclbridge.tcl]
 
 set packageVersion [package versions ngspicetclbridge]
 puts $packageVersion

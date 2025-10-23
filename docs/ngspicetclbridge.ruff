@@ -265,7 +265,10 @@ namespace eval ::ngspicetclbridge {
 
     proc asyncvector {name} {
         # Fetches the current values of a named vector on demand via ngspice `ngGet_Vec_Info`. Works after the
-        # simulation has produced any data (not necessarily the complete vector).
+        # simulation has produced any data (not necessarily the complete vector). By addding `-info` switch, vector
+        # metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or
+        # real), and length of the vector.
+        #  -info - if this switch is provided, commands return dictionary with vector metadata
         #  name - name of the vector
         # Returns: real vectors as a flat list of doubles, complex vectors as a list of `{re im}` pairs. Error if vector
         # does not exists.
@@ -280,7 +283,7 @@ namespace eval ::ngspicetclbridge {
         # # -> {{0.01 0.00} {0.02 0.00} ...}   ;# if complex
         #```
         #
-        # Synopsis: name
+        # Synopsis: ?-info? name
     }
 
     proc messages {args} {

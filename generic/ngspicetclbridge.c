@@ -1408,38 +1408,144 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "asyncvector") == 0) {
-        if (objc != 3) {
+        if (objc == 4) {
+            const char *opt = Tcl_GetString(objv[2]);
+            const char *vecname = Tcl_GetString(objv[3]);
+            if (strcmp(opt, "-info") == 0) {
+                pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
+                if (vinfo == NULL) {
+                    Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
+                    Tcl_SetObjResult(interp, errMsg);
+                    code = TCL_ERROR;
+                    goto done;
+                }
+                int vlength = vinfo->v_length;
+                int vtype = vinfo->v_type;
+                Tcl_Obj *info = Tcl_NewDictObj();
+                Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("notype", -1));
+                switch ((enum vector_types)vtype) {
+                case SV_NOTYPE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("notype", -1));
+                    break;
+                case SV_TIME:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("time", -1));
+                    break;
+                case SV_FREQUENCY:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("frequency", -1));
+                    break;
+                case SV_VOLTAGE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("voltage", -1));
+                    break;
+                case SV_CURRENT:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("current", -1));
+                    break;
+                case SV_VOLTAGE_DENSITY:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1),
+                                   Tcl_NewStringObj("voltage-density", -1));
+                    break;
+                case SV_CURRENT_DENSITY:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1),
+                                   Tcl_NewStringObj("current-density", -1));
+                    break;
+                case SV_SQR_VOLTAGE_DENSITY:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1),
+                                   Tcl_NewStringObj("voltage^2-density", -1));
+                    break;
+                case SV_SQR_CURRENT_DENSITY:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1),
+                                   Tcl_NewStringObj("current^2-density", -1));
+                    break;
+                case SV_SQR_VOLTAGE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("temperature", -1));
+                    break;
+                case SV_SQR_CURRENT:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("charge", -1));
+                    break;
+                case SV_POLE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("pole", -1));
+                    break;
+                case SV_ZERO:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("zero", -1));
+                    break;
+                case SV_SPARAM:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("s-param", -1));
+                    break;
+                case SV_TEMP:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("temp-sweep", -1));
+                    break;
+                case SV_RES:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("res-sweep", -1));
+                    break;
+                case SV_IMPEDANCE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("impedance", -1));
+                    break;
+                case SV_ADMITTANCE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("admittance", -1));
+                    break;
+                case SV_POWER:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("power", -1));
+                    break;
+                case SV_PHASE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("phase", -1));
+                    break;
+                case SV_DB:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("decibel", -1));
+                    break;
+                case SV_CAPACITANCE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("capacitance", -1));
+                    break;
+                case SV_CHARGE:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("charge", -1));
+                    break;
+                };
+                Tcl_DictObjPut(interp, info, Tcl_NewStringObj("length", -1), Tcl_NewIntObj(vlength));
+                if (vinfo->v_flags & VF_COMPLEX) {
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("ntype", -1),
+                                   Tcl_NewStringObj("complex", -1));
+                } else {
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("ntype", -1), Tcl_NewStringObj("real", -1));
+                }
+                Tcl_SetObjResult(interp, info);
+                code = TCL_OK;
+                goto done;
+            } else {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -info)", opt));
+                code = TCL_ERROR;
+                goto done;
+            }
+        } else if (objc == 3) {
+            const char *vecname = Tcl_GetString(objv[2]);
+            pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
+            if (vinfo == NULL) {
+                Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
+                Tcl_SetObjResult(interp, errMsg);
+                code = TCL_ERROR;
+                goto done;
+            }
+            int vlength = vinfo->v_length;
+            Tcl_Obj *dataObj = Tcl_NewListObj(0, NULL);
+            if (vinfo->v_flags & VF_COMPLEX) {
+                ngcomplex_t *cdata = vinfo->v_compdata;
+                for (int i = 0; i < vlength; i++) {
+                    Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
+                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdata[i].cx_real));
+                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdata[i].cx_imag));
+                    Tcl_ListObjAppendElement(interp, dataObj, pair);
+                }
+            } else {
+                double *rdata = vinfo->v_realdata;
+                for (int i = 0; i < vlength; i++) {
+                    Tcl_ListObjAppendElement(interp, dataObj, Tcl_NewDoubleObj(rdata[i]));
+                }
+            }
+            Tcl_SetObjResult(interp, dataObj);
+            code = TCL_OK;
+            goto done;
+        } else {
             Tcl_WrongNumArgs(interp, 2, objv, "string");
             code = TCL_ERROR;
             goto done;
         }
-        const char *vecname = Tcl_GetString(objv[2]);
-        pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
-        if (vinfo == NULL) {
-            Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
-            Tcl_SetObjResult(interp, errMsg);
-            code = TCL_ERROR;
-            goto done;
-        }
-        int vlength = vinfo->v_length;
-        Tcl_Obj *dataObj = Tcl_NewListObj(0, NULL);
-        if (vinfo->v_flags & VF_COMPLEX) {
-            ngcomplex_t *cdata = vinfo->v_compdata;
-            for (int i = 0; i < vlength; i++) {
-                Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
-                Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdata[i].cx_real));
-                Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdata[i].cx_imag));
-                Tcl_ListObjAppendElement(interp, dataObj, pair);
-            }
-        } else {
-            double *rdata = vinfo->v_realdata;
-            for (int i = 0; i < vlength; i++) {
-                Tcl_ListObjAppendElement(interp, dataObj, Tcl_NewDoubleObj(rdata[i]));
-            }
-        }
-        Tcl_SetObjResult(interp, dataObj);
-        code = TCL_OK;
-        goto done;
     }
     if (strcmp(sub, "isrunning") == 0) {
         if (objc > 2) {

@@ -7,7 +7,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .SH SYNOPSIS
 \fBabort\fP
 .br
-\fBasyncvector\fP \fIname\fP
+\fBasyncvector\fP \fI?-info? name\fP
 .br
 \fBcircuit\fP \fIlist\fP
 .br
@@ -30,6 +30,10 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 \fBplot\fP \fI-all\fP
 .br
 \fBplot\fP \fI-vecs name\fP
+.br
+\fBreadPlotVectorsAsync\fP \fI?args?\fP
+.br
+\fBrunAndWaitForCompletion\fP \fIsim\fP
 .br
 \fBvectors\fP \fI?-clear?\fP
 .br
@@ -54,9 +58,11 @@ the instance\&.
 .RE
 .PP
 Fetches the current values of a named vector on demand via ngspice ngGet_Vec_Info\&. Works after the
-simulation has produced any data (not necessarily the complete vector)\&.
+simulation has produced any data (not necessarily the complete vector)\&. By addding -info switch, vector
+metadata is provided, i\&.e\&. type of the vector (current, voltage, time, etc), type of the numbers (complex or
+real), and length of the vector\&.
 .RS 4n
-\fBasyncvector\fP \fIname\fP
+\fBasyncvector\fP \fI?-info? name\fP
 .br
 .RE
 .PP
@@ -65,6 +71,9 @@ simulation has produced any data (not necessarily the complete vector)\&.
 .TP
 name
 Name of the vector\&.
+.TP
+-info
+If this switch is provided, commands return dictionary with vector metadata\&.
 .RE
 .PP
 \fBDescription\fR
@@ -390,6 +399,51 @@ Switch with argument to get all vectors names belonging to name plot\&.
 Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot\&.
 current plot, or list of all plots, or list of all vectors
+.PP
+.RS -4n
+\fBreadPlotVectorsAsync\fR (::ngspicetclbridge)
+.RE
+.PP
+Reads all availible vectorsof current plot asynchronously and return dictionary with vector name as a key,
+and data as a value\&. If -info switch is provided, command returns information about each availiable vector\&.
+.RS 4n
+\fBreadPlotVectorsAsync\fP \fI?args?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-info
+If provided, metainfo about vectors is returned instead of the data\&.
+.TP
+sim
+Simulator handler that is returned by ngspicetclbridge::new
+.RE
+.PP
+\fBReturn value\fR
+.PP
+dictionary
+.PP
+.RS -4n
+\fBrunAndWaitForCompletion\fR (::ngspicetclbridge)
+.RE
+.PP
+Runs simulation in background thread, waits for the completion, process event in the queue and returns
+.RS 4n
+\fBrunAndWaitForCompletion\fP \fIsim\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+sim
+Simulator handler that is returned by ngspicetclbridge::new
+.RE
+.PP
+\fBReturn value\fR
+.PP
 .PP
 .RS -4n
 \fBvectors\fR (::ngspicetclbridge)

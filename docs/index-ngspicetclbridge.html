@@ -23,10 +23,11 @@
 <div class='ruff_synopsis'><span class='ruff_cmd'>abort</span> </div>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
-<p class='ruff'>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector).</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>name</span></div>
+<p class='ruff'>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>?-info? name</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code>name</code></nobr></td><td>Name of the vector.</td></tr>
+<tr><td><nobr><code><font color=#463e11>-info</font></code></nobr></td><td>If this switch is provided, commands return dictionary with vector metadata.</td></tr>
 </table>
 <h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
 
@@ -170,6 +171,23 @@
 <tr><td><nobr><code><font color=#463e11>-vecs</font> plotname</code></nobr></td><td>Switch with argument to get all vectors names belonging to <code>name</code> plot.</td></tr>
 </table>
 <h5 class='ruff'>Return value</h5><p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::readPlotVectorsAsync'>readPlotVectorsAsync</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Reads all availible vectorsof current plot asynchronously and return dictionary with vector name as a key, and data as a value. If <code><font color=#463e11>-info</font></code> switch is provided, command returns information about each availiable vector.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>readPlotVectorsAsync</span> <span class='ruff_arg'>?args?</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-info</font></code></nobr></td><td>If provided, metainfo about vectors is returned instead of the data.</td></tr>
+<tr><td><nobr><code>sim</code></nobr></td><td>Simulator handler that is returned by <code>ngspicetclbridge::new</code></td></tr>
+</table>
+<h5 class='ruff'>Return value</h5><p class='ruff'>dictionary</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::runAndWaitForCompletion'>runAndWaitForCompletion</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Runs simulation in background thread, waits for the completion, process event in the queue and returns</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>runAndWaitForCompletion</span> <span class='ruff_arg'>sim</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code>sim</code></nobr></td><td>Simulator handler that is returned by <code>ngspicetclbridge::new</code></td></tr>
+</table>
+<h5 class='ruff'>Return value</h5><p class='ruff'></p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::vectors'>vectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
@@ -205,7 +223,7 @@
 <li class='ruff-toc1'><a href='index-Notes-and-internals.html'>Notes and internals</a></li>
 <li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
 <hr><li class='ruff-toc2'><a href='#::ngspicetclbridge-Commands'>Commands</a></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::abort'>abort</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>abort</span> </pre>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>name</span></pre>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector).
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>?-info? name</span></pre>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::circuit'>circuit</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>circuit</span> <span class='ruff_arg'>list</span></pre>Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::command'>command</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>command</span> <span class='ruff_arg'>string</span></pre>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>).
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::destroy'>destroy</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>destroy</span> </pre>Deletes the instance command. In details:
@@ -217,6 +235,8 @@
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::new'>new</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>new</span> <span class='ruff_arg'>path</span></pre>Load dynamic library, path should be provided in native form for target OS.  Every <code>::ngspicetclbridge::new</code> returns a command (e.g. <code>::ngspicetclbridge::s1</code>). The following subcommands operate on that instance.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::plot'>plot</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-all</span>
 <span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-vecs name</span></pre>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::readPlotVectorsAsync'>readPlotVectorsAsync</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>readPlotVectorsAsync</span> <span class='ruff_arg'>?args?</span></pre>Reads all availible vectorsof current plot asynchronously and return dictionary with vector name as a key, and data as a value. If <code><font color=#463e11>-info</font></code> switch is provided, command returns information about each availiable vector.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::runAndWaitForCompletion'>runAndWaitForCompletion</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>runAndWaitForCompletion</span> <span class='ruff_arg'>sim</span></pre>Runs simulation in background thread, waits for the completion, process event in the queue and returns
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::vectors'>vectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::waitevent'>waitevent</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></pre>Blocks until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
 </span></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
