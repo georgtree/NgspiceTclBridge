@@ -28,30 +28,38 @@ enum dvec_flags {
 };
 
 enum vector_types {
-  SV_NOTYPE,
-  SV_TIME,
-  SV_FREQUENCY,
-  SV_VOLTAGE,
-  SV_CURRENT,
-  SV_VOLTAGE_DENSITY,
-  SV_CURRENT_DENSITY,
-  SV_SQR_VOLTAGE_DENSITY,
-  SV_SQR_CURRENT_DENSITY,
-  SV_SQR_VOLTAGE,
-  SV_SQR_CURRENT,
-  SV_POLE,
-  SV_ZERO,
-  SV_SPARAM,
-  SV_TEMP,
-  SV_RES,
-  SV_IMPEDANCE,
-  SV_ADMITTANCE,
-  SV_POWER,
-  SV_PHASE,
-  SV_DB,
-  SV_CAPACITANCE,
-  SV_CHARGE
+    SV_NOTYPE,
+    SV_TIME,
+    SV_FREQUENCY,
+    SV_VOLTAGE,
+    SV_CURRENT,
+    SV_VOLTAGE_DENSITY,
+    SV_CURRENT_DENSITY,
+    SV_SQR_VOLTAGE_DENSITY,
+    SV_SQR_CURRENT_DENSITY,
+    SV_SQR_VOLTAGE,
+    SV_SQR_CURRENT,
+    SV_POLE,
+    SV_ZERO,
+    SV_SPARAM,
+    SV_TEMP,
+    SV_RES,
+    SV_IMPEDANCE,
+    SV_ADMITTANCE,
+    SV_POWER,
+    SV_PHASE,
+    SV_DB,
+    SV_CAPACITANCE,
+    SV_CHARGE
 };
+
+typedef enum {
+    NGSTATE_IDLE = 0,          // no bg thread active
+    NGSTATE_STARTING_BG,       // bg_run issued, waiting for bg_started=1
+    NGSTATE_BG_ACTIVE,         // bg thread running normally
+    NGSTATE_STOPPING_BG,       // bg_halt issued and bg thread is winding down
+    NGSTATE_DEAD               // teardown/abort/destroy
+} NgState;
 
 //** define data snaps for saving data during ngspice callbacks
 typedef struct {
@@ -85,6 +93,13 @@ typedef struct {
     size_t count, cap;
 } MsgQueue;
 
+//** define commands buffer
+typedef struct PendingCmd {
+    char *cmd;                // Tcl string dup’d (must free later)
+    int  capture;             // 0 or 1, mirrors -capture mode
+    struct PendingCmd *next;  // linked list
+} PendingCmd;
+
 //** define functions pointers
 typedef int (*ngSpice_Init_t)(SendChar *, SendStat *, ControlledExit *, SendData *, SendInitData *, BGThreadRunning *,
                               void *);
@@ -106,44 +121,86 @@ typedef int (*ngSpice_nospiceinit_t)(void);
 
 //** define ngspice per-instance context structure
 typedef struct {
-    /* dl + symbols */
-    PDlHandle handle;
-    ngSpice_Init_t ngSpice_Init;
-    ngSpice_Init_Sync_t ngSpice_Init_Sync;
-    ngSpice_Command_t ngSpice_Command;
-    ngGet_Vec_Info_t ngGet_Vec_Info;
-    ngCM_Input_Path_t ngCM_Input_Path;
-    ngGet_Evt_NodeInfo_t ngGet_Evt_NodeInfo;
-    ngSpice_AllEvtNodes_t ngSpice_AllEvtNodes;
-    ngSpice_Init_Evt_t ngSpice_Init_Evt;
-    ngSpice_Circ_t ngSpice_Circ;
-    ngSpice_CurPlot_t ngSpice_CurPlot;
-    ngSpice_AllPlots_t ngSpice_AllPlots;
-    ngSpice_AllVecs_t ngSpice_AllVecs;
-    ngSpice_running_t ngSpice_running;
-    ngSpice_SetBkpt_t ngSpice_SetBkpt;
-    ngSpice_nospinit_t ngSpice_nospinit;
-    ngSpice_nospiceinit_t ngSpice_nospiceinit;
+    /*------------------------------------------------------------------------------------------------------------------
+     * Dynamic library and function pointers (ngspice shared library symbols)
+     *------------------------------------------------------------------------------------------------------------------*/
+    PDlHandle handle;                             /* Dynamic library handle (libngspice.so / .dll) */
+    ngSpice_Init_t ngSpice_Init;                  /* Classic ngspice initialization entry */
+    ngSpice_Init_Sync_t ngSpice_Init_Sync;        /* Synchronous initialization (newer API) */
+    ngSpice_Command_t ngSpice_Command;            /* Main command entry point */
+    ngGet_Vec_Info_t ngGet_Vec_Info;              /* Query vector info (type, length, data) */
+    ngCM_Input_Path_t ngCM_Input_Path;            /* Optional input path hook */
+    ngGet_Evt_NodeInfo_t ngGet_Evt_NodeInfo;      /* Event-driven node information query */
+    ngSpice_AllEvtNodes_t ngSpice_AllEvtNodes;    /* Enumerate all event-driven nodes */
+    ngSpice_Init_Evt_t ngSpice_Init_Evt;          /* Event-mode initialization */
+    ngSpice_Circ_t ngSpice_Circ;                  /* Send entire circuit deck */
+    ngSpice_CurPlot_t ngSpice_CurPlot;            /* Get current plot name */
+    ngSpice_AllPlots_t ngSpice_AllPlots;          /* Enumerate all available plots */
+    ngSpice_AllVecs_t ngSpice_AllVecs;            /* Enumerate all vectors in a given plot */
+    ngSpice_running_t ngSpice_running;            /* Query if background thread is active */
+    ngSpice_SetBkpt_t ngSpice_SetBkpt;            /* Set breakpoint callback */
+    ngSpice_nospinit_t ngSpice_nospinit;          /* Disable built-in ngspice init */
+    ngSpice_nospiceinit_t ngSpice_nospiceinit;    /* Alternative init disable entry */
 
-    /* threading / state */
-    Tcl_Mutex mutex;
-    Tcl_Condition cond;
-    Tcl_Interp *interp;
-    Tcl_ThreadId tclid;
+    /*------------------------------------------------------------------------------------------------------------------
+     * Core synchronization and Tcl linkage
+     *------------------------------------------------------------------------------------------------------------------*/
+    Tcl_Mutex mutex;                              /* Protects general shared data (vectors, msgq, etc.) */
+    Tcl_Condition cond;                           /* Signals data arrival or waitevent wake-up */
+    Tcl_Interp *interp;                           /* Owning Tcl interpreter */
+    Tcl_ThreadId tclid;                           /* Tcl thread ID of owning interpreter */
 
-    InitSnap *init_snap; /* one-shot snapshot from callback */
-    DataBuf prod;        /* ngspice thread appends rows here */
-    DataBuf pend;        /* reserved for future use */
+    /*------------------------------------------------------------------------------------------------------------------
+     * Simulation data and initialization state
+     *------------------------------------------------------------------------------------------------------------------*/
+    InitSnap *init_snap;                          /* One-shot vector metadata snapshot (SEND_INIT_DATA) */
+    DataBuf prod;                                 /* Primary data buffer — rows appended by ngspice thread */
+    DataBuf pend;                                 /* Reserved future buffer (unused or staging) */
 
-    Tcl_Obj *vectorData; /* dict: name -> list(values) */
-    Tcl_Obj *vectorInit; /* dict: name -> {number N real 0/1} */
+    Tcl_Obj *vectorData;                          /* Tcl dict: vector name → list(values) */
+    Tcl_Obj *vectorInit;                          /* Tcl dict: vector name → {number N real 0/1} */
 
-    MsgQueue msgq;
-    uint64_t evt_counts[NUM_EVTS];
-    int destroying;
+    /*------------------------------------------------------------------------------------------------------------------
+     * Event and message tracking
+     *------------------------------------------------------------------------------------------------------------------*/
+    MsgQueue msgq;                                /* Async message queue for log/status lines */
+    uint64_t evt_counts[NUM_EVTS];                /* Per-callback counters */
+    uint64_t gen;                                 /* Generation number (run_id) for event validation */
+    int new_run_pending;                          /* Marks pending new run between INIT/DATA callbacks */
 
-    uint64_t gen;            // <— current generation (run_id)
-    int new_run_pending;     // <— optional: for the one-shot auto-reset in INIT processing
+    int destroying;                               /* True while context teardown in progress */
+    int quitting;                                 /* True while sending "quit" command to ngspice */
+    int aborting;                                 /* Soft abort flag for waitevent unblocking */
+    int skip_dlclose;                             /* True to skip dlclose() on unsafe shutdown */
+
+    /*------------------------------------------------------------------------------------------------------------------
+     * Background (bg_run) thread coordination
+     *------------------------------------------------------------------------------------------------------------------*/
+    int bg_started;                               /* Set after first “started” callback received */
+    int bg_ended;                                 /* Set after “ended” callback or post-quit */
+    Tcl_Mutex bg_mu;                              /* Protects bg_started/bg_ended/state transitions */
+    Tcl_Condition bg_cv;                          /* Signaled when BGThreadRunningCallback fires */
+
+    /*------------------------------------------------------------------------------------------------------------------
+     * Controlled exit synchronization (used by ControlledExitCallback)
+     *------------------------------------------------------------------------------------------------------------------*/
+    int exited;                                   /* 1 after ControlledExitCallback() runs */
+    Tcl_Mutex exit_mu;                            /* Protects 'exited' flag */
+    Tcl_Condition exit_cv;                        /* Signaled to wake teardown waiting for exit */
+
+    /*------------------------------------------------------------------------------------------------------------------
+     * Command capture window (used during "command -capture")
+     *------------------------------------------------------------------------------------------------------------------*/
+    int cap_active;                               /* 0/1 — true while capturing ngspice output */
+    MsgQueue capq;                                /* Temporary capture buffer for stdout/stderr */
+
+    /*------------------------------------------------------------------------------------------------------------------
+     * Command queue and global run state
+     *------------------------------------------------------------------------------------------------------------------*/
+    NgState state;                                /* High-level simulator state (IDLE, STARTING_BG, etc.) */
+    PendingCmd *pending_head;                     /* Head of queued Tcl commands awaiting safe dispatch */
+    PendingCmd *pending_tail;                     /* Tail of queued Tcl commands */
+    Tcl_Mutex cmd_mu;                             /* Protects pending command queue */
 } NgSpiceContext;
 
 //** Define a Tcl event record

@@ -1,6 +1,7 @@
 package require tcltest
 namespace import ::tcltest::*
 package require ngspicetclbridge
+namespace import ::ngspicetclbridge::*
 set ngspiceLibPath /usr/local/lib/libngspice.so
 set currentDir [file normalize [file dirname [info script]]]
 proc cirPass {sim circuit} {
@@ -167,9 +168,7 @@ test test-4 {clear vectors information} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     $s1 vectors -clear
     return [$s1 vectors]
 } -result {} -cleanup {
@@ -182,8 +181,7 @@ test test-5 {get messages} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
+    runAndWaitForCompletion $s1
     update
     return [join [lrange [$s1 messages] end-2 end] \n]
 } -result {# status[0]: --ready--
@@ -198,9 +196,7 @@ test test-6 {clear messages} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     $s1 messages -clear
     return [join [$s1 messages] \n]
 } -result {} -cleanup {
@@ -213,9 +209,7 @@ test test-7 {} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     $s1 eventcounts -clear
     return [$s1 eventcounts]
 } -result {send_char 0 send_stat 0 controlled_exit 0 send_data 0 send_init_data 0 bg_running 0} -cleanup {
@@ -277,6 +271,36 @@ test test-10 {run long simulation and wait for two event, the second one marks t
     unset s1
 }
 
+test test-10.1 {run long simulation and wait for two event, the second one marks the end of bg thread simulation} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+    cirPass $s1 $fourBitAdderCircuit
+} -body {
+    $s1 command bg_run
+    $s1 waitevent bg_running -n 2
+    update
+    return [$s1 initvectors]
+} -result {V(12) {number 0 real 1} V(11) {number 1 real 1} V(10) {number 2 real 1} V(9) {number 3 real 1}\
+ time {number 4 real 1}} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-10.2 {run long simulation and wait for three events (never happens, exit with timeout)} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+    cirPass $s1 $fourBitAdderCircuit
+} -body {
+    $s1 command bg_run
+    $s1 waitevent bg_running -n 3 20000
+    update
+    return [$s1 initvectors]
+} -result {V(12) {number 0 real 1} V(11) {number 1 real 1} V(10) {number 2 real 1} V(9) {number 3 real 1}\
+ time {number 4 real 1}} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
 test test-11 {run long simulation, wait for ready message, and print status message} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 init
@@ -302,8 +326,7 @@ test test-12 {test asyncvector command after finising simulation} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
+    runAndWaitForCompletion $s1
     return [$s1 asyncvector out]
 } -result {0.0 0.06666666666666667 0.13333333333333333 0.2 0.26666666666666666 0.3333333333333333 0.39999999999999997\
  0.4666666666666666 0.5333333333333332 0.6 0.6666666666666665 0.7333333333333332 0.7999999999999999 0.8666666666666667\
@@ -322,8 +345,7 @@ test test-13 {test asyncvector command after finising simulation with wrong name
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
+    runAndWaitForCompletion $s1
     catch {$s1 asyncvector out1} errorStr
     return $errorStr
 } -result {vector with name "out1" does not exist} -cleanup {
@@ -407,9 +429,7 @@ test test-16 {test circuit subcommand} -setup {
     $s1 init
     $s1 circuit [split $resDivCircuit \n]
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     return [$s1 vectors]
 } -result {v1#branch {0.0 -3.3333333333333335e-5 -6.666666666666667e-5 -0.00010000000000000002 -0.00013333333333333334\
  -0.0001666666666666667 -0.00019999999999999998 -0.00023333333333333339 -0.0002666666666666667 -0.00030000000000000003\
@@ -475,9 +495,7 @@ test test-18 {get current plot} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     return [$s1 plot]
 } -result dc1 -cleanup {
     $s1 destroy
@@ -489,9 +507,7 @@ test test-19 {get all vectors belong to current plot} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     return [$s1 plot -vecs [$s1 plot]]
 } -result {v1#branch out in v-sweep} -cleanup {
     $s1 destroy
@@ -503,10 +519,8 @@ test test-20 {get all vector with plot name prefix} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
-    return [$s1 asyncvector dc1.out]
+    runAndWaitForCompletion $s1
+    return [$s1 asyncvector [$s1 plot].out]
 } -result {0.0 0.06666666666666667 0.13333333333333333 0.2 0.26666666666666666 0.3333333333333333 0.39999999999999997\
 0.4666666666666666 0.5333333333333332 0.6 0.6666666666666665 0.7333333333333332 0.7999999999999999 0.8666666666666667\
 0.9333333333333335 1.0 1.0666666666666669 1.1333333333333335 1.2000000000000004 1.266666666666667 1.3333333333333335\
@@ -524,9 +538,7 @@ test test-21 {wrong arguments to plot command} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     catch {$s1 plot 1} errorStr
     return $errorStr
 } -result {unknown option: 1 (expected -all)} -cleanup {
@@ -539,9 +551,7 @@ test test-22 {wrong arguments to plot command} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     catch {$s1 plot -vec out} errorStr
     return $errorStr
 } -result {unknown option: -vec (expected -vecs)} -cleanup {
@@ -554,12 +564,10 @@ test test-23 {wrong arguments to plot command} -setup {
     $s1 init
     cirPass $s1 $resDivCircuit
 } -body {
-    $s1 command bg_run
-    $s1 waitevent send_stat 1000
-    update
+    runAndWaitForCompletion $s1
     catch {$s1 plot -vecs out out} errorStr
     return $errorStr
-} -result {wrong # args: should be "::ngspicetclbridge::s23 plot ?-all?|?-vecs plotname?"} -cleanup {
+} -result {wrong # args: should be "::ngspicetclbridge::s25 plot ?-all?|?-vecs plotname?"} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -636,5 +644,60 @@ length 51 ntype real} v-sweep {type voltage length 51 ntype real}} -cleanup {
     $s1 destroy
     unset s1
 }
+
+test test-29 {run long simulation and exit with error due to wrong subcommand before running thread stops} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+    cirPass $s1 $fourBitAdderCircuit
+} -body {
+    $s1 command bg_run
+    catch {$s1 waitevent bg_running 50000 -n 3 } errorStr
+    update
+    return $errorStr
+} -result {wrong # args: should be "::ngspicetclbridge::s31 waitevent name ?-n N? ?timeout_ms?"} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-30 {} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+    cirPass $s1 $fourBitAdderCircuit
+} -body {
+    $s1 command -capture bg_run
+    return [$s1 command -capture kolp]
+} -result {background thread is starting, command kolp is deffered} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-31 {} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+    cirPass $s1 $fourBitAdderCircuit
+} -body {
+    $s1 command bg_run
+    $s1 command bg_halt
+    update
+    return [$s1 command -capture kolp]
+} -result {background thread is starting, command kolp is deffered} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-32 {} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+    cirPass $s1 $fourBitAdderCircuit
+} -body {
+    $s1 command -capture bg_run
+    after 1000
+    return [$s1 command -capture kolp]
+} -result {rc 0 output {{stderr Warning: cannot execute "kolp", type "bg_halt" first}}} -cleanup {
+    #$s1 destroy
+    unset s1
+}
+
+
 
 cleanupTests

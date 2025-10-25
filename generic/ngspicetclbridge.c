@@ -1,5 +1,8 @@
 #include "ngspicetclbridge.h"
 
+/* global process-wide fuses */
+static int g_disable_dlclose = 0;
+static int g_heap_poisoned = 0;
 //** small helpers
 //***  ckstrdup function
 /*
@@ -105,57 +108,77 @@ static inline void BumpAndSignal(NgSpiceContext *ctx, int which) {
  *
  * wait_for --
  *
- *      Wait for a specific event counter in an NgSpiceContext to increment, with optional timeout and abort handling.
- *      This function blocks until one of the following occurs:
- *          - The specified event counter changes (indicating an event has fired)
+ *      Wait for a specific event counter in an NgSpiceContext to reach a target value, with optional timeout
+ *      and abort handling. This function blocks until one of the following occurs:
+ *
+ *          - The specified event counter increases by at least `need` increments since the start of the wait
  *          - The context is marked for destruction (abort condition)
  *          - The timeout period expires
  *
+ *      This allows waiting for multiple occurrences of a given event after the call to waitevent from Tcl.
+ *      For example, with need = 3, the function will return only after three new events of the requested
+ *      type have been registered since the call began.
+ *
  * Parameters:
- *      NgSpiceContext *ctx          - input/output: pointer to the ngspice context containing the mutex,
- *                                      event counters, and condition variable
- *      int which                    - input: index into ctx->evt_counts[] identifying the event to monitor
- *      long timeout_ms              - input: timeout in milliseconds; 0 or negative means wait indefinitely
- *      int *fired_out               - output (optional): set to nonzero if the event fired during the wait
- *      uint64_t *count_out          - output (optional): set to the current total count for this event when the
- *                                      wait terminates
+ *      NgSpiceContext *ctx   - input/output: pointer to the ngspice context containing the mutex,
+ *                               event counters, and condition variable.
+ *      int which             - input: index into ctx->evt_counts[] identifying the event to monitor.
+ *      uint64_t need         - input: number of new events required before returning (minimum 1).
+ *      long timeout_ms       - input: timeout in milliseconds; 0 or negative means wait indefinitely.
+ *      int *reached_out      - output (optional): set to nonzero if the target count was reached
+ *                               (i.e., the event fired `need` times) during the wait.
+ *      uint64_t *count_out   - output (optional): set to the current cumulative total count for this
+ *                               event when the wait terminates (since instance creation).
  *
  * Results:
  *      Returns one of:
- *          NGSPICE_WAIT_OK       - event fired during the wait
- *          NGSPICE_WAIT_TIMEOUT  - timeout expired before event fired
- *          NGSPICE_WAIT_ABORTED  - context was marked for destruction before event fired
+ *          NGSPICE_WAIT_OK       - target count reached during the wait
+ *          NGSPICE_WAIT_TIMEOUT  - timeout expired before target reached
+ *          NGSPICE_WAIT_ABORTED  - context was marked for destruction before target reached
  *
  * Side Effects:
  *      Locks and unlocks ctx->mutex around counter checks and condition waits.
  *      May sleep in slices (25 ms by default) for finite timeouts, polling the counter between sleeps.
  *      For indefinite waits, uses Tcl_ConditionWait() to block until signaled or aborted.
  *
+ * Notes:
+ *      - The function checks event deltas relative to the counter value observed at entry time.
+ *      - If multiple Tcl threads share a context, only one should call this function at a time.
+ *      - The returned count is always cumulative; use `eventcounts -clear` in Tcl to zero counters
+ *        if you prefer delta-based semantics between independent tests.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
-static wait_rc wait_for(NgSpiceContext *ctx, int which, long timeout_ms, int *fired_out, uint64_t *count_out) {
+static wait_rc wait_for(NgSpiceContext *ctx, int which, uint64_t need, long timeout_ms, int *reached_out,
+                        uint64_t *count_out) {
+    if (need == 0) {
+        need = 1; // enforce at least one increment
+    }
     const int slice_ms = 25;
     long remaining = timeout_ms;
     Tcl_MutexLock(&ctx->mutex);
     uint64_t start = ctx->evt_counts[which];
+    uint64_t target = start + need;
     /* fast path */
-    if (ctx->evt_counts[which] > start) {
+    if (ctx->evt_counts[which] >= target) {
         uint64_t cnt = ctx->evt_counts[which];
         Tcl_MutexUnlock(&ctx->mutex);
-        if (fired_out) {
-            *fired_out = 1;
+        if (reached_out) {
+            *reached_out = 1;
         }
         if (count_out) {
-            *count_out = cnt;
+            *count_out = cnt; // cumulative count since instance start
         }
         return NGSPICE_WAIT_OK;
     }
     if (timeout_ms <= 0) {
-        while (!ctx->destroying && ctx->evt_counts[which] == start) {
+        // indefinite wait using condition variable
+        while (!ctx->destroying && !ctx->aborting && ctx->evt_counts[which] < target) {
             Tcl_ConditionWait(&ctx->cond, &ctx->mutex, NULL);
         }
     } else {
-        while (!ctx->destroying && ctx->evt_counts[which] == start && remaining > 0) {
+        // finite timeout: poll/sleep loop
+        while (!ctx->destroying && ctx->evt_counts[which] < target && remaining > 0) {
             Tcl_MutexUnlock(&ctx->mutex);
             int step = (remaining < slice_ms) ? (int)remaining : slice_ms;
             Tcl_Sleep(step);
@@ -163,12 +186,12 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, long timeout_ms, int *fi
             Tcl_MutexLock(&ctx->mutex);
         }
     }
-    int fired = (ctx->evt_counts[which] > start);
+    int reached = (ctx->evt_counts[which] >= target);
     uint64_t cnt = ctx->evt_counts[which];
-    int aborted = ctx->destroying;
+    int aborted = (ctx->destroying || ctx->aborting);
     Tcl_MutexUnlock(&ctx->mutex);
-    if (fired_out) {
-        *fired_out = fired;
+    if (reached_out) {
+        *reached_out = reached;
     }
     if (count_out) {
         *count_out = cnt;
@@ -176,7 +199,7 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, long timeout_ms, int *fi
     if (aborted) {
         return NGSPICE_WAIT_ABORTED;
     }
-    if (!fired && timeout_ms > 0) {
+    if (!reached && timeout_ms > 0) {
         return NGSPICE_WAIT_TIMEOUT;
     }
     return NGSPICE_WAIT_OK;
@@ -648,6 +671,65 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
     Tcl_Release((ClientData)ctx);
     return 1;
 }
+
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * DeleteNgSpiceEventProc --
+ *
+ *      Predicate/deletion callback used with Tcl_DeleteEvents() to remove all pending ngspice-related
+ *      events for a specific NgSpiceContext. This is called during teardown (InstDeleteProc) to ensure
+ *      that no queued NgSpiceEvent objects referencing a soon-to-be-freed context are left in the Tcl
+ *      event queue.
+ *
+ *      The procedure is invoked by Tcl for each queued event. If the event is an NgSpiceEvent belonging
+ *      to the target context, this function:
+ *
+ *          - Releases the context reference previously preserved when the event was queued, and
+ *          - Instructs Tcl to delete the event from the queue without delivering it.
+ *
+ *      Otherwise, it tells Tcl to leave the event alone.
+ *
+ * Parameters:
+ *      Tcl_Event *evPtr          - input: pointer to a queued Tcl event. May or may not actually be
+ *                                   an NgSpiceEvent. We assume NgSpiceEvent layout only after checking.
+ *
+ *      ClientData cd             - input: opaque pointer passed to Tcl_DeleteEvents(), expected to be
+ *                                   the NgSpiceContext * whose events we want to purge.
+ *
+ * Results:
+ *      Returns 1 if the event should be removed from the queue (and not processed later).
+ *      Returns 0 if the event should be kept.
+ *
+ * Side Effects:
+ *      - If evPtr is an NgSpiceEvent whose e->ctx matches the provided NgSpiceContext:
+ *          - Calls Tcl_Release(e->ctx) to balance the Tcl_Preserve() done when the event
+ *            was queued in NgSpiceQueueEvent().
+ *          - Prevents NgSpiceEventProc from ever running for that event by returning 1.
+ *
+ *      - For all other events (not ours, or wrong instance):
+ *          - Leaves them untouched by returning 0.
+ *
+ *      This function is critical for safe teardown:
+ *          After InstDeleteProc() marks the context as destroying, it uses
+ *          Tcl_DeleteEvents(DeleteNgSpiceEventProc, ctx) so that no stale NgSpiceEvent
+ *          callbacks will later run and access freed memory.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int DeleteNgSpiceEventProc(Tcl_Event *evPtr, ClientData cd) {
+    NgSpiceEvent *e = (NgSpiceEvent *)evPtr;
+    NgSpiceContext *ctx = (NgSpiceContext *)cd;
+
+    if (e->header.proc != NgSpiceEventProc)
+        return 0; // not ours
+    if (e->ctx != ctx)
+        return 0; // different instance
+
+    /* Balance the Tcl_Preserve(ctx) you did when queuing the event */
+    Tcl_Release((ClientData)e->ctx);
+    return 1; /* tell Tcl to delete (discard) this event */
+}
 //***  NgSpiceQueueEvent function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -695,117 +777,220 @@ static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId, uint64_t gen)
         Tcl_ThreadAlert(ctx->tclid);
     }
 }
-//***  MatchNgSpiceEvent function
-/*
- *----------------------------------------------------------------------------------------------------------------------
- *
- * MatchNgSpiceEvent --
- *
- *      Predicate function for identifying NgSpiceEvent structures in the Tcl event queue
- *      that belong to a specific NgSpiceContext.
- *
- * Parameters:
- *      Tcl_Event *evPtr             - input: pointer to a queued Tcl_Event, expected to be an NgSpiceEvent
- *      ClientData cd                - input: pointer to the NgSpiceContext to match against
- *
- * Results:
- *      Returns nonzero (true) if:
- *          - evPtr->proc is NgSpiceEventProc, and
- *          - evPtr->ctx matches the NgSpiceContext pointer in cd
- *      Otherwise returns 0 (false).
- *
- * Side Effects:
- *      None.
- *
- *----------------------------------------------------------------------------------------------------------------------
- */
-static int MatchNgSpiceEvent(Tcl_Event *evPtr, ClientData cd) {
-    NgSpiceEvent *e = (NgSpiceEvent *)evPtr;
-    return (e->header.proc == NgSpiceEventProc && e->ctx == (NgSpiceContext *)cd);
-}
 //***  QuiesceNgspice function
 /*
  *----------------------------------------------------------------------------------------------------------------------
  *
  * QuiesceNgspice --
  *
- *      Request that the ngspice background thread stop execution, and optionally poll for confirmation.
- *      Intended to bring ngspice into an idle state before tearing down the NgSpiceContext or releasing
- *      related resources.
+ *      Requests ngspice to halt any ongoing background simulation activity and optionally waits for confirmation.
+ *      Used during context destruction or controlled shutdown to ensure ngspice stops producing callbacks
+ *      before issuing further cleanup commands.
  *
  * Parameters:
- *      NgSpiceContext *ctx          - input/output: pointer to the ngspice context; may be NULL
+ *      NgSpiceContext *ctx            - input: pointer to the NgSpiceContext structure.
+ *      int wait_ms                    - input: maximum number of milliseconds to wait for background thread to stop;
+ *                                        if 0 or negative, returns immediately after sending the halt command.
  *
  * Results:
  *      None.
  *
  * Side Effects:
- *      - If ctx is NULL or ctx->ngSpice_Command is NULL, returns immediately without action.
- *      - Invokes ctx->ngSpice_Command("bg_halt") to request the background thread stop
- *      - If ctx->ngSpice_running is available, polls it up to ~2 seconds (40 × 50 ms) until it
- *        reports 0 (not running), sleeping 50 ms between checks.
- *      - If ctx->ngSpice_running is not available, sleeps 200 ms as a fallback delay.
+ *      - Issues a "bg_halt" command through ctx->ngSpice_Command() to request ngspice to pause or stop background work.
+ *      - If wait_ms > 0 and ctx->ngSpice_running is available:
+ *          * Polls ngSpice_running() in small time slices (25 ms) up to wait_ms total.
+ *          * Re-sends "bg_halt" every 200 ms if the background thread remains active.
+ *      - Sleeps briefly between polling intervals to reduce CPU usage.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-static void QuiesceNgspice(NgSpiceContext *ctx) {
-    if (!ctx || !ctx->ngSpice_Command) {
+static void QuiesceNgspice(NgSpiceContext *ctx, int wait_ms) {
+    if (!ctx || !ctx->ngSpice_Command)
         return;
-    }
-    // Ask the bg thread to stop; don't wait here
-    ctx->ngSpice_Command("bg_halt");
-    // Poll ngSpice_running() briefly (if available). 0 == not running.
-    if (ctx->ngSpice_running) {
-        for (int i = 0; i < 40; i++) {     // ~2s max
-            if (ctx->ngSpice_running() == 0) break;
-            Tcl_Sleep(50);
+    if (ctx->ngSpice_running && ctx->ngSpice_running() == 1) {
+        ctx->ngSpice_Command("bg_halt");
+        if (wait_ms > 0) {
+            const int slice = 25;
+            int left = wait_ms;
+            while (left > 0) {
+                if (ctx->ngSpice_running() == 0)
+                    break;
+                if ((left % 200) == 0) {
+                    ctx->ngSpice_Command("bg_halt");
+                }
+                Tcl_Sleep(slice);
+                left -= slice;
+            }
         }
-    } else {
-        // Fallback: just give it a moment
-        Tcl_Sleep(200);
     }
 }
+
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EnqueuePending --
+ *
+ *      Adds a command to the pending command queue of an NgSpiceContext.
+ *      Used when ngspice is in a transitional state (e.g., background thread
+ *      starting or stopping) and cannot immediately process new commands.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx    - input: target simulator context.
+ *      const char *cmd        - input: command string to queue (copied).
+ *      int capture            - input: 1 if this was invoked with -capture mode, else 0.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      - Allocates a new PendingCmd node containing a strdup of cmd.
+ *      - Appends the node to ctx->pending_head/tail under ctx->cmd_mu.
+ *      - The queued commands will later be executed by FlushPending().
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EnqueuePending(NgSpiceContext *ctx, const char *cmd, int capture) {
+    PendingCmd *n = (PendingCmd *)Tcl_Alloc(sizeof *n);
+    n->cmd = ckstrdup(cmd);
+    n->capture = capture;
+    n->next = NULL;
+
+    Tcl_MutexLock(&ctx->cmd_mu);
+    if (ctx->pending_tail) {
+        ctx->pending_tail->next = n;
+    } else {
+        ctx->pending_head = n;
+    }
+    ctx->pending_tail = n;
+    Tcl_MutexUnlock(&ctx->cmd_mu);
+}
+
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * FlushPending --
+ *
+ *      Executes and clears all commands previously queued with EnqueuePending().
+ *      This function is called when ngspice transitions back to a stable state
+ *      (e.g., after the background thread starts or stops), allowing deferred
+ *      commands to run safely.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx    - input: simulator context whose pending queue will be flushed.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      - Takes ctx->cmd_mu to detach the entire queue atomically.
+ *      - For each PendingCmd node:
+ *            * If ctx->destroying is false, calls ctx->ngSpice_Command(cmd).
+ *            * Frees the command string and node.
+ *      - Leaves ctx->pending_head and ctx->pending_tail NULL after flushing.
+ *      - If ctx->destroying is true or ngSpice_Command is unavailable, queued
+ *        commands are silently discarded.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void FlushPending(NgSpiceContext *ctx) {
+    // move list out so we don't hold lock while calling ngspice
+    Tcl_MutexLock(&ctx->cmd_mu);
+    PendingCmd *list = ctx->pending_head;
+    ctx->pending_head = NULL;
+    ctx->pending_tail = NULL;
+    Tcl_MutexUnlock(&ctx->cmd_mu);
+    for (PendingCmd *p = list; p;) {
+        PendingCmd *next = p->next;
+        if (!ctx->destroying && ctx->ngSpice_Command) {
+            ctx->ngSpice_Command((char *)p->cmd);
+        } else {
+            
+        }
+        Tcl_Free(p->cmd);
+        Tcl_Free(p);
+        p = next;
+    }
+}
+
 //** ngspice callbacks (instance-scoped via ctx user ptr)
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * MsgMaybeCaptureAndSignal --
+ *
+ *      Pushes a message into the main ngspice message queue and, if capture mode is active,
+ *      also duplicates it into the capture queue. Increments the event counter for the
+ *      specified event type and signals any waiters.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx            - input/output: pointer to the ngspice context holding
+ *                                        message queues, mutex, condition variable, and event counters.
+ *      const char *msg                - input: message string to enqueue (typically from a callback).
+ *      int evt                        - input: index into ctx->evt_counts[] specifying the event type to update.
+ *      uint64_t *gen_out              - output (optional): set to the current generation number (ctx->gen)
+ *                                        at the time the message was queued.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      - Appends msg to ctx->msgq (always).
+ *      - If ctx->cap_active is true, appends msg to ctx->capq as well.
+ *      - Increments ctx->evt_counts[evt] and notifies ctx->cond to wake any waiters.
+ *      - Returns the current generation counter through gen_out, if provided.
+ *      - Thread-safe: protects all shared state with ctx->mutex.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static inline void MsgMaybeCaptureAndSignal(NgSpiceContext *ctx, const char *msg, int evt, uint64_t *gen_out) {
+    Tcl_MutexLock(&ctx->mutex);
+    MsgQ_Push(&ctx->msgq, msg);
+    if (ctx->cap_active) {
+        MsgQ_Push(&ctx->capq, msg);
+    }
+    ctx->evt_counts[evt]++;
+    Tcl_ConditionNotify(&ctx->cond);
+    if (gen_out) {
+        *gen_out = ctx->gen;
+    }
+    Tcl_MutexUnlock(&ctx->mutex);
+}
 //***  SendCharCallback function
 /*
  *----------------------------------------------------------------------------------------------------------------------
  *
  * SendCharCallback --
  *
- *      ngspice callback function invoked whenever a new message is produced on ngspice's stdout or stderr streams.
- *      Captures the message, updates event counters, and queues a corresponding Tcl event for processing
- *      in the main thread.
+ *      ngspice callback function invoked whenever new textual output is produced on ngspice’s stdout or stderr.
+ *      Captures the message, updates event counters, signals waiting threads, and queues a Tcl event
+ *      for deferred processing in the main thread.
  *
  * Parameters:
- *      char *msg                    - input: pointer to the NUL-terminated message string from ngspice
- *      int id                       - input: identification number of the calling ngspice shared library
- *                                      instance (default is 0; may be ignored)
- *      void *user                   - input: user data pointer supplied during ngspice initialization,
- *                                      expected to be an NgSpiceContext *
+ *      char *msg                      - input: pointer to the NUL-terminated message string from ngspice.
+ *      int id                         - input: identification number of the calling ngspice shared library instance
+ *                                        (usually 0; can be ignored).
+ *      void *user                     - input: user data pointer supplied during ngspice initialization,
+ *                                        expected to be an NgSpiceContext *.
  *
  * Results:
  *      Always returns 0 (ignored by ngspice).
  *
  * Side Effects:
  *      - If ctx is valid, msg is non-NULL, and ctx->destroying is false:
- *          - Appends a copy of msg to ctx->msgq via QueueMsg().
- *          - Increments the SEND_CHAR event counter and signals waiters via BumpAndSignal().
- *          - Queues a SEND_CHAR Tcl event via NgSpiceQueueEvent() for deferred processing.
+ *          - Appends msg to the main message queue (ctx->msgq), and if capture mode is active, also to ctx->capq.
+ *          - Increments the SEND_CHAR event counter and signals any waiters on ctx->cond.
+ *          - Queues a SEND_CHAR Tcl event (via NgSpiceQueueEvent) for main-thread processing.
+ *      - Thread-safe: protects shared structures with ctx->mutex internally through MsgMaybeCaptureAndSignal().
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
 int SendCharCallback(char *msg, int id, void *user) {
-    /* ngspice make callback each time new message appears in stdout or stderr */
     NgSpiceContext *ctx = (NgSpiceContext *)user;
-    uint64_t mygen;
     if (!ctx || !msg || ctx->destroying) {
         return 0;
     }
-    QueueMsg(ctx, msg);
-    BumpAndSignal(ctx, SEND_CHAR);
-    Tcl_MutexLock(&ctx->mutex);
-    mygen = ctx->gen;
-    Tcl_MutexUnlock(&ctx->mutex);
+    uint64_t mygen = 0;
+    MsgMaybeCaptureAndSignal(ctx, msg, SEND_CHAR, &mygen);
     NgSpiceQueueEvent(ctx, SEND_CHAR, mygen);
     return 0;
 }
@@ -815,26 +1000,27 @@ int SendCharCallback(char *msg, int id, void *user) {
  *
  * SendStatCallback --
  *
- *      ngspice callback function invoked whenever the simulation status changes.
- *      Formats the status message, updates event counters, and queues a corresponding
- *      Tcl event for processing in the main thread.
+ *      ngspice callback function invoked whenever the simulator’s status changes
+ *      (e.g., transitions such as "--ready--", "--stopped--", or "--running--").
+ *      Formats the status message, records it in the message queue, updates the event
+ *      counters, and queues a Tcl event for processing in the main thread.
  *
  * Parameters:
- *      char *msg                    - input: pointer to the NUL-terminated status message from ngspice
- *      int id                       - input: identification number of the calling ngspice shared library
- *                                      instance (default is 0)
- *      void *user                   - input: user data pointer supplied during ngspice initialization,
- *                                      expected to be an NgSpiceContext *
+ *      char *msg                      - input: pointer to the NUL-terminated status message from ngspice.
+ *      int id                         - input: identification number of the calling ngspice shared library instance.
+ *      void *user                     - input: user data pointer supplied during ngspice initialization,
+ *                                        expected to be an NgSpiceContext *.
  *
  * Results:
  *      Always returns 0 (ignored by ngspice).
  *
  * Side Effects:
  *      - If ctx is valid and ctx->destroying is false:
- *          - Formats the status line as "# status[<id>]: <msg>" into a fixed-size buffer (128 bytes + terminator).
+ *          - Formats the message as: "# status[<id>]: <msg>".
  *          - Appends the formatted line to ctx->msgq via QueueMsg().
  *          - Increments the SEND_STAT event counter and signals waiters via BumpAndSignal().
  *          - Queues a SEND_STAT Tcl event via NgSpiceQueueEvent() for deferred processing.
+ *      - Thread-safe: protects access to ctx->gen with ctx->mutex.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -861,48 +1047,52 @@ int SendStatCallback(char *msg, int id, void *user) {
  *
  * ControlledExitCallback --
  *
- *      ngspice callback function invoked when ngspice exits, either due to an error or as the
- *      result of a quit command. Formats the exit information, updates event counters, and
- *      queues a corresponding Tcl event for processing in the main thread.
+ *      ngspice callback function invoked when ngspice requests a controlled shutdown,
+ *      either due to a normal "quit" command or an internal unrecoverable error.
+ *      Signals the Tcl-side logic that ngspice has exited, updates state flags,
+ *      and queues a CONTROLLED_EXIT event for main-thread processing.
  *
  * Parameters:
- *      int status                   - input: exit status code from ngspice
- *      bool immediate               - input: nonzero if ngspice exited immediately without cleanup
- *      bool exit_upon_exit           - input: nonzero if exit was initiated by user request (quit command)
- *      int id                        - input: identification number of the calling ngspice shared library
- *                                      instance (default is 0)
- *      void *user                    - input: user data pointer supplied during ngspice initialization,
- *                                      expected to be an NgSpiceContext *
+ *      int status                     - input: exit status code provided by ngspice.
+ *      bool immediate                 - input: if true, ngspice requests immediate unloading of the shared library.
+ *      bool exit_upon_exit            - input: if true, indicates user-requested quit; otherwise, internal ngspice
+ *error. int id                         - input: identification number of the ngspice shared library instance. void
+ **user                     - input: user data pointer supplied during ngspice initialization, expected to be an
+ *NgSpiceContext *.
  *
  * Results:
  *      Always returns 0 (ignored by ngspice).
  *
  * Side Effects:
- *      - If ctx is valid and ctx->destroying is false:
- *          - Formats an exit message string into the form:
- *                "# ngspice exited: status=<status> immediate=<immediate> userquit=<exit_upon_exit>"
- *          - Appends the formatted message to ctx->msgq via QueueMsg().
- *          - Increments the CONTROLLED_EXIT event counter and signals waiters via BumpAndSignal().
- *          - Queues a CONTROLLED_EXIT Tcl event via NgSpiceQueueEvent() for deferred processing.
+ *      - Marks the ngspice context as exited (ctx->exited = 1) and clears ctx->quitting.
+ *      - Signals ctx->exit_cv to wake any threads waiting for ngspice termination.
+ *      - Increments the CONTROLLED_EXIT event counter via BumpAndSignal().
+ *      - If ctx->destroying is false:
+ *          - Captures the current generation counter (ctx->gen) under ctx->mutex.
+ *          - Queues a CONTROLLED_EXIT Tcl event for deferred handling in the main thread.
+ *      - Ensures proper synchronization using ctx->exit_mu and ctx->mutex.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+
 int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int id, void *user) {
-    /* ngspice make callback when ngspice is exited, because of error or quit command */
     NgSpiceContext *ctx = (NgSpiceContext *)user;
-    uint64_t mygen;
-    if (!ctx || ctx->destroying) {
+    if (!ctx)
         return 0;
-    }
-    char line[160];
-    snprintf(line, sizeof line, "# ngspice exited: status=%d immediate=%d userquit=%d", status, immediate,
-             exit_upon_exit);
-    QueueMsg(ctx, line);
+
+    Tcl_MutexLock(&ctx->exit_mu);
+    ctx->exited = 1;
+    ctx->quitting = 0;
+    Tcl_ConditionNotify(&ctx->exit_cv);
+    Tcl_MutexUnlock(&ctx->exit_mu);
     BumpAndSignal(ctx, CONTROLLED_EXIT);
-    Tcl_MutexLock(&ctx->mutex);
-    mygen = ctx->gen;
-    Tcl_MutexUnlock(&ctx->mutex);
-    NgSpiceQueueEvent(ctx, CONTROLLED_EXIT, mygen);
+    if (!ctx->destroying) {
+        uint64_t mygen;
+        Tcl_MutexLock(&ctx->mutex);
+        mygen = ctx->gen;
+        Tcl_MutexUnlock(&ctx->mutex);
+        NgSpiceQueueEvent(ctx, CONTROLLED_EXIT, mygen);
+    }
     return 0;
 }
 //***  SendDataCallback function
@@ -911,31 +1101,28 @@ int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int 
  *
  * SendDataCallback --
  *
- *      ngspice callback function invoked whenever simulation data values are produced.
- *      Captures the data into a newly allocated DataRow, appends it to the producer buffer,
- *      updates event counters, and queues a corresponding Tcl event for processing
- *      in the main thread.
+ *      ngspice callback function invoked whenever new simulation data (vector values)
+ *      become available during analysis. Each invocation provides one or more sets of
+ *      vector values that represent the current simulation point.
  *
  * Parameters:
- *      pvecvaluesall all            - input: pointer to structure containing all vector values for this timepoint
- *      int count                    - input: number of simulation points in this callback (unused if > 0 check passes)
- *      int id                       - input: identification number of the calling ngspice shared library instance
- *      void *user                   - input: user data pointer supplied during ngspice initialization,
- *                                      expected to be an NgSpiceContext *
+ *      pvecvaluesall all              - input: pointer to a structure containing the current set of vectors and values.
+ *      int count                      - input: number of vector sets provided (usually 1).
+ *      int id                         - input: identification number of the calling ngspice shared library instance.
+ *      void *user                     - input: user data pointer supplied during ngspice initialization,
+ *                                        expected to be an NgSpiceContext *.
  *
  * Results:
  *      Always returns 0 (ignored by ngspice).
  *
  * Side Effects:
- *      - If ctx is valid, all is non-NULL, count > 0, and ctx->destroying is false:
- *          - Allocates a DataRow with veccount = all->veccount.
- *          - Allocates row.vecs[] and duplicates each vector name with ckstrdup().
- *          - Copies is_complex, creal, and cimag values for each vector from all->vecsa[].
- *          - Locks ctx->mutex, ensures ctx->prod has room for one more DataRow via DataBuf_Ensure(),
- *            and appends the new row.
- *          - Unlocks ctx->mutex.
- *          - Increments the SEND_DATA event counter and signals waiters via BumpAndSignal().
- *          - Queues a SEND_DATA Tcl event via NgSpiceQueueEvent() for deferred processing.
+ *      - If ctx is valid, count > 0, and ctx->destroying is false:
+ *          - Allocates a new DataRow to hold the current vector values.
+ *          - Copies each vector’s metadata and values into a new array of DataCell entries.
+ *          - Appends the completed DataRow to ctx->prod (the producer data buffer) under ctx->mutex protection.
+ *          - Increments the SEND_DATA event counter and signals any waiting threads via BumpAndSignal().
+ *          - Queues a SEND_DATA Tcl event (NgSpiceQueueEvent) for deferred main-thread processing.
+ *      - Ensures thread safety with ctx->mutex around shared buffer access.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -970,32 +1157,30 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
  *
  * SendInitDataCallback --
  *
- *      ngspice callback function invoked when initial simulation vector metadata is available.
- *      Captures vector names, numbers, and type flags into a newly allocated InitSnap structure,
- *      replaces any existing snapshot in the NgSpiceContext, updates event counters, and queues
- *      a corresponding Tcl event for processing in the main thread.
+ *      ngspice callback function invoked once at the start of a simulation run,
+ *      after the simulator has completed initialization and all vectors for the
+ *      upcoming analysis have been defined. Captures metadata describing each vector
+ *      (name, index, and type), resets the data buffer, and triggers a new generation.
  *
  * Parameters:
- *      pvecinfoall vinfo             - input: pointer to structure containing vector metadata
- *      int id                        - input: identification number of the calling ngspice shared library instance
- *      void *user                    - input: user data pointer supplied during ngspice initialization,
- *                                       expected to be an NgSpiceContext *
+ *      pvecinfoall vinfo              - input: pointer to a structure containing information about all initialized vectors.
+ *      int id                         - input: identification number of the calling ngspice shared library instance.
+ *      void *user                     - input: user data pointer supplied during ngspice initialization,
+ *                                        expected to be an NgSpiceContext *.
  *
  * Results:
  *      Always returns 0 (ignored by ngspice).
  *
  * Side Effects:
- *      - If ctx is valid, vinfo is non-NULL, and ctx->destroying is false:
- *          - Allocates an InitSnap structure sized for vinfo->veccount vectors.
- *          - For each vector in vinfo->vecs:
- *              - Duplicates the vector name with ckstrdup().
- *              - Copies the numeric identifier and is_real flag.
- *          - Locks ctx->mutex, frees any existing ctx->init_snap (including its name strings and array),
- *            and replaces it with the new InitSnap.
- *          - Unlocks ctx->mutex.
- *          - Increments the SEND_INIT_DATA event counter and signals waiters via BumpAndSignal().
- *          - Queues a SEND_INIT_DATA Tcl event via NgSpiceQueueEvent() for deferred processing.
- *          - Frees DataBuf and reinitializes it
+ *      - If ctx is valid and ctx->destroying is false:
+ *          - Allocates a new InitSnap structure holding vector metadata (name, number, is_real flag).
+ *          - Frees any previously stored initialization snapshot (ctx->init_snap) before replacing it.
+ *          - Resets ctx->prod (the producer data buffer) to prepare for new simulation data.
+ *          - Increments ctx->gen (the generation counter), marking a new run boundary.
+ *          - Sets ctx->new_run_pending to request a data reset in NgSpiceEventProc.
+ *          - Increments the SEND_INIT_DATA event counter and signals any waiting threads via BumpAndSignal().
+ *          - Queues a SEND_INIT_DATA Tcl event (NgSpiceQueueEvent) for deferred main-thread processing.
+ *      - Ensures thread safety by locking ctx->mutex during all shared state updates.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -1022,9 +1207,9 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         Tcl_Free(ctx->init_snap);
     }
     ctx->init_snap = snap;
-    ctx->gen++;                 // <— bump generation
-    ctx->new_run_pending = 1;   // <— request reset in event proc
-    uint64_t mygen = ctx->gen;  // capture for queuing
+    ctx->gen++;                // <— bump generation
+    ctx->new_run_pending = 1;  // <— request reset in event proc
+    uint64_t mygen = ctx->gen; // capture for queuing
     DataBuf_Free(&ctx->prod);
     DataBuf_Init(&ctx->prod);
     ctx->new_run_pending = 1;
@@ -1039,26 +1224,49 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
  *
  * BGThreadRunningCallback --
  *
- *      ngspice callback function invoked when the state of the background simulation thread changes.
- *      Logs a message describing whether the background thread has started or ended, updates event
- *      counters, and queues a corresponding Tcl event for processing in the main thread.
+ *      libngspice callback that fires when the background simulation thread changes state.
+ *      We record whether the background thread just started or ended, update internal
+ *      bookkeeping, wake any waiters, and enqueue a Tcl event for the main thread.
  *
  * Parameters:
- *      bool running                  - input: false if the background thread is running, true if it has stopped
- *      int id                        - input: identification number of the calling ngspice shared library instance
- *      void *user                    - input: user data pointer supplied during ngspice initialization,
- *                                        expected to be an NgSpiceContext *
+ *      bool running   - false means the background thread has just STARTED,
+ *                       true  means the background thread has just STOPPED.
+ *      int id         - ngspice instance ID (unused here).
+ *      void *user     - NgSpiceContext * passed at ngSpice_Init() time.
  *
  * Results:
- *      Always returns 0 (ignored by ngspice).
+ *      Always returns 0 (ngspice ignores the return value).
  *
- * Side Effects:
- *      - If ctx is valid and ctx->destroying is false:
- *          - Appends a status message to ctx->msgq via QueueMsg():
- *              "# background thread running started" if running == false
- *              "# background thread running ended"   if running == true
- *          - Increments the BG_THREAD_RUNNING event counter and signals waiters via BumpAndSignal().
- *          - Queues a BG_THREAD_RUNNING Tcl event via NgSpiceQueueEvent() for deferred processing.
+ * Behavior / Side Effects:
+ *      - If ctx is NULL or ctx->destroying is already set, we return immediately.
+ *
+ *      - Otherwise:
+ *          * Take ctx->bg_mu and update ctx->bg_started / ctx->bg_ended:
+ *                running == false:
+ *                    - mark ctx->bg_started = 1
+ *                    - if ctx->state == NGSTATE_STARTING_BG:
+ *                        set ctx->state = NGSTATE_BG_ACTIVE
+ *                        FlushPending(ctx)   ;# run any commands queued while starting
+ *
+ *                running == true:
+ *                    - mark ctx->bg_ended = 1
+ *                    - if ctx->state == NGSTATE_STOPPING_BG or NGSTATE_BG_ACTIVE:
+ *                        set ctx->state = NGSTATE_IDLE
+ *                        FlushPending(ctx)   ;# now safe to run deferred commands
+ *
+ *          * Signal ctx->bg_cv so threads waiting in WaitForBGStarted()/WaitForBGEnded()
+ *            can make progress.
+ *
+ *          * Log a human-readable status line into ctx->msgq via QueueMsg(), e.g.:
+ *                "# background thread running started"
+ *                "# background thread running ended"
+ *
+ *          * Call BumpAndSignal(ctx, BG_THREAD_RUNNING) to:
+ *                - increment the BG_THREAD_RUNNING counter in ctx->evt_counts[]
+ *                - wake up anyone blocked in waitevent bg_running
+ *
+ *          * Snapshot ctx->gen under ctx->mutex and queue a BG_THREAD_RUNNING Tcl event
+ *            (NgSpiceQueueEvent), so the main thread can service it later.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -1068,6 +1276,28 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
     if (!ctx || ctx->destroying) {
         return 0;
     }
+    Tcl_MutexLock(&ctx->bg_mu);
+    if (!running) {
+        if (!ctx->bg_started) {
+            ctx->bg_started = 1;
+            if (ctx->state == NGSTATE_STARTING_BG) {
+                ctx->state = NGSTATE_BG_ACTIVE;
+                FlushPending(ctx); /* drain any queued commands waiting for start */
+            }
+        }
+    } else {
+        ctx->bg_ended = 1;
+        if (ctx->state == NGSTATE_STOPPING_BG) {
+            ctx->state = NGSTATE_IDLE;
+            FlushPending(ctx); /* now safe to run queued stuff like "kolp" */
+        } else if (ctx->state == NGSTATE_BG_ACTIVE) {
+            /* ngspice ended bg thread on its own (normal end-of-run) */
+            ctx->state = NGSTATE_IDLE;
+            FlushPending(ctx);
+        }
+    }
+    Tcl_ConditionNotify(&ctx->bg_cv);
+    Tcl_MutexUnlock(&ctx->bg_mu);
     QueueMsg(ctx, running ? "# background thread running ended" : "# background thread running started");
     BumpAndSignal(ctx, BG_THREAD_RUNNING);
     Tcl_MutexLock(&ctx->mutex);
@@ -1076,6 +1306,126 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
     NgSpiceQueueEvent(ctx, BG_THREAD_RUNNING, mygen);
     return 0;
 }
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * WaitForBGStarted --
+ *
+ *      Waits until the ngspice background simulation thread has started, or until an optional timeout expires.
+ *      Ensures that subsequent operations (e.g. event waiting or destruction) occur only after ngspice has
+ *      fully initialized its background thread.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx            - input: pointer to the NgSpiceContext structure.
+ *      int timeout_ms                 - input: maximum time to wait in milliseconds (0 or negative for infinite wait).
+ *
+ * Results:
+ *      None. Returns after the background thread has started or the timeout has elapsed.
+ *
+ * Side Effects:
+ *      - Polls ngSpice_running() and waits on ctx->bg_cv until ctx->bg_started is set by BGThreadRunningCallback().
+ *      - If timeout_ms > 0, the wait is bounded by the specified duration.
+ *      - Uses Tcl_MutexLock/Tcl_ConditionWait to safely synchronize with the callback thread.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void WaitForBGStarted(NgSpiceContext *ctx, int timeout_ms) {
+    if (!ctx->ngSpice_running) {
+        Tcl_Sleep(10);
+        return;
+    }
+    Tcl_Time deadline, now;
+    int use_deadline = (timeout_ms > 0);
+    if (use_deadline) {
+        Tcl_GetTime(&deadline);
+        long us = (long)timeout_ms * 1000;
+        deadline.usec += us % 1000000;
+        deadline.sec += us / 1000000 + deadline.usec / 1000000;
+        deadline.usec %= 1000000;
+    }
+    Tcl_MutexLock(&ctx->bg_mu);
+    while (!ctx->bg_started) {
+        if (ctx->ngSpice_running() == 1) {
+            ctx->bg_started = 1;
+            break;
+        }
+        if (!use_deadline) {
+            Tcl_ConditionWait(&ctx->bg_cv, &ctx->bg_mu, NULL);
+        } else {
+            Tcl_GetTime(&now);
+            if (now.sec > deadline.sec || (now.sec == deadline.sec && now.usec >= deadline.usec))
+                break;
+            Tcl_Time rel = deadline;
+            rel.sec -= now.sec;
+            rel.usec -= now.usec;
+            if (rel.usec < 0) {
+                rel.usec += 1000000;
+                rel.sec -= 1;
+            }
+            Tcl_ConditionWait(&ctx->bg_cv, &ctx->bg_mu, &rel);
+        }
+    }
+    Tcl_MutexUnlock(&ctx->bg_mu);
+}
+
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * WaitForBGEnded --
+ *
+ *      Waits until the ngspice background simulation thread has finished running, or until an optional timeout expires.
+ *      Ensures that cleanup or context destruction does not proceed while the background thread is still active.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx            - input: pointer to the NgSpiceContext structure.
+ *      int timeout_ms                 - input: maximum time to wait in milliseconds (0 or negative for infinite wait).
+ *
+ * Results:
+ *      None. Returns after the background thread has ended or the timeout has elapsed.
+ *
+ * Side Effects:
+ *      - Polls ngSpice_running() and waits on ctx->bg_cv until ctx->bg_ended is set by BGThreadRunningCallback().
+ *      - If ngSpice_running() returns 0, marks ctx->bg_ended = 1 immediately.
+ *      - Uses Tcl_MutexLock/Tcl_ConditionWait to synchronize with the callback thread.
+ *      - If timeout_ms > 0, the wait is bounded by the specified duration.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void WaitForBGEnded(NgSpiceContext *ctx, int timeout_ms) {
+    Tcl_Time deadline, now;
+    int use_deadline = (timeout_ms > 0);
+    if (use_deadline) {
+        Tcl_GetTime(&deadline);
+        long us = (long)timeout_ms * 1000;
+        deadline.usec += us % 1000000;
+        deadline.sec += us / 1000000 + deadline.usec / 1000000;
+        deadline.usec %= 1000000;
+    }
+    Tcl_MutexLock(&ctx->bg_mu);
+    while (!ctx->bg_ended) {
+        if (!ctx->ngSpice_running || ctx->ngSpice_running() == 0) {
+            ctx->bg_ended = 1;
+            break;
+        }
+        if (!use_deadline) {
+            Tcl_ConditionWait(&ctx->bg_cv, &ctx->bg_mu, NULL);
+        } else {
+            Tcl_GetTime(&now);
+            if (now.sec > deadline.sec || (now.sec == deadline.sec && now.usec >= deadline.usec))
+                break;
+            Tcl_Time rel = deadline;
+            rel.sec -= now.sec;
+            rel.usec -= now.usec;
+            if (rel.usec < 0) {
+                rel.usec += 1000000;
+                rel.sec -= 1;
+            }
+            Tcl_ConditionWait(&ctx->bg_cv, &ctx->bg_mu, &rel);
+        }
+    }
+    Tcl_MutexUnlock(&ctx->bg_mu);
+}
+
 //** free functions
 //***  InstFreeProc function
 /*
@@ -1083,49 +1433,156 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
  *
  * InstFreeProc --
  *
- *      Instance finalizer for an NgSpiceContext. Cleans up all resources, stops any background
- *      ngspice activity, and frees all dynamically allocated memory associated with the context.
+ *      Final cleanup routine for an NgSpiceContext. This is the last stage of teardown for
+ *      a simulator instance. It runs asynchronously after Tcl_EventuallyFree() decides that
+ *      no Tcl events in the queue still reference this context.
+ *
+ *      IMPORTANT:
+ *      InstFreeProc must only run after ngspice is fully quiesced and will never call back
+ *      into us again. InstDeleteProc is responsible for:
+ *          - stopping any background simulation activity,
+ *          - synchronizing with ControlledExitCallback() so ctx->exited is set,
+ *          - purging all queued NgSpiceEvent records for this ctx,
+ *          - marking ctx->destroying = 1 and moving ctx->state to NGSTATE_DEAD,
+ *          - detaching and freeing any deferred command queue.
+ *
+ *      By the time InstFreeProc executes, we assume:
+ *          - no callbacks are still racing on this ctx,
+ *          - no Tcl event in the system will try to access ctx,
+ *          - ctx is no longer visible from Tcl,
+ *          - and it is now safe to tear everything down for real.
  *
  * Parameters:
- *      void *cdata                   - input: pointer to the NgSpiceContext to destroy
+ *      void *cdata
+ *          Pointer to the NgSpiceContext being freed.
  *
  * Results:
  *      None.
  *
  * Side Effects:
- *      - Calls QuiesceNgspice() to request that ngspice stop its background thread.
- *      - Removes any queued NgSpiceEvent entries associated with this context via Tcl_DeleteEvents().
- *      - Signals ctx->cond to wake any threads waiting in wait_for(), ensuring no thread remains blocked.
- *      - Decrements the reference counts of ctx->vectorData and ctx->vectorInit if they are set.
- *      - Frees all queued messages with MsgQ_Free().
- *      - Frees the producer and pending DataBuf buffers with DataBuf_Free().
- *      - Finalizes the condition variable and mutex.
- *      - Closes the dynamically loaded ngspice library handle if present via dlclose().
- *      - Frees the NgSpiceContext structure itself with Tcl_Free().
+ *
+ *   1. Global poison guard.
+ *      If g_heap_poisoned is nonzero, we assume libngspice went down in an unsafe or
+ *      partially torn state earlier. In that mode:
+ *
+ *          - We return immediately without touching ctx.
+ *          - We do NOT free any memory owned by ctx.
+ *          - We do NOT attempt to dlclose() the ngspice handle.
+ *
+ *      Rationale: once the process is marked poisoned, libngspice (and anything it may
+ *      have corrupted) is considered unsafe to poke. We intentionally leak ctx to avoid
+ *      risking a crash in a compromised heap.
+ *
+ *   2. Wake any waitevent stragglers.
+ *      As a last courtesy, we notify ctx->cond under ctx->mutex so any thread still stuck
+ *      in [$s waitevent ...] can unblock. At this point the Tcl command is already gone,
+ *      but this avoids leaving a thread permanently asleep on a dying context.
+ *
+ *   3. Release Tcl-managed objects.
+ *      We drop our holds on refcounted Tcl objects stored in the context:
+ *
+ *          if (ctx->vectorData)  Tcl_DecrRefCount(ctx->vectorData);
+ *          if (ctx->vectorInit)  Tcl_DecrRefCount(ctx->vectorInit);
+ *
+ *      After this, Tcl may free those objects if nothing else references them.
+ *
+ *   4. Free dynamic data structures owned by the context.
+ *      We clean up everything we allocated for runtime data capture:
+ *
+ *          - MsgQ_Free(&ctx->msgq);   // user-visible stdout/stderr/status lines
+ *          - MsgQ_Free(&ctx->capq);   // capture buffer for -capture calls
+ *          - DataBuf_Free(&ctx->prod);
+ *          - DataBuf_Free(&ctx->pend);
+ *
+ *      This releases any queued message strings and any buffered vector rows.
+ *
+ *   5. Tear down synchronization primitives.
+ *      We finalize all mutexes and condition variables associated with this context so
+ *      they are no longer usable:
+ *
+ *          Tcl_ConditionFinalize(&ctx->cond);
+ *          Tcl_MutexFinalize(&ctx->mutex);
+ *
+ *          Tcl_ConditionFinalize(&ctx->exit_cv);
+ *          Tcl_MutexFinalize(&ctx->exit_mu);
+ *
+ *          Tcl_ConditionFinalize(&ctx->bg_cv);
+ *          Tcl_MutexFinalize(&ctx->bg_mu);
+ *
+ *          Tcl_MutexFinalize(&ctx->cmd_mu);
+ *
+ *      After this point, no thread should attempt to lock or wait on any of these.
+ *
+ *   6. Optionally unload libngspice.
+ *      If ctx->handle is non-NULL, we attempt to close the dynamically loaded ngspice
+ *      library handle with PDl_Close(), but ONLY if it is considered safe:
+ *
+ *          - We skip dlclose() if ctx->skip_dlclose is set on this instance, or if the
+ *            global g_disable_dlclose is set.
+ *
+ *        Both flags are set when InstDeleteProc detects that ngspice shut down abruptly
+ *        (background thread vanished without a clean "ended" callback, heap may be bad).
+ *        In that case we never try to unload the shared lib because that can crash.
+ *
+ *   7. Free the context itself.
+ *      Finally we release the NgSpiceContext struct with Tcl_Free(ctx). At this point
+ *      there should be no remaining references to ctx anywhere in Tcl or in our own
+ *      queued events.
+ *
+ *      NOTE: Once ctx is freed, absolutely nothing is allowed to touch it: no events,
+ *      no callbacks, no mutex ops. This is guaranteed by the sequencing enforced in
+ *      InstDeleteProc and by Tcl_EventuallyFree().
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
 static void InstFreeProc(void *cdata) {
     NgSpiceContext *ctx = (NgSpiceContext *)cdata;
-    QuiesceNgspice(ctx);
-    Tcl_DeleteEvents(MatchNgSpiceEvent, ctx);
+    /* If we've detected a prior catastrophic ngspice shutdown, do nothing.
+     * We deliberately leak ctx to avoid touching corrupted heap state or
+     * invoking dlclose() on a potentially invalid library.
+     */
+    if (g_heap_poisoned) {
+        return;
+    }
+    /* Wake any remaining waitevent waiters, just in case. */
     Tcl_MutexLock(&ctx->mutex);
-    Tcl_ConditionNotify(&ctx->cond); // belt-and-braces wake
+    Tcl_ConditionNotify(&ctx->cond);
     Tcl_MutexUnlock(&ctx->mutex);
+    /* Release Tcl-managed data objects, if present. */
     if (ctx->vectorData) {
         Tcl_DecrRefCount(ctx->vectorData);
     }
     if (ctx->vectorInit) {
         Tcl_DecrRefCount(ctx->vectorInit);
     }
+    /* Free message buffers and captured output buffers. */
     MsgQ_Free(&ctx->msgq);
+    MsgQ_Free(&ctx->capq);
+    /* Free accumulated data rows and any pending buffers. */
     DataBuf_Free(&ctx->prod);
     DataBuf_Free(&ctx->pend);
+    /* Tear down synchronization primitives for normal operation... */
     Tcl_ConditionFinalize(&ctx->cond);
     Tcl_MutexFinalize(&ctx->mutex);
+    /* ...and for shutdown/exit coordination. */
+    Tcl_ConditionFinalize(&ctx->exit_cv);
+    Tcl_MutexFinalize(&ctx->exit_mu);
+    /* Optionally unload the dynamically loaded ngspice library. */
     if (ctx->handle) {
-        PDl_Close(ctx->handle);
+        if (ctx->skip_dlclose || g_disable_dlclose) {
+            /* Skipping dlclose(): ngspice shutdown was unsafe, library state may be invalid. */
+        } else {
+            PDl_Close(ctx->handle);
+        }
     }
+    /* Finally, free the context itself and finalize mutexes*/
+    Tcl_ConditionFinalize(&ctx->cond);
+    Tcl_MutexFinalize(&ctx->mutex);
+    Tcl_ConditionFinalize(&ctx->exit_cv);
+    Tcl_MutexFinalize(&ctx->exit_mu);
+    Tcl_ConditionFinalize(&ctx->bg_cv);
+    Tcl_MutexFinalize(&ctx->bg_mu);
+    Tcl_MutexFinalize(&ctx->cmd_mu);
     Tcl_Free(ctx);
 }
 //***  InstDeleteProc function
@@ -1134,30 +1591,281 @@ static void InstFreeProc(void *cdata) {
  *
  * InstDeleteProc --
  *
- *      Instance deletion handler for an NgSpiceContext. Marks the context as being destroyed,
- *      wakes any threads waiting on its condition variable, and schedules deferred cleanup
- *      via InstFreeProc() once it is safe to free the context.
+ *      Instance deletion procedure for an NgSpiceContext. Called when the Tcl command that
+ *      represents a simulator instance is deleted (for example, via `$s1 destroy`). This
+ *      function tries to shut down ngspice in a controlled way, stop further callbacks,
+ *      clean up any pending state, and (if safe) schedule final cleanup of the instance.
+ *
+ *      This function also enforces a global "poison" mode. If ngspice has ever died in a
+ *      partially torn-down / unsafe state (which can corrupt libngspice’s heap), we mark
+ *      the process as contaminated by setting global flags. Once the process is poisoned,
+ *      we never call back into ngspice again, never dlclose() its handle, and we leak
+ *      the context on purpose instead of risking a crash.
  *
  * Parameters:
- *      void *cdata                   - input: pointer to the NgSpiceContext to delete
+ *      void *cdata
+ *          Pointer to the NgSpiceContext for this Tcl instance.
  *
  * Results:
  *      None.
  *
  * Side Effects:
- *      - Sets ctx->destroying to 1, signaling other threads and callbacks to stop using the context.
- *      - Acquires ctx->mutex, notifies ctx->cond to wake any blocked waiters, and releases the mutex.
- *      - Calls Tcl_EventuallyFree() to schedule InstFreeProc() for execution when no other code
- *        holds a reference to ctx.
+ *
+ *   Global poison fast path:
+ *      If g_heap_poisoned is already set when this runs, we assume the process is already
+ *      contaminated from a previous ngspice failure. In that case:
+ *
+ *          * We mark ctx->destroying = 1 so no new callbacks enqueue data or events.
+ *
+ *          * We tear down any deferred ngspice commands immediately and in a thread-safe way:
+ *                - Lock ctx->cmd_mu, detach ctx->pending_head/tail.
+ *                - Free all PendingCmd nodes outside the lock.
+ *            This prevents any queued commands from being flushed later into a dead ngspice.
+ *
+ *          * We wake any thread currently blocked in waitevent:
+ *                - Lock ctx->mutex, Tcl_ConditionNotify(&ctx->cond), unlock.
+ *
+ *          * We DO NOT:
+ *                - call QuiesceNgspice()
+ *                - call ctx->ngSpice_Command("quit")
+ *                - wait on ctx->exit_cv
+ *                - queue InstFreeProc()
+ *                - dlclose() the ngspice handle
+ *
+ *      We just return. The context (and possibly libngspice itself) is intentionally leaked
+ *      because touching it could be unsafe.
+ *
+ *   Normal shutdown path (when not already poisoned):
+ *
+ *      1. Stop further activity.
+ *         - Set ctx->destroying = 1 so callbacks know to stop queuing data/events.
+ *         - Force the high-level state machine into NGSTATE_DEAD under bg_mu, so future
+ *           InstObjCmd calls will reject immediately.
+ *
+ *      2. Drain and discard any deferred commands.
+ *         - Lock ctx->cmd_mu, detach the pending command list (pending_head/tail = NULL),
+ *           unlock, then free all PendingCmd nodes.
+ *           This guarantees nothing later will FlushPending() into ngspice after teardown
+ *           has begun.
+ *
+ *      3. Observe background thread state.
+ *         - Call WaitForBGStarted(ctx, 250) to latch whether ngspice ever told us the
+ *           background thread "started" and/or "ended".
+ *         - Snapshot:
+ *               started = ctx->bg_started
+ *               ended   = ctx->bg_ended
+ *               running_now = ctx->ngSpice_running() (if available)
+ *
+ *      4. Detect an unsafe/abrupt shutdown.
+ *         - We consider it "abrupt" only if:
+ *               (started == 1) AND
+ *               (running_now == 0) AND
+ *               (ended == 0)
+ *           That means ngspice’s bg thread used to exist, but we never got the clean
+ *           "ended" callback, so we assume the lib may be in a half-dead state.
+ *
+ *         - In that case:
+ *               abrupt_shutdown = 1;
+ *               g_heap_poisoned = 1;
+ *               g_disable_dlclose = 1;
+ *               ctx->skip_dlclose = 1;
+ *
+ *           From now on the entire process is considered poisoned and we will refuse to
+ *           touch ngspice internals or unload the library in any instance.
+ *
+ *      5. Halt the background thread if it's still legitimately running.
+ *         - If (started && !ended && !abrupt_shutdown):
+ *               QuiesceNgspice(ctx, 0);
+ *               WaitForBGEnded(ctx, 3000);
+ *           Otherwise we just mark ctx->bg_ended = 1 under bg_mu so later code won't spin.
+ *
+ *      6. Decide whether to tell ngspice to exit.
+ *         - We only send "quit" if it still looks safe:
+ *               safe_to_quit = !ctx->exited && !abrupt_shutdown
+ *           and we have a valid ctx->ngSpice_Command and we haven't already sent it.
+ *
+ *         - Safe case:
+ *               ctx->quitting = 1;
+ *               ctx->ngSpice_Command("unset askquit");
+ *               ctx->ngSpice_Command("quit");
+ *
+ *         - Unsafe case (either already exited, or abrupt_shutdown, or otherwise not safe):
+ *               We do NOT call into ngspice.
+ *               If ctx->exited is still 0, we fake a clean exit:
+ *                   Lock ctx->exit_mu;
+ *                   ctx->exited = 1;
+ *                   Tcl_ConditionNotify(&ctx->exit_cv);
+ *                   Unlock ctx->exit_mu;
+ *               We also set ctx->skip_dlclose = 1 so InstFreeProc will not dlclose()
+ *               a possibly-corrupted library.
+ *
+ *      7. Sync with exit.
+ *         - We now wait until ctx->exited is definitely 1:
+ *               Lock ctx->exit_mu;
+ *               while (!ctx->exited) Tcl_ConditionWait(&ctx->exit_cv, ...);
+ *               Unlock ctx->exit_mu;
+ *
+ *           In the normal path, ControlledExitCallback() will eventually mark exited=1
+ *           and signal exit_cv. In the unsafe/fake-exit path above, we already forced
+ *           exited=1 and notified, so this wait returns immediately.
+ *
+ *      8. Purge any queued Tcl events for this context.
+ *         - Tcl_DeleteEvents(DeleteNgSpiceEventProc, ctx) walks the Tcl event queue,
+ *           drops all NgSpiceEvent entries that still refer to this ctx, and balances
+ *           their Tcl_Preserve/Tcl_Release.
+ *           After this point, no pending NgSpiceEventProc will ever run on a freed ctx.
+ *
+ *      9. Wake waitevent callers.
+ *         - Lock ctx->mutex;
+ *           Tcl_ConditionNotify(&ctx->cond);
+ *           Unlock ctx->mutex;
+ *
+ *         This unblocks anyone in [$s waitevent ...] so they don't hang forever on an
+ *         instance that is going away.
+ *
+ *     10. Final disposition.
+ *         - If we just transitioned into poisoned mode (abrupt_shutdown set the globals),
+ *           we stop here and return without scheduling cleanup. We intentionally leak ctx
+ *           because we consider libngspice unsafe to touch further.
+ *
+ *         - Otherwise, we hand ownership to Tcl for orderly teardown:
+ *               Tcl_EventuallyFree(ctx, InstFreeProc);
+ *           InstFreeProc will run later (once no events still reference ctx) and will:
+ *               * release Tcl objects (vectorData, vectorInit),
+ *               * free message/data buffers,
+ *               * finalize mutexes/conditions,
+ *               * dlclose() libngspice unless skip_dlclose or g_disable_dlclose is set.
+ *
+ *   Idempotency:
+ *      Calling InstDeleteProc multiple times is safe. If ctx->destroying was already set,
+ *      or if the process is already poisoned, we just do minimal signaling / pending command
+ *      drain and return. We don't try to shut ngspice down twice.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
 static void InstDeleteProc(void *cdata) {
     NgSpiceContext *ctx = (NgSpiceContext *)cdata;
+    if (g_heap_poisoned) {
+        // Process is already in a corrupted state from a previous ngspice failure.
+        // We cannot safely call into ngspice anymore, and we cannot safely free
+        // anything that ngspice might have touched.
+        ctx->destroying = 1;
+        Tcl_MutexLock(&ctx->cmd_mu);
+        PendingCmd *plist = ctx->pending_head;
+        ctx->pending_head = NULL;
+        ctx->pending_tail = NULL;
+        Tcl_MutexUnlock(&ctx->cmd_mu);
+        while (plist) {
+            PendingCmd *next = plist->next;
+            Tcl_Free(plist->cmd);
+            Tcl_Free(plist);
+            plist = next;
+        }
+        // Unblock any waitevent callers that might still be watching this ctx.
+        Tcl_MutexLock(&ctx->mutex);
+        Tcl_ConditionNotify(&ctx->cond);
+        Tcl_MutexUnlock(&ctx->mutex);
+        return;
+    }
+    if (ctx->destroying) {
+        return;
+    }
+    /* tell callbacks to stop enqueueing new work */
     ctx->destroying = 1;
+    Tcl_MutexLock(&ctx->bg_mu);
+    ctx->state = NGSTATE_DEAD;
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    Tcl_MutexLock(&ctx->cmd_mu);
+    /* free commands queue */
+    PendingCmd *plist = ctx->pending_head;
+    ctx->pending_head = NULL;
+    ctx->pending_tail = NULL;
+    Tcl_MutexUnlock(&ctx->cmd_mu);
+    while (plist) {
+        PendingCmd *next = plist->next;
+        Tcl_Free(plist->cmd);
+        Tcl_Free(plist);
+        plist = next;
+    }
+    /* Step 1: observe early bg thread state */
+    WaitForBGStarted(ctx, 250);
+    Tcl_MutexLock(&ctx->bg_mu);
+    int started = ctx->bg_started;
+    int ended = ctx->bg_ended;
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    int running_now = -1;
+    if (ctx->ngSpice_running) {
+        running_now = ctx->ngSpice_running();
+    }
+    int abrupt_shutdown = 0;
+    /* check if teardown is called during stopping the bg thread, and make sure that bg thread is even started*/
+    if (started && (running_now == 0) && !ended) {
+        abrupt_shutdown = 1;
+        g_heap_poisoned = 1;
+        g_disable_dlclose = 1;
+        ctx->skip_dlclose = 1;
+    }
+    /* Step 2: try graceful halt if bg thread might still be legitimately running,
+     * and we didn't detect the abrupt case.
+     */
+    if (started && !ended && !abrupt_shutdown) {
+        QuiesceNgspice(ctx, 0);
+        WaitForBGEnded(ctx, 3000);
+    } else {
+        /* Otherwise just force-mark ended = 1 locally so later code doesn't spin. */
+        Tcl_MutexLock(&ctx->bg_mu);
+        ctx->bg_ended = 1;
+        Tcl_MutexUnlock(&ctx->bg_mu);
+    }
+    /* Snapshot after shutdown attempts */
+    Tcl_MutexLock(&ctx->bg_mu);
+    ended = ctx->bg_ended;
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    running_now = (ctx->ngSpice_running ? ctx->ngSpice_running() : -1);
+    /*
+     * Step 3: decide whether to call "quit"
+     */
+    int safe_to_quit = 1;
+    if (ctx->exited) {
+        safe_to_quit = 0;
+    }
+    if (abrupt_shutdown) {
+        safe_to_quit = 0;
+    }
+    if (safe_to_quit && ctx->ngSpice_Command && !ctx->quitting) {
+        ctx->quitting = 1;
+        ctx->ngSpice_Command("unset askquit");
+        ctx->ngSpice_Command("quit");
+    } else if (!safe_to_quit && !ctx->exited) {
+        /* skip quit but still unblock teardown */
+        Tcl_MutexLock(&ctx->exit_mu);
+        ctx->exited = 1;
+        Tcl_ConditionNotify(&ctx->exit_cv);
+        Tcl_MutexUnlock(&ctx->exit_mu);
+
+        ctx->skip_dlclose = 1; /* don't dlclose poisoned ngspice */
+    }
+    /*
+     * Step 4: sync with ControlledExitCallback OR our fake exit
+     */
+    Tcl_MutexLock(&ctx->exit_mu);
+    while (!ctx->exited) {
+        Tcl_ConditionWait(&ctx->exit_cv, &ctx->exit_mu, NULL);
+    }
+    Tcl_MutexUnlock(&ctx->exit_mu);
+    Tcl_DeleteEvents(DeleteNgSpiceEventProc, ctx);
     Tcl_MutexLock(&ctx->mutex);
-    Tcl_ConditionNotify(&ctx->cond); // wake any waiters
+    Tcl_ConditionNotify(&ctx->cond); // unblock any waitevent
     Tcl_MutexUnlock(&ctx->mutex);
+    if (g_heap_poisoned) {
+        ctx->destroying = 1;
+        // do minimal signaling so waitevent callers unblock:
+        Tcl_MutexLock(&ctx->mutex);
+        Tcl_ConditionNotify(&ctx->cond);
+        Tcl_MutexUnlock(&ctx->mutex);
+        // and just return without freeing ctx
+        return;
+    }
     Tcl_EventuallyFree((ClientData)ctx, InstFreeProc);
 }
 //** command registering function
@@ -1167,66 +1875,125 @@ static void InstDeleteProc(void *cdata) {
  *
  * InstObjCmd --
  *
- *      Object command procedure for an NgSpiceContext instance. Dispatches subcommands to control,
- *      query, or modify the state of the ngspice interface and associated data structures.
+ *      Object command procedure for a single ngspice bridge instance. This is the Tcl command
+ *      that scripts call (e.g. "::ngspicetclbridge::s1 ..."). Each subcommand here operates on
+ *      the same NgSpiceContext and its associated libngspice state.
  *
  * Parameters:
- *      ClientData cdata              - input: pointer to the NgSpiceContext for this command instance
- *      Tcl_Interp *interp            - input: target interpreter
- *      Tcl_Size objc                 - input: number of arguments in objv[]
- *      Tcl_Obj *const objv[]         - input: argument list, where objv[0] is the instance command name
- *                                       and objv[1] is the subcommand
+ *      ClientData cdata      - pointer to the NgSpiceContext for this instance
+ *      Tcl_Interp *interp    - target interpreter
+ *      Tcl_Size objc         - number of arguments
+ *      Tcl_Obj *const objv[] - argv-style list of Tcl_Objs:
+ *                                  objv[0] = instance command name
+ *                                  objv[1] = subcommand
+ *                                  objv[2+] = subcommand args (if any)
  *
  * Results:
- *      Returns a standard Tcl result code (TCL_OK or TCL_ERROR).
- *      Sets the interpreter result for subcommands that produce output.
+ *      TCL_OK or TCL_ERROR. On success, some subcommands also set a Tcl result.
  *
  * Supported Subcommands:
- *      init
- *          - Calls ngSpice_Init() with registered callbacks and ensures vectorData/vectorInit dicts exist.
- *          - Returns ngspice initialization result code (int).
  *
- *      command string
- *          - Sends an arbitrary ngspice command string via ngSpice_Command().
- *          - Returns the ngspice result code (int).
+ *   init
+ *      - Calls ngSpice_Init() with our callbacks:
+ *          SendCharCallback, SendStatCallback, ControlledExitCallback,
+ *          SendDataCallback, SendInitDataCallback, BGThreadRunningCallback.
+ *      - Ensures ctx->vectorData / ctx->vectorInit exist (refcounted dicts).
+ *      - Result: int rc from ngSpice_Init().
  *
- *      waitevent name ?timeout_ms?
- *          - Waits for a named ngspice event (e.g., "send_stat") up to the specified timeout in milliseconds.
- *          - Returns a dict: {fired <bool> count <int64> status <ok|timeout|aborted>}.
+ *   command ?-capture? string
+ *      - Sends an ngspice command via ngSpice_Command().
+ *      - Normal form: "command <str>"
+ *            -> just call ngSpice_Command(), result is its int return code.
+ *      - Capture form: "command -capture <str>"
+ *            -> clear ctx->capq, enable ctx->cap_active,
+ *               run the command, disable capture,
+ *               return dict {rc <int> output <list-of-lines>}.
+ *      - Special handling for bg_run/bg_halt to manage ctx->state and to defer
+ *        commands while the background thread is starting or stopping.
+ *      - While ctx->state is NGSTATE_STARTING_BG or NGSTATE_STOPPING_BG,
+ *        commands are queued (EnqueuePending) instead of executed immediately.
  *
- *      vectors ?-clear?
- *          - Without -clear: returns ctx->vectorData (dict of simulation vector values).
- *          - With -clear: replaces vectorData with an empty dict (no result returned).
+ *   circuit list
+ *      - Sends a full circuit deck to ngSpice_Circ(), building a transient
+ *        NULL-terminated char** from the Tcl list.
+ *      - Result: int rc from ngSpice_Circ().
  *
- *      asyncvector string
- *          - Returns list with data of provided vector by its name.
+ *   waitevent name ?-n N? ?timeout_ms?
+ *      - Blocks until the given event fires N more times (default N=1),
+ *        or until timeout_ms expires (default: no timeout).
+ *      - Valid event names:
+ *          send_char, send_stat, controlled_exit,
+ *          send_data, send_init_data, bg_running.
+ *      - Returns a dict:
+ *          fired   <bool>           (1 if condition met)
+ *          count   <int64>          (cumulative count for that event)
+ *          need    <int64>          (requested N)
+ *          status  ok|timeout|aborted
+ *        where "aborted" means ctx->aborting or ctx->destroying tripped while waiting.
+ *      - Internally uses wait_for() on ctx->evt_counts[].
  *
- *      initvectors ?-clear?
- *          - Without -clear: returns ctx->vectorInit (dict of vector metadata).
- *          - With -clear: replaces vectorInit with an empty dict (no result returned).
+ *   vectors ?-clear?
+ *      - Without -clear: returns ctx->vectorData (dict: vecName -> list-of-samples).
+ *      - With -clear: replaces ctx->vectorData with a new empty dict and returns nothing.
  *
- *      messages ?-clear?
- *          - Without -clear: returns a list of queued messages from ngspice.
- *          - With -clear: clears the message queue (no result returned).
+ *   plot
+ *   plot -all
+ *   plot -vecs plotname
+ *      - "plot": returns current plot name (ngSpice_CurPlot()).
+ *      - "plot -all": returns list of all plot names (ngSpice_AllPlots()).
+ *      - "plot -vecs <plot>": returns list of vector names in that plot (ngSpice_AllVecs()).
+ *      - Errors if options don't match.
  *
- *      eventcounts ?-clear?
- *          - Without -clear: returns a dict mapping event names to their counts.
- *          - With -clear: zeros all event counters (no result returned).
+ *   asyncvector name
+ *   asyncvector -info name
+ *      - asyncvector <name>:
+ *            * Queries ngGet_Vec_Info(<name>), returns list of data samples.
+ *            * Complex data is returned as {real imag} pairs.
+ *      - asyncvector -info <name>:
+ *            * Returns dict with metadata:
+ *                type    (physical/sweep meaning)
+ *                length  (#samples)
+ *                ntype   ("real" or "complex")
+ *            * Errors if vector doesn't exist.
  *
- *      isrunning
- *          - Returns 1 if background thread is running, 0 otherwise.
+ *   isrunning
+ *      - Calls ngSpice_running() and returns a boolean:
+ *            1 if ngspice bg thread is active,
+ *            0 otherwise.
+ *      - If ctx->destroying is already true, we skip calling into ngspice.
  *
- *      destroy
- *          - Deletes the instance command, triggering InstDeleteProc().
+ *   initvectors ?-clear?
+ *      - Without -clear: returns ctx->vectorInit, a dict captured at run start:
+ *            vecName -> {number <int> real <bool>}
+ *      - With -clear: replaces ctx->vectorInit with a new empty dict.
  *
- *      abort
- *          - Sets ctx->destroying to true and wakes any condition waiters, without freeing resources.
+ *   messages ?-clear?
+ *      - Without -clear: returns Tcl list of all queued ngspice output/status lines
+ *        (from SendCharCallback, SendStatCallback, BGThreadRunningCallback,
+ *         ControlledExitCallback, etc.).
+ *      - With -clear: clears ctx->msgq and returns nothing.
  *
- * Side Effects:
- *      - Many subcommands modify NgSpiceContext state (e.g., clear/reset data, increment event counters).
- *      - Calls into ngspice shared library functions (Init, Command).
- *      - Manages Tcl reference counts for shared Tcl_Obj structures.
- *      - Uses Tcl_Mutex/Tcl_Condition to protect and signal state changes.
+ *   eventcounts ?-clear?
+ *      - Without -clear: returns dict of cumulative callback counters:
+ *            send_char, send_stat, controlled_exit,
+ *            send_data, send_init_data, bg_running.
+ *      - With -clear: zeros ctx->evt_counts[].
+ *
+ *   destroy
+ *      - Deletes this Tcl command, which triggers InstDeleteProc():
+ *          stops bg thread, asks ngspice to quit, waits for shutdown,
+ *          purges events, and schedules InstFreeProc().
+ *
+ *   abort
+ *      - Forces any current waitevent to unblock early:
+ *          sets ctx->aborting=1 and signals ctx->cond.
+ *      - Does NOT destroy the instance or stop ngspice.
+ *
+ * Notes / Side Effects:
+ *      - Most subcommands grab ctx->mutex and related sync primitives.
+ *      - We call directly into libngspice (ctx->ngSpice_*).
+ *      - We manage Tcl refcounts on ctx->vectorData / ctx->vectorInit.
+ *      - "waitevent" may block while waiting for ngspice callbacks.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -1256,16 +2023,97 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "command") == 0) {
-        if (objc != 3) {
-            Tcl_WrongNumArgs(interp, 2, objv, "string");
+        int do_capture = 0;
+        int argi = 2;
+        /* parse args */
+        if (objc == 4) {
+            const char *opt = Tcl_GetString(objv[2]);
+            if (strcmp(opt, "-capture") == 0) {
+                do_capture = 1;
+                argi = 3;
+            } else {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -capture)", opt));
+                code = TCL_ERROR;
+                goto done;
+            }
+        } else if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?-capture? string");
             code = TCL_ERROR;
             goto done;
         }
-        const char *cmd = Tcl_GetString(objv[2]);
-        int rc = ctx->ngSpice_Command((char *)cmd);
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
-        code = TCL_OK;
-        goto done;
+        const char *cmd = Tcl_GetString(objv[argi]);
+        /* snapshot state */
+        Tcl_MutexLock(&ctx->bg_mu);
+        NgState st = ctx->state;
+        Tcl_MutexUnlock(&ctx->bg_mu);
+        /* reject if tearing down globally */
+        if (st == NGSTATE_DEAD || ctx->destroying) {
+            Tcl_SetResult(interp, "instance is shutting down", TCL_STATIC);
+            code = TCL_ERROR;
+            goto done;
+        }
+        /* If we're still bringing bg thread up, defer EVERYTHING (like we do now) */
+        if (st == NGSTATE_STARTING_BG) {
+            EnqueuePending(ctx, cmd, do_capture);
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("background thread is starting, command %s is deffered", cmd));
+            code = TCL_OK;
+            goto done;
+        }
+        /* NEW: If we're stopping bg thread (bg_halt just sent, not fully ended),
+           also defer EVERYTHING except maybe more bg_* control calls.
+           This is the case that just crashed you.
+         */
+        if (st == NGSTATE_STOPPING_BG) {
+            EnqueuePending(ctx, cmd, do_capture);
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("background thread is stopping, command %s is deffered", cmd));
+            code = TCL_OK;
+            goto done;
+        }
+        /* Special handling for bg_run */
+        if (strcmp(cmd, "bg_run") == 0) {
+            Tcl_MutexLock(&ctx->bg_mu);
+            ctx->state = NGSTATE_STARTING_BG;
+            ctx->bg_started = 0;
+            ctx->bg_ended = 0;
+            Tcl_MutexUnlock(&ctx->bg_mu);
+        }
+        /* Special handling for bg_halt */
+        if (strcmp(cmd, "bg_halt") == 0) {
+            Tcl_MutexLock(&ctx->bg_mu);
+            if (ctx->state == NGSTATE_BG_ACTIVE) {
+                ctx->state = NGSTATE_STOPPING_BG;
+            } else {
+            }
+            Tcl_MutexUnlock(&ctx->bg_mu);
+        }
+        /* At this point, it's considered "legal" to actually touch ngspice.
+         */
+        if (!do_capture) {
+            int rc = ctx->ngSpice_Command((char *)cmd);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
+            code = TCL_OK;
+            goto done;
+        } else {
+            Tcl_MutexLock(&ctx->mutex);
+            MsgQ_Clear(&ctx->capq);
+            ctx->cap_active = 1;
+            Tcl_MutexUnlock(&ctx->mutex);
+            int rc = ctx->ngSpice_Command((char *)cmd);
+            Tcl_Obj *outList = Tcl_NewListObj(0, NULL);
+            Tcl_MutexLock(&ctx->mutex);
+            ctx->cap_active = 0;
+            for (size_t i = 0; i < ctx->capq.count; i++) {
+                Tcl_ListObjAppendElement(interp, outList, Tcl_NewStringObj(ctx->capq.items[i], -1));
+            }
+            MsgQ_Clear(&ctx->capq);
+            Tcl_MutexUnlock(&ctx->mutex);
+            Tcl_Obj *res = Tcl_NewDictObj();
+            Tcl_DictObjPut(interp, res, Tcl_NewStringObj("rc", -1), Tcl_NewIntObj(rc));
+            Tcl_DictObjPut(interp, res, Tcl_NewStringObj("output", -1), outList);
+            Tcl_SetObjResult(interp, res);
+            code = TCL_OK;
+            goto done;
+        }
     }
     if (strcmp(sub, "circuit") == 0) {
         if (objc != 3) {
@@ -1292,36 +2140,58 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "waitevent") == 0) {
-        if (objc < 3 || objc > 4) {
-            Tcl_WrongNumArgs(interp, 2, objv, "name ?timeout_ms?");
-            code = TCL_ERROR;
-            goto done;
-        }
+        // Syntax: waitevent name ?-n N? ?timeout_ms?
         int which;
-        if (NameToEvtId(objv[2], &which) != TCL_OK) {
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown event: %s", Tcl_GetString(objv[2])));
+        uint64_t need = 1;   // default: one new event
+        long timeout_ms = 0; // default: infinite
+        int i = 2;
+        if (objc <= i) {
+            Tcl_WrongNumArgs(interp, 2, objv, "name ?-n N? ?timeout_ms?");
             code = TCL_ERROR;
             goto done;
         }
-        long to = 0;
-        if (objc == 4 && Tcl_GetLongFromObj(interp, objv[3], &to) != TCL_OK) {
+        if (NameToEvtId(objv[i++], &which) != TCL_OK) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown event: %s", Tcl_GetString(objv[i - 1])));
             code = TCL_ERROR;
             goto done;
         }
-        int fired;
-        int status;
+        // Optional -n N
+        if (i < objc && strcmp(Tcl_GetString(objv[i]), "-n") == 0) {
+            if (i + 1 >= objc || Tcl_GetWideIntFromObj(interp, objv[i + 1], (Tcl_WideInt *)&need) != TCL_OK ||
+                need < 1) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("expected positive integer after -n", -1));
+                code = TCL_ERROR;
+                goto done;
+            }
+            i += 2;
+        }
+        // Optional timeout
+        if (i < objc) {
+            if (Tcl_GetLongFromObj(interp, objv[i], &timeout_ms) != TCL_OK) {
+                code = TCL_ERROR;
+                goto done;
+            }
+            i++;
+        }
+        if (i != objc) {
+            Tcl_WrongNumArgs(interp, 2, objv, "name ?-n N? ?timeout_ms?");
+            code = TCL_ERROR;
+            goto done;
+        }
+        int reached;
         uint64_t count;
-        status = wait_for(ctx, which, to, &fired, &count);
+        // reset soft abort before starting a fresh wait
+        ctx->aborting = 0;
+        wait_rc rc = wait_for(ctx, which, need, timeout_ms, &reached, &count);
         Tcl_Obj *res = Tcl_NewDictObj();
-        Tcl_DictObjPut(interp, res, Tcl_NewStringObj("fired", -1), Tcl_NewBooleanObj(fired));
+        Tcl_DictObjPut(interp, res, Tcl_NewStringObj("fired", -1), Tcl_NewBooleanObj(reached));
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("count", -1), Tcl_NewWideIntObj((Tcl_WideInt)count));
-        if (status == NGSPICE_WAIT_TIMEOUT) {
-            Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1), Tcl_NewStringObj("timeout", -1));
-        } else if (status == NGSPICE_WAIT_ABORTED) {
-            Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1), Tcl_NewStringObj("aborted", -1));
-        } else if (status == NGSPICE_WAIT_OK) {
-            Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1), Tcl_NewStringObj("ok", -1));
-        }
+        Tcl_DictObjPut(interp, res, Tcl_NewStringObj("need", -1), Tcl_NewWideIntObj((Tcl_WideInt)need));
+        Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1),
+                       Tcl_NewStringObj(rc == NGSPICE_WAIT_OK        ? "ok"
+                                        : rc == NGSPICE_WAIT_TIMEOUT ? "timeout"
+                                                                     : "aborted",
+                                        -1));
         Tcl_SetObjResult(interp, res);
         code = TCL_OK;
         goto done;
@@ -1553,6 +2423,10 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_ERROR;
             goto done;
         }
+        if (ctx->destroying) {
+            code = TCL_OK;
+            goto done;
+        }
         bool isrunning = ctx->ngSpice_running();
         Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isrunning));
         code = TCL_OK;
@@ -1675,11 +2549,14 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "abort") == 0) {
-        // Synchronously request abort; no event processing, no freeing here.
-        ctx->destroying = 1;
+        /* Request that any outstanding waitevent return immediately with status "aborted".
+         * Does NOT stop ngspice, does NOT start teardown, and the instance is still usable.
+         */
+        ctx->aborting = 1;
         Tcl_MutexLock(&ctx->mutex);
-        Tcl_ConditionNotify(&ctx->cond);
+        Tcl_ConditionNotify(&ctx->cond); // wake waitevent
         Tcl_MutexUnlock(&ctx->mutex);
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("aborted", -1));
         code = TCL_OK;
         goto done;
     }
@@ -1769,7 +2646,9 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     Tcl_Obj *libPathObj = objv[1];
     NgSpiceContext *ctx = (NgSpiceContext *)Tcl_Alloc(sizeof *ctx);
     memset(ctx, 0, sizeof *ctx);
+    ctx->exited = 0;
     /* init mutex/cond and local state */
+    MsgQ_Init(&ctx->capq);
     MsgQ_Init(&ctx->msgq);
     DataBuf_Init(&ctx->prod);
     DataBuf_Init(&ctx->pend);

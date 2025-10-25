@@ -2,16 +2,14 @@ package require argparse
 
 namespace eval ::ngspicetclbridge {
 
+    namespace export runAndWaitForCompletion readPlotVectorsAsync
+
     proc runAndWaitForCompletion {sim} {
         # Runs simulation in background thread, waits for the completion, process event in the queue and returns
         #  sim -  simulator handler that is returned by `ngspicetclbridge::new`
         # Returns:
         $sim command bg_run
-        set i 0
-        while {$i<2} {
-            $sim waitevent bg_running
-            incr i
-        }
+        $sim waitevent bg_running -n 2
         update
         return
     }

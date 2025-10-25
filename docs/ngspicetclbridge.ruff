@@ -24,9 +24,13 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc command {string} {
-        # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`).
+        # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`). If
+        # we provide `-capture` switch, it returns not only the result code, but also the next message from stdout
+        # of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be
+        # deferred to the time is could be safely sent, and in that case `-capture` message and command results code
+        # are not availaible as a return of `command`.
         #  string -  command string
-        # Returns: Ngspice result code
+        # Returns: Ngspice result code, or dictionary with result code and the message
         #
         # Example:
         #```
@@ -68,8 +72,10 @@ namespace eval ::ngspicetclbridge {
     }
 
     proc waitevent {args} {
-        # Blocks until a named event is observed, the instance is aborted/destroyed, or the timeout expires (if provided).
+        # Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, 
+        # or the timeout expires (if provided).
         #  name -  name of the event
+        #  -n N - number of events that should happend for termination after waiting is started
         #  timeout_ms -  timeout in miliseconds, optional
         # Returns: dictionary with information about event
         #
@@ -226,7 +232,7 @@ namespace eval ::ngspicetclbridge {
         #
         # If you want “fresh” waits, you can clear counts with `eventcounts -clear`.
         #
-        # Synopsis: name ?timeout_ms?
+        # Synopsis: name ?-n N? ?timeout_ms?
     }
 
     proc vectors {args} {

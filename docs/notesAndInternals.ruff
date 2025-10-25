@@ -1,201 +1,620 @@
 namespace eval {Notes and internals} {
     variable _ruff_preamble {
 
-        - **Threading**: ngspice callbacks arrive on ngspice’s side; the bridge queues Tcl events and processes them on 
-        the thread that created the instance. Synchronization uses `Tcl_Mutex` and `Tcl_Condition`. Waiters use either
-        `Tcl_ConditionWait` (no timeout) or a short sleep/poll loop (with timeout).
-
-        - **Event counts**: The count returned by waitevent is cumulative since instance creation (not “just this wait”).
-        Use eventcounts -clear if you prefer to measure deltas from a known zero.
-
-        - **Complex vs real vectors**: asyncvector checks `vinfo->v_flags & VF_COMPLEX`. If set, you get `{re im}` pairs,
-        otherwise doubles.
-
-        - **Portability**: `PDl_OpenFromObj/PDl_Sym/PDl_Close` abstract `dlopen/GetProcAddress/FreeLibrary`. The library
-        path is taken from a Tcl path object to handle platform Unicode semantics.
-
-        ## General implementation details
-
         This part is mostly for me (and other contributors) to quick recall many implementation details and decisions.
         All information provided here could be found in source code comments, but in more spreaded form.
 
-        ### How instance subcommands are implemented
-
-        In initialization function `Ngspicetclbridge_Init` for package we register the single command 
-        `::ngspicetclbridge::new` that accepts path to shared library. This command does initialization of simulator 
-        instance and returns handle that could be used to control this particular simulator instance.
-
-        The implementation of this command is done by C function `NgSpiceNewCmd`. It does a lot of stuff inside:
-
-        - Allocates `NgSpiceContext` structure that holds all information related to this particular instance of
-        simulator
-        - Initializes message queue inside `NgSpiceContext`
-        - Initializes data buffer inside `NgSpiceContext`
-        - Open shared library and resolve all required symbols
-        - Creates unique handle command that is used later to work with this particular simulator instance in form
-        `::ngspicetclbridge::s<N>` where N is a monotonically increasing sequence number
-
-        When we register that new unique handle command by `Tcl_CreateObjCommand2`, we provide the pointer to
-        `NgSpiceContext` as a client data, that now "tied" to this unique handle command. Also we provide function
-        that deletes the handler and frees assosiated `NgSpiceContext`.
-
-        Implementation of this command is done by `InstObjCmd` function. This is the location where actual
-        implementations of subcommands like `init`, `command`, `waitevent` etc are residing. Because we provide the
-        pointer to `NgSpiceContext` as a `ClientData`, we can access and manipulate all internal structures that are
-        assosiated with that simulator instance, like the message queue `MsgQueue msgq`, data buffer `DataBuf prod`,
-        processed vector data `Tcl_Obj *vectorData`, etc.
-
-        ### How sync callbacks from Ngspice is implemented
-
-        Ngspice can call the certain function when some things happened inside running background thread, or when
-        it needs to send a message to the caller. For that purpose we register callback functions by calling 
-        `ngSpice_Init` function with pointers to our functions inside `InstObjCmd`:
-        ```c
-        int rc = ctx->ngSpice_Init(SendCharCallback, SendStatCallback, ControlledExitCallback, SendDataCallback,
-                                   SendInitDataCallback, BGThreadRunningCallback, ctx);
+        ## How instance subcommands are implemented
+        Each simulator instance in ngspicetclbridge is represented by a dedicated Tcl command object that acts as a
+        handle for interacting with that specific ngspice context. This provides natural Tcl semantics such as:
         ```
-
-        From Ngspice manual, the declaration of the function `ngSpice_Init` is:
-        ```c
-        int ngSpice_Init(SendChar*, SendStat*, ControlledExit*, SendData*, SendInitData*, BGThreadRunning*, void*)
+        set s [::ngspicetclbridge::new /path/to/libngspice.so]
+        $s init
+        $s command "bg_run"
+        $s waitevent bg_running -n 2
         ```
+        Every `$s ...` invocation calls into the same underlying C function, `InstObjCmd`, which dispatches individual
+        subcommands.
 
-        Each function pointer provided makes a connection between certain Ngspice call and callback function in Tcl C
-        code. The last element could be used to pass certain information to callback from Ngspice, and we use it to
-        pass pointer to `NgSpiceContext`.
-
-        Because callback could be fired at any moment of Tcl script execution, it is done by untilizing Tcl event loop,
-        where each callback function adds event to event queue to further processing at the desirable moment.
-
-        ### How event queue interaction is implemented
-
-        First step is to add declaration to Tcl event structure that represents the event from Ngspice:
+        ### Command creation
+        When the package initializes, `Ngspicetclbridge_Init()` registers the constructor command:
         ```tcl
+        ::ngspicetclbridge::new
+        ```
+        implemented by the C function `NgSpiceNewCmd()`. When this command is invoked, it:
+
+        1. Allocates and zero-initializes an `NgSpiceContext` structure.
+
+        2. Initializes all mutexes, condition variables, message queues (`MsgQueue msgq`, `MsgQueue capq`),
+           and data buffers (`DataBuf prod`, `DataBuf pend`).
+
+        3. Loads the ngspice shared library dynamically using `PDl_OpenFromObj()`, resolving function pointers such as
+           `ngSpice_Init`, `ngSpice_Command`, `ngGet_Vec_Info`, etc.
+
+        4. Creates a unique Tcl command (e.g., `::ngspicetclbridge::s1`) via `Tcl_CreateObjCommand()`, associating the
+           new `NgSpiceContext *` as its `ClientData`.
+
+        5. Registers a delete procedure (`InstDeleteProc`) so that when the command is deleted (via `$s destroy` or
+           interpreter shutdown), the associated context is safely torn down.
+
+        The resulting Tcl command becomes the primary interface for controlling the simulator instance.
+
+        ### Subcommand dispatching
+        The C entry point for instance methods is:
+        ```c
+        static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[])
+        ```
+        Here, `cdata` is the `NgSpiceContext *` pointer for this instance. The dispatcher parses `objv[1]` as the
+        subcommand name (e.g., `"init"`, `"command"`, `"vectors"`, etc.) and executes the corresponding branch of code.
+
+        Each subcommand performs specific work, typically involving interaction with the ngspice API or the context’s
+        internal data structures. For example:
+        - **init** — Registers callbacks by calling `ngSpice_Init()`, sets up Tcl dictionary objects for
+          `vectorData` and `vectorInit`, and returns ngspice’s integer return code.
+        - **command ?-capture? string** — Sends arbitrary ngspice commands via `ngSpice_Command()`. If `-capture`
+          is used, temporarily enables output capturing in `ctx->capq`, then returns a dictionary with `rc` and
+          `output` fields.
+        - **circuit list** — Sends a complete circuit deck to ngspice via `ngSpice_Circ()`.
+        - **waitevent** — Blocks until an ngspice event occurs or a timeout expires, returning a result dictionary.
+        - **vectors**, **initvectors**, **messages**, **eventcounts** — Return or clear data structures stored in
+          the context.
+        - **plot**, **asyncvector**, **isrunning**, **abort**, **destroy** — Perform specialized inspection or control
+          operations on the current simulation session.
+
+        The dispatcher uses structured error handling: most subcommands validate argument counts and options before
+        invoking any ngspice function, returning descriptive Tcl errors via `Tcl_SetObjResult()`.
+
+        ### Thread safety and state transitions
+        ngspice commands may not be executed safely during certain background-thread transitions. To prevent unsafe
+        API access, the context maintains a state machine (`NgState`) with states such as:
+        - `NGSTATE_IDLE` — safe to send commands
+        - `NGSTATE_STARTING_BG` — ngspice background thread starting
+        - `NGSTATE_BG_ACTIVE` — background thread running
+        - `NGSTATE_STOPPING_BG` — halting background thread
+        - `NGSTATE_DEAD` — teardown in progress
+
+        Before any ngspice command is executed, `InstObjCmd` checks this state under `ctx->bg_mu`.  
+        If ngspice is starting or stopping its background thread, commands are not executed immediately but queued
+        for later execution once the state stabilizes.
+
+        ### Deferred command queue
+        Commands issued while ngspice is in a transitional state (`STARTING_BG` or `STOPPING_BG`) are enqueued through:
+        ```c
+        EnqueuePending(ctx, cmd, do_capture);
+        ```
+        This stores the command string and capture flag in a linked list protected by `ctx->cmd_mu`.  
+        Once ngspice reports that the background thread has started or stopped, `BGThreadRunningCallback()` calls:
+        ```c
+        FlushPending(ctx);
+        ```
+        which replays all queued commands through `ngSpice_Command()` safely on the main thread.
+
+        This mechanism ensures no commands are lost or executed while ngspice’s internal state is inconsistent,
+        eliminating race conditions between Tcl commands and asynchronous background transitions.
+
+        ### Capture mode
+        For commands executed in capture mode, the bridge uses `ctx->cap_active` and `ctx->capq` to store output lines
+        printed by ngspice’s `SendCharCallback` during the command’s lifetime. Once the command returns, captured lines
+        are collected into a Tcl list and returned to the caller along with the return code.
+
+        ### Command deletion and cleanup
+        When a user calls `$s destroy` or deletes the instance command, Tcl invokes the registered delete procedure:
+        ```c
+        static void InstDeleteProc(void *cdata)
+        ```
+        This initiates a full teardown:
+        
+        1. Sets `ctx->destroying = 1` to block further callbacks.
+
+        2. Stops or waits for the background thread to end cleanly.
+
+        3. Sends `ngSpice_Command("quit")` unless the shutdown was unsafe.
+
+        4. Waits for `ControlledExitCallback()` to signal completion.
+
+        5. Deletes pending events referencing this context.
+
+        6. Schedules deferred destruction via `Tcl_EventuallyFree(ctx, InstFreeProc)`.
+
+        `InstFreeProc()` then performs the final cleanup: releasing Tcl objects, freeing message queues, finalizing
+        mutexes, and optionally unloading the shared library if it’s safe to do so.
+
+        ### Summary
+        The combination of per-instance Tcl command objects, subcommand dispatching, and deferred command buffering
+        provides a robust interface between Tcl and ngspice. Tcl scripts can issue commands synchronously while
+        ngspice runs asynchronously in the background, and all interactions remain thread-safe and deterministic even
+        during start, stop, and teardown transitions.
+
+        ## How sync callbacks from Ngspice is implemented
+        ngspicetclbridge connects the asynchronous world of ngspice with Tcl by registering a set of C callback
+        functions that ngspice calls whenever important events occur during simulation. These callbacks serve as the
+        bridge between ngspice’s internal simulation threads and Tcl’s cooperative event loop. Because Tcl is not
+        thread-safe, none of these callbacks interact with the interpreter directly — instead, they enqueue Tcl events
+        to be processed later on the main thread.
+
+        ### Registration of callbacks
+        The binding between ngspice and our bridge is established by calling `ngSpice_Init()` with a set of function
+        pointers and a user data pointer (`ctx`):
+
+        ```c
+        int rc = ctx->ngSpice_Init(
+            SendCharCallback,
+            SendStatCallback,
+            ControlledExitCallback,
+            SendDataCallback,
+            SendInitDataCallback,
+            BGThreadRunningCallback,
+            ctx
+        );
+        ```
+
+        The prototype from the ngspice shared library is:
+
+        ```c
+        int ngSpice_Init(
+            SendChar*,
+            SendStat*,
+            ControlledExit*,
+            SendData*,
+            SendInitData*,
+            BGThreadRunning*,
+            void* user
+        );
+        ```
+
+        The final `void *user` parameter is an opaque pointer passed back to every callback invocation; we use it to
+        carry a pointer to our `NgSpiceContext`. This allows each callback to know which simulator instance it belongs
+        to, even when multiple instances are loaded simultaneously.
+
+        ### Callback invocation model
+        ngspice runs its own simulation threads internally, so callbacks can fire at any time — during steady-state
+        DC/AC/transient analysis, at startup, or when shutting down. The order and timing depend entirely on the
+        simulation type and ngspice’s internal scheduler. Common callback types include:
+
+        #ruffopt includedformats markdown
+        | Callback Function           | Trigger Condition / Purpose |
+        |-----------------------------|------------------------------|
+        | `SendCharCallback`          | Emits text lines printed by ngspice (stdout/stderr). |
+        | `SendStatCallback`          | Emits status messages such as “tran simulation complete”. |
+        | `ControlledExitCallback`    | Invoked when ngspice is about to terminate, either via “quit” or internal exit. |
+        | `SendDataCallback`          | Called each time a new data point (vector values) is available during simulation. |
+        | `SendInitDataCallback`      | Called once at the start of a run, delivering vector metadata (`vecinfoall`). |
+        | `BGThreadRunningCallback`   | Indicates that ngspice’s background thread has started or stopped. |
+        #ruffopt excludedformats {}
+
+        #ruffopt includedformats html
+        <div style="ruff_bd">
+        <table class="ruff_deflist">
+        <tbody>
+        <tr>
+        <th>Callback Function</th>
+        <th>Trigger Condition / Purpose</th>
+        </tr>
+        <tr>
+        <td><code>SendCharCallback</code></td>
+        <td>Emits text lines printed by ngspice (stdout/stderr).</td>
+        </tr>
+        <tr>
+        <td><code>SendStatCallback</code></td>
+        <td>Emits status messages such as “tran simulation complete”.</td>
+        </tr>
+        <tr>
+        <td><code>ControlledExitCallback</code></td>
+        <td>Invoked when ngspice is about to terminate, either via “quit” or internal exit.</td>
+        </tr>
+        <tr>
+        <td><code>SendDataCallback</code></td>
+        <td>Called each time a new data point (vector values) is available during simulation.</td>
+        </tr>
+        <tr>
+        <td><code>SendInitDataCallback</code></td>
+        <td>Called once at the start of a run, delivering vector metadata (<code>vecinfoall</code>).</td>
+        </tr>
+        <tr>
+        <td><code>BGThreadRunningCallback</code></td>
+        <td>Indicates that ngspice’s background thread has started or stopped.</td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+        #ruffopt excludedformats {}
+
+        #ruffopt includedformats nroff
+        ```
+        ┌──────────────────────────────┬──────────────────────────────────────────────────────────────┐
+        │ Callback Function            │ Trigger Condition / Purpose                                  │
+        ├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
+        │ SendCharCallback             │ Emits text lines printed by ngspice                          │
+        │                              │ (stdout/stderr).                                             │
+        ├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
+        │ SendStatCallback             │ Emits status messages such as                                │
+        │                              │ “tran simulation complete”.                                  │
+        ├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
+        │ ControlledExitCallback       │ Invoked when ngspice is about to terminate, either via       │
+        │                              │ “quit” or internal exit.                                     │
+        ├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
+        │ SendDataCallback             │ Called each time a new data point (vector values) is         │
+        │                              │ available during simulation.                                 │
+        ├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
+        │ SendInitDataCallback         │ Called once at the start of a run, delivering vector         │
+        │                              │ metadata (vecinfoall).                                       │
+        ├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
+        │ BGThreadRunningCallback      │ Indicates that ngspice’s background thread has started       │
+        │                              │ or stopped.                                                  │
+        └──────────────────────────────┴──────────────────────────────────────────────────────────────┘
+        ```
+        #ruffopt excludedformats {}
+
+        ### Thread safety and queueing behavior
+        Each callback runs on a non-Tcl thread owned by ngspice, meaning direct interaction with Tcl objects or
+        interpreter state would be unsafe. To handle this, each callback function performs the following steps:
+
+        1. **Check for teardown:**  
+           If `ctx->destroying` is set, the callback immediately returns — it never queues new events during or after
+           teardown.
+
+        2. **Acquire context mutex:**  
+           Locks such as `ctx->mutex` or specialized ones like `ctx->bg_mu` are used to update shared state safely.
+
+        3. **Write shared data:**  
+           Depending on the callback type, the callback may:
+           - Append text to `ctx->msgq` (for `SendChar` and `SendStat`);
+           - Update counters in `ctx->evt_counts`;
+           - Store new vector data rows in `ctx->prod` or initialization snapshots in `ctx->init_snap`.
+
+        4. **Signal condition variables:**  
+           The callback calls `Tcl_ConditionNotify()` on `ctx->cond`, `ctx->bg_cv`, or `ctx->exit_cv` to wake threads
+           waiting in Tcl commands like `waitevent` or during shutdown.
+
+        5. **Queue a Tcl event:**  
+           Finally, it calls `NgSpiceQueueEvent(ctx, callbackId, ctx->gen)`, which allocates an `NgSpiceEvent` and
+           schedules it in the Tcl event queue via `Tcl_QueueEvent`.  
+           Tcl will later call `NgSpiceEventProc()` on the interpreter thread to process the event.
+
+        ### Controlled flow of data
+        Data-oriented callbacks (`SendInitDataCallback` and `SendDataCallback`) are slightly special:
+        - `SendInitDataCallback` is invoked once per run, delivering metadata for all vectors. It allocates and fills
+          an `InitSnap` structure inside the context, which contains vector names, indices, and type information
+          (real/complex).
+        - `SendDataCallback` is invoked repeatedly as the simulation progresses, delivering numerical data points in
+          the form of `vecvaluesall`. The callback copies the numeric samples into the `DataBuf` structure (`ctx->prod`)
+          for deferred consumption by Tcl when the event is processed.
+
+        Both callbacks only *store* the data temporarily — they never construct Tcl objects directly. The transformation
+        into Tcl dictionaries and lists happens later, inside `NgSpiceEventProc()`, which runs safely on the Tcl thread.
+
+        ### Background thread lifecycle callbacks
+        The `BGThreadRunningCallback` provides reliable notification of when the simulation thread starts or stops. It
+        updates `ctx->bg_started` and `ctx->bg_ended` under `ctx->bg_mu`, adjusts the `ctx->state` (`STARTING_BG`,
+        `BG_ACTIVE`, `STOPPING_BG`, `IDLE`), and signals `ctx->bg_cv` so that other parts of the system can wait for
+        these transitions. If the state change makes it safe to execute deferred commands, it calls `FlushPending(ctx)`
+        to send any commands that were queued during startup or shutdown.
+
+        ### Generation and stale-event handling
+        Each callback carries a generation number (`ctx->gen`) that uniquely identifies a simulation run. Every time a
+        new `SendInitDataCallback` is fired, the generation counter increments. All subsequent callbacks within that
+        run inherit the same generation value. When Tcl later processes events via `NgSpiceEventProc`, any event with a
+        mismatched generation number is ignored — protecting against stale callbacks from a previous run that might
+        reference freed memory.
+
+        ### Controlled exit coordination
+        The `ControlledExitCallback` is the mechanism ngspice uses to indicate that it is shutting down cleanly. It
+        sets `ctx->exited = 1`, signals `ctx->exit_cv`, and queues a `CONTROLLED_EXIT` event. This synchronization is
+        crucial for teardown safety: `InstDeleteProc()` waits on `ctx->exit_cv` to ensure all ngspice activity has
+        ceased before freeing memory.
+
+        ### Safety and teardown integration
+        All callbacks are designed to be idempotent and safe to call during teardown:
+        - If the global heap has been marked poisoned (`g_heap_poisoned`), callbacks return immediately.
+        - The `destroying` flag prevents late enqueues during deletion.
+        - All shared data structures (`msgq`, `capq`, `prod`, `init_snap`) are protected by their corresponding mutexes.
+        - Each queued event uses `Tcl_Preserve()` / `Tcl_Release()` pairing so that no context is freed while events
+          remain in Tcl’s queue.
+
+        Together, these mechanisms ensure that ngspice’s asynchronous notifications are translated into Tcl events in a
+        fully thread-safe, deterministic manner — without ever touching Tcl state from non-Tcl threads and without
+        risking race conditions or double frees during instance shutdown.
+
+
+        ## How event queue interaction is implemented
+        The interaction between ngspice’s asynchronous callbacks and Tcl’s single-threaded event loop is the core of
+        how ngspicetclbridge maintains safe communication between both worlds. ngspice runs its own internal threads
+        and can call back into user code at arbitrary times, so a direct call into Tcl would violate thread safety.
+        Instead, every callback from ngspice queues a lightweight `Tcl_Event` that is later processed on the main
+        Tcl thread.
+
+        ### Event structure definition
+        Each pending event from ngspice is represented by a custom structure that embeds a Tcl event header:
+        ```c
         typedef struct {
-            Tcl_Event header;
-            NgSpiceContext *ctx;
-            int callbackId;
-            uint64_t gen;
+            Tcl_Event header;          /* must be first for Tcl to recognize it */
+            NgSpiceContext *ctx;       /* simulator instance that owns this event */
+            int callbackId;            /* numeric identifier for callback type */
+            uint64_t gen;              /* generation counter (run ID) */
         } NgSpiceEvent;
         ```
 
-        It contains `Tcl_Event header` object that is mandatory for each event that will be registered in Tcl event
-        loop. `NgSpiceContext *ctx` pointer defines the context event belongs. `int callbackId` shows the type of this
-        particular Ngspice event. Callbacks ids are declared with enumeration `CallbacksIds`. Member `gen` represents
-        "generation" to which event belongs - generation counter increased after each initializing callback
-        `SendInitDataCallback`. 
+        The `header.proc` field (set when the event is queued) points to the function that Tcl will invoke when it
+        processes this event — in our case, `NgSpiceEventProc()`. The other fields are used to identify which
+        ngspice instance and which callback the event corresponds to, and to ensure that events from a previous run
+        (“generation”) are discarded safely once a new run starts.
 
-        Each callback function provided to Ngspice adds event to Tcl event queue by calling function 
-        `static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId)`, where the appropriated callback id
-        is provided.
+        ### Event allocation and queuing
+        Whenever an ngspice callback is triggered (for example `SendDataCallback`, `SendInitDataCallback`,
+        `ControlledExitCallback`, or `BGThreadRunningCallback`), it calls:
+        ```c
+        static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId, uint64_t gen)
+        ```
+        This function allocates a new `NgSpiceEvent` via `ckalloc()`, sets its `header.proc = NgSpiceEventProc`,
+        fills in the `ctx`, `callbackId`, and current generation `gen`, and finally calls:
+        ```c
+        Tcl_QueueEvent((Tcl_Event *)e, TCL_QUEUE_TAIL);
+        ```
+        to place it at the end of Tcl’s event queue.  
+        Tcl guarantees that the event will be processed on the thread that created the interpreter, regardless of
+        which ngspice thread scheduled it.
 
-        `NgSpiceQueueEvent` function adds event to Tcl event loop by calling `Tcl_QueueEvent`, along with providing
-        processing function as pointer saved in `header.proc` member of `NgSpiceEvent` structure member `header`.
-        Events are delivered to the same thread that created the `NgSpiceContext`, regardless of the calling thread.
-        Function also has current generation of the event as an argument.
+        Because the callback may race with instance deletion, each queued event increases the lifetime of its context
+        using:
+        ```c
+        Tcl_Preserve((ClientData)ctx);
+        ```
+        which prevents Tcl from freeing `NgSpiceContext` until all events referencing it have been processed.
 
-        Function `NgSpiceEventProc` is using in the event processing stage, when the actual event is processing by Tcl
-        interpreter. Most of defined Ngspice events don't need additional processing besides the saving messages in the
-        message queue and incrementing event counter. The two elements that are needed to be additionally processed are
-        the events `SEND_INIT_DATA` and `SEND_DATA` - Ngspice does callbacks which tells that initial data, or new data
-        is availible. At each callback we write data into `DataBuf` member of `NgSpiceContext` (or initial data into
-        `InitSnap` member). When we process the events that are registered at each such callback, we transfer data
-        from that buffer to another members of `NgSpiceContext` - `Tcl_Obj *vectorData` and `Tcl_Obj *vectorInit`. These
-        members contains processed vector data in form of Tcl dictionary objects.
+        ### Event processing
+        Once Tcl’s event loop reaches the queued item, it calls:
+        ```c
+        static int NgSpiceEventProc(Tcl_Event *ev, int flags)
+        ```
+        Inside this function, we unpack the event, verify that the `NgSpiceContext` still exists, and check whether
+        the event’s `gen` field matches the current generation counter in the context. If not, the event is stale and
+        immediately discarded to avoid processing old data from previous runs.
 
-        `NgSpiceEventProc` ignores events not from current generation, so not processed events from previous runs are
-        ignored.
+        Depending on the `callbackId`, the procedure performs different tasks:
+        - **SEND_INIT_DATA:** transfers initialization metadata from `ctx->init_snap` into `ctx->vectorInit` (a Tcl
+          dictionary mapping vector names to `{number N real 0/1}`), resets `ctx->vectorData`, and frees the snapshot.
+        - **SEND_DATA:** moves data rows from `ctx->prod` (filled in the ngspice thread) into the Tcl dictionary
+          `ctx->vectorData`, appending each vector’s numeric or complex values. The buffer is then cleared.
+        - **CONTROLLED_EXIT:** marks `ctx->exited = 1` and signals `ctx->exit_cv` to wake any waiters.
+        - **BG_THREAD_RUNNING:** updates state flags, signals `ctx->bg_cv`, and may call `FlushPending()` to run any
+          commands queued during background thread transitions.
+        - **All others:** increment their respective event counters and append textual messages to `ctx->msgq`.
 
-        When event `SEND_DATA` is processed, the certain rows of `DataBuf` is cleared.
+        Once processed, the event always returns 1 to indicate it should be removed from Tcl’s event queue.
 
-        There is an events counter that stores information how many times each Ngspice event type was occured. It is
-        stored as a member of `NgSpiceContext` in form of `uint64_t` array `evt_counts[NUM_EVTS]`.
+        ### Event deletion and resource balancing
+        Tcl supports an optional “delete procedure” for custom events, allowing cleanup of resources that were
+        preserved when the event was queued. ngspicetclbridge uses:
+        ```c
+        static int DeleteNgSpiceEventProc(Tcl_Event *evPtr, ClientData cd)
+        ```
+        which checks if the event belongs to the same context and, if so, performs:
+        ```c
+        Tcl_Release((ClientData)e->ctx);
+        ```
+        balancing the `Tcl_Preserve()` from `NgSpiceQueueEvent()`. This ensures that a context is only freed after all
+        its events are gone from Tcl’s queue, even if they were never processed because the interpreter exited or the
+        instance was deleted early.
 
-        ### How thread safety is ensured
+        ### Generation handling and safety
+        The generation number (`ctx->gen`) plays a critical role in keeping old events from corrupting state after a
+        new run starts. Each time `SendInitDataCallback` fires, the bridge increments `ctx->gen`. Every event carries a
+        snapshot of that number, and when `NgSpiceEventProc()` runs, it compares it to the current value. If they don’t
+        match, the event is silently ignored.
 
-        ### How data processing is implemented
+        This mechanism prevents dangerous use-after-free situations where an asynchronous callback could deliver data
+        from a previously freed buffer (e.g., `InitSnap` or `DataBuf`). Only events belonging to the current run are
+        processed; all older generations are discarded.
 
-        #### Asynchronous access structures
+        ### Synchronization guarantees
+        - Each event handler acquires and releases `ctx->mutex` as needed when touching shared data.
+        - Message and data queues are thread-safe thanks to this locking discipline.
+        - All Tcl object reference counts (`Tcl_IncrRefCount` / `Tcl_DecrRefCount`) are adjusted only on the Tcl thread.
 
-        Data from simulation is stored in special structures defined in `sharedspice.h` header of Ngspice. First
-        structure is `vector_info`, and is used for asynchronous access to vector data at any given times by request
-        of interpreter with function `ngGet_Vec_Info`:
+        Together, this ensures that ngspice’s asynchronous event model integrates cleanly into Tcl’s cooperative
+        scheduler, without risking memory corruption, premature frees, or cross-thread Tcl calls.
+
+
+        ## How thread safety is ensured
+        Thread safety in ngspicetclbridge is achieved through a combination of fine-grained mutexes, conditional
+        variables, and a strict rule that all Tcl interactions happen only from the thread that created the
+        `NgSpiceContext`.
+
+        Each `NgSpiceContext` has its own set of synchronization primitives:
+
+        #ruffopt includedformats markdown
+        | Mutex / Condition | Purpose |
+        |-------------------|----------|
+        | `mutex`           | Protects shared state such as `msgq`, `capq`, `vectorData`, `vectorInit`, and event counters. |
+        | `cmd_mu`          | Guards the pending command queue used during transitional states (like `bg_run` start/stop). |
+        | `bg_mu`           | Synchronizes access to background-thread state variables (`bg_started`, `bg_ended`, `state`). |
+        | `exit_mu`         | Protects `exited` flag and coordinates teardown with `ControlledExitCallback`. |
+        | `cond`            | Signals changes in event counters and is used by `waitevent` to sleep until events fire. |
+        | `bg_cv`           | Used by `BGThreadRunningCallback` to notify that background thread has started or ended. |
+        | `exit_cv`         | Used to signal that ngspice has exited, waking `InstDeleteProc`. |
+        #ruffopt excludedformats {}
+
+        #ruffopt includedformats html
+        <div style="ruff_bd">
+        <table class="ruff_deflist">
+        <tbody>
+        <tr>
+        <th>Mutex / Condition</th>
+        <th>Purpose</th>
+        </tr>
+        <tr>
+        <td><code>mutex</code></td>
+        <td>Protects shared state such as <code>msgq</code>, <code>capq</code>, <code>vectorData</code>,
+        <code>vectorInit</code>, and event counters.</td>
+        </tr>
+        <tr>
+        <td><code>cmd_mu</code></td>
+        <td>Guards the pending command queue used during transitional states (like <code>bg_run</code> start/stop).</td>
+        </tr>
+        <tr>
+        <td><code>bg_mu</code></td>
+        <td>Synchronizes access to background-thread state variables
+        (<code>bg_started</code>, <code>bg_ended</code>, <code>state</code>).</td>
+        </tr>
+        <tr>
+        <td><code>exit_mu</code></td>
+        <td>Protects <code>exited</code> flag and coordinates teardown with
+        <code>ControlledExitCallback</code>.</td>
+        </tr>
+        <tr>
+        <td><code>cond</code></td>
+        <td>Signals changes in event counters and is used by <code>waitevent</code> to sleep until
+        events fire.</td>
+        </tr>
+        <tr>
+        <td><code>bg_cv</code></td>
+        <td>Used by <code>BGThreadRunningCallback</code> to notify that background thread has started
+        or ended.</td>
+        </tr>
+        <tr>
+        <td><code>exit_cv</code></td>
+        <td>Used to signal that ngspice has exited, waking <code>InstDeleteProc</code>.</td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+        #ruffopt excludedformats {}
+
+        #ruffopt includedformats nroff
+        ```
+        ┌───────────────────┬──────────────────────────────────────────────────────────────────────────────┐
+        │ Mutex / Condition │ Purpose                                                                      │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ mutex             │ Protects shared state such as msgq, capq, vectorData, vectorInit,            │
+        │                   │ and event counters.                                                          │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ cmd_mu            │ Guards the pending command queue used during transitional states             │
+        │                   │ (like bg_run start/stop).                                                    │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ bg_mu             │ Synchronizes access to background-thread state variables                     │
+        │                   │ (bg_started, bg_ended, state).                                               │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ exit_mu           │ Protects exited flag and coordinates teardown with                           │
+        │                   │ ControlledExitCallback.                                                      │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ cond              │ Signals changes in event counters and is used by waitevent to                │
+        │                   │ sleep until events fire.                                                     │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ bg_cv             │ Used by BGThreadRunningCallback to notify that background                    │
+        │                   │ thread has started or ended.                                                 │
+        ├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+        │ exit_cv           │ Used to signal that ngspice has exited, waking InstDeleteProc.               │
+        └───────────────────┴──────────────────────────────────────────────────────────────────────────────┘
+        ```
+        #ruffopt excludedformats {}
+
+        ngspice callbacks are invoked from its internal simulation threads, never from Tcl. These threads are not
+        allowed to manipulate Tcl objects directly; instead, they enqueue Tcl events via `Tcl_QueueEvent`. The event
+        structure (`NgSpiceEvent`) includes a pointer to the `NgSpiceContext`, a callback ID, and a generation counter
+        to ensure stale events are discarded safely.
+
+        Data flow always follows the same synchronization pattern:
+        - The ngspice callback thread acquires the relevant mutex, writes to the shared structure (e.g., `msgq`,
+          `prod`, or `evt_counts`), and releases it.
+        - It then queues an event to the Tcl thread.
+        - The Tcl thread later processes the event, safely reading from the same structures under lock.
+
+        Background thread control (`bg_run`, `bg_halt`, etc.) uses explicit state transitions (`NgState`) guarded by
+        `bg_mu`. Any Tcl command issued while ngspice is in a transitional state (`STARTING_BG` or `STOPPING_BG`) is
+        deferred through `EnqueuePending()`, preventing concurrent access to ngspice API functions. Deferred commands
+        are flushed later from the main Tcl thread after the background thread state becomes stable.
+
+        The `destroying` flag acts as a global fence against late or concurrent operations. Once set, all callbacks,
+        deferred commands, and waitevents are short-circuited. Final cleanup (`InstFreeProc`) only runs after all
+        callbacks have ceased and all condition variables are finalized, ensuring no dangling activity can touch freed
+        memory.
+
+        This model isolates all ngspice background activity from Tcl evaluation, guaranteeing thread safety while still
+        allowing asynchronous simulation and command queuing to coexist without locking the Tcl interpreter.
+
+        ## How data processing is implemented
+        ngspicetclbridge maintains two complementary data paths for handling simulation results from ngspice:
+        - **Synchronous (event-driven)** data, delivered through callbacks (`SendInitDataCallback` and `SendDataCallback`)
+          and stored inside internal buffers (`DataBuf`, `InitSnap`).
+        - **Asynchronous (on-demand)** data, retrieved by Tcl commands such as `asyncvector` or `vectors`, which query
+          ngspice directly via `ngGet_Vec_Info()` or similar functions.
+
+        Both paths ultimately present Tcl-side data in native structures — dictionaries and lists of numeric values —
+        but their lifetimes, timing, and ownership differ.
+
+        ### Overview of the data flow
+        1. ngspice calls `SendInitDataCallback()` → bridge creates and fills `InitSnap` with vector metadata.
+
+        2. Tcl event is queued (`SEND_INIT_DATA`) → later processed by `NgSpiceEventProc()`, which converts metadata
+           into the Tcl dictionary `ctx->vectorInit`.
+
+        3. ngspice calls `SendDataCallback()` → bridge appends numeric samples to `ctx->prod` (`DataBuf`).
+
+        4. Tcl event is queued (`SEND_DATA`) → later processed by `NgSpiceEventProc()`, which transfers rows from
+           `ctx->prod` into the Tcl dictionary `ctx->vectorData`.
+
+        5. Once processed, the internal buffers are cleared, leaving the Tcl objects as the authoritative copy of
+           simulation results.
+
+        This staged handoff model allows ngspice’s worker threads to push raw data asynchronously without ever touching
+        Tcl-managed memory, and Tcl to consume data safely on its main thread.
+
+        ### Asynchronous access structures
+        ngspice provides a runtime API for querying vector values at any point using `ngGet_Vec_Info()`. The structure
+        returned is defined as:
+
         ```c
         typedef struct vector_info {
-            char *v_name;		        /* Same as so_vname. */
-            int v_type;			        /* Same as so_vtype. */
-            short v_flags;		        /* Flags (a combination of VF_*). */
-            double *v_realdata;		    /* Real data. */
-            ngcomplex_t *v_compdata;	/* Complex data. */
-            int v_length;		        /* Length of the vector. */
+            char *v_name;
+            int v_type;
+            short v_flags;
+            double *v_realdata;
+            ngcomplex_t *v_compdata;
+            int v_length;
         } vector_info, *pvector_info;
         ```
 
-        It contains vector name, vector type, flags byte that contains additional information about the nature of the
-        vector. Enumeration definition `dvec_flags` for these flags is copied from `dvec.h` Ngspice header:
-        ```c
-        enum dvec_flags {
-            VF_REAL = (1 << 0),      /* The data is real. */
-            VF_COMPLEX = (1 << 1),   /* The data is complex. */
-            VF_ACCUM = (1 << 2),     /* writedata should save this vector. */
-            VF_PLOT = (1 << 3),      /* writedata should incrementally plot it. */
-            VF_PRINT = (1 << 4),     /* writedata should print this vector. */
-            VF_MINGIVEN = (1 << 5),  /* The v_minsignal value is valid. */
-            VF_MAXGIVEN = (1 << 6),  /* The v_maxsignal value is valid. */
-            VF_PERMANENT = (1 << 7), /* Don't garbage collect this vector. */
-            VF_EVENT_NODE = (1 << 8) /* Derived from and XSPICE event node. */
-        };
-        ```
+        The `v_flags` field encodes the type of the vector (real or complex) and other display or accumulation
+        properties. If the `VF_COMPLEX` flag is set, values are stored in an array of `ngcomplex_t` structures, each
+        containing `{cx_real, cx_imag}` pairs. Otherwise, they are plain doubles in `v_realdata`.
 
-        If the bit `VF_REAL` of flags byte is set, the vector data is stored into array of doubles `v_realdata`, 
-        if `VF_COMPLEX` bit is set, data is stored into array `v_compdata` of structures representing complex numbers.
+        The Tcl subcommand `asyncvector` reads these structures directly by calling `ctx->ngGet_Vec_Info()`, then
+        returns a simple Tcl list:  
+        - Real vectors as a flat list of doubles.  
+        - Complex vectors as a list of `{re im}` pairs.
 
-        Each structure `ngcomplex_t` contains real and imaginary double number:
-        ```c
-        struct ngcomplex {
-            double cx_real;
-            double cx_imag;
-        } ;
-        ```
+        Because this function directly queries ngspice’s in-memory storage, it does not depend on the event loop or any
+        intermediate buffering. It is safe to call between runs, though the vector content reflects ngspice’s internal
+        state at the time of the query.
 
-        `v_length` member of `vector_info` contains the length of the vector.
+        ### Synchronous access structures (event-driven)
+        When simulations run in the background (`bg_run`), ngspice periodically calls `SendDataCallback()` to deliver
+        updated data for all vectors in the current plot. The callback receives a `vecvaluesall` structure:
 
-        To get that data we use call to `ngGet_Vec_Info` function from simulator handler subcommand `asyncvector`. It
-        can be called at any moment of simulation after initialization, so it is defined as an asynchronous access to
-        data. `asyncvector` returns a Tcl list (not a dict): real vectors as a flat list of doubles; complex as a list of
-        {re im} pairs.
-
-        The data is not stored in any temporary buffer inside `NgSpiceContext`, just readed from internal Ngspice
-        storage and returned as data stored in Tcl variables.
-
-        #### Synchronous access structures
-
-        Second important structures are `vecvaluesall` and `vecvalues`:
         ```c
         typedef struct vecvalues {
-            char* name;           /* name of a specific vector */
-            double creal;         /* actual data value */
-            double cimag;         /* actual data value */
-            NG_BOOL is_scale;     /* if 'name' is the scale vector */
-            NG_BOOL is_complex;   /* if the data are complex numbers */
+            char* name;
+            double creal;
+            double cimag;
+            NG_BOOL is_scale;
+            NG_BOOL is_complex;
         } vecvalues, *pvecvalues;
 
         typedef struct vecvaluesall {
-            int veccount;      /* number of vectors in plot */
-            int vecindex;      /* index of actual set of vectors. i.e. the number of accepted data points */
-            pvecvalues *vecsa; /* values of actual set of vectors, indexed from 0 to veccount - 1 */
+            int veccount;
+            int vecindex;
+            pvecvalues *vecsa;
         } vecvaluesall, *pvecvaluesall;
         ```
 
-        These structures are passed to callback function `SendDataCallback` when new data is availible during the 
-        Ngspice simulation. This is the core of synchronous access to the data during the simulation process.
+        For each data point (or “row”), the callback iterates through all vectors, constructs lightweight `DataCell`
+        entries, and appends them to a `DataRow` inside the `DataBuf` buffer owned by `ctx`.  
+        The bridge stores only primitive doubles and small strings — it does not allocate Tcl objects here.
 
-        Structure `vecvaluesall` contains array of pointers to structures `vecvalues` that holds the actual value for
-        the certain vector at a given time/sweep point. So our task is to collect that data at each callback, push it
-        into event queue and append to internal buffer `DataBuf`, and then process them into the actual Tcl variables
-        during event processing.
+        The complementary initialization callback, `SendInitDataCallback()`, provides metadata for these vectors before
+        any data points are sent. It receives a `vecinfoall` structure describing all available vectors and fills a
+        corresponding `InitSnap` structure:
 
-        Another structure that is filled at the start of the simulation is the `InitSnap` structure:
         ```c
         typedef struct {
             int veccount;
@@ -207,39 +626,12 @@ namespace eval {Notes and internals} {
         } InitSnap;
         ```
 
-        It is filled in `SendInitDataCallback` that Ngspice calls at the start of simulation after completing the 
-        initialization. The structures that provides that information to callback are:
-        ```c
-        typedef struct vecinfo
-        {
-            int number;     /* number of vector, as postion in the linked list of vectors, starts with 0 */
-            char *vecname;  /* name of the actual vector */
-            NG_BOOL is_real;   /* TRUE if the actual vector has real data */
-            void *pdvec;    /* a void pointer to struct dvec *d, the actual vector */
-            void *pdvecscale; /* a void pointer to struct dvec *ds, the scale vector */
-        } vecinfo, *pvecinfo;
+        This snapshot serves as the source for `ctx->vectorInit` once the event is processed on the Tcl side.
 
-        typedef struct vecinfoall
-        {
-            /* the plot */
-            char *name;
-            char *title;
-            char *date;
-            char *type;
-            int veccount;
+        ### Internal buffering and memory layout
+        The in-memory storage for raw data uses nested structures designed for efficient append and event-driven
+        transfer:
 
-            /* the data as an array of vecinfo with length equal to the number of vectors in the plot */
-            pvecinfo *vecs;
-
-        } vecinfoall, *pvecinfoall;
-        ```
-
-        In the callback we read the `vecinfoall` members, get the pointers to vectors structures `vecinfo` that
-        contains metadata and actual data for each initialized vector, and store that metadata into `InitSnap
-        *init_snap` member inside `NgSpiceContext`. To get that data as a Tcl variables, we need to process the
-        related event in the event queue.
-
-        Internal data buffer for storage of each vector is organized into rows and columns via nested structures:
         ```c
         typedef struct {
             char *name;
@@ -249,7 +641,7 @@ namespace eval {Notes and internals} {
 
         typedef struct {
             int veccount;
-            DataCell *vecs;   // length = veccount
+            DataCell *vecs;
         } DataRow;
 
         typedef struct {
@@ -258,28 +650,274 @@ namespace eval {Notes and internals} {
         } DataBuf;
         ```
 
-        Each cell structure holds vector value at a given time/sweep point with name and values, each row is the
-        collection of the vectors values, and `DataBuf` structure holds all rows and information about number of rows
-        and total memory allocated. Internal buffer keeps accumulating data until the data is processed, then 
-        the buffer is freed.
+        - Each **DataCell** holds one scalar value (real or complex) for a single vector at a single timestep.  
+        - Each **DataRow** groups all `DataCell`s corresponding to one simulation step.  
+        - **DataBuf** acts as a growable ring buffer accumulating new `DataRow`s until they are consumed.
 
-        If data is not proceed before running next simulation, internal buffer `DataBuf prod` is cleared, and 
-        Tcl dictionary that holds vectors data is also cleared.
+        Memory is dynamically resized as new data arrives. Once the Tcl event handler (`NgSpiceEventProc`) transfers
+        the buffered rows into the Tcl dictionary, `DataBuf_Free()` clears the contents to release memory and reset
+        the counters.
 
-        ### How message queue is implemented
+        ### Conversion into Tcl objects
+        When Tcl processes the `SEND_INIT_DATA` or `SEND_DATA` events, it transforms the internal C buffers into Tcl
+        data structures:
 
-        Message queue is a member of `NgSpiceContext` structure. It is defined as a structure that contains array of 
-        strings, counter, and the cap that holds the size of allocated memory buffer.
+        - **`SEND_INIT_DATA`:**  
+          Creates or replaces `ctx->vectorInit` with a dictionary:
+          ```tcl
+          { vectorName {number N real 0|1} ... }
+          ```
+          This defines vector order and type information for the upcoming run.
+
+        - **`SEND_DATA`:**  
+          Appends to `ctx->vectorData`, a dictionary mapping each vector name to a list of numeric values:
+          ```tcl
+          { V(out) {0.0 0.1 0.2 ...} I(R1) {0.0 0.0 0.0 ...} ... }
+          ```
+          Complex values are represented as `{re im}` pairs.  
+          Once the transfer completes, `ctx->prod` is cleared.
+
+        The conversion always occurs under `ctx->mutex` to prevent concurrent modification during background activity.
+
+        ### Data lifecycle and cleanup
+        - At the start of each simulation, `vectorData` and `vectorInit` are cleared, and a new generation number
+          (`ctx->gen`) is incremented.  
+        - Any pending data buffers or old Tcl objects from previous runs are discarded.  
+        - At the end of a run, `DataBuf` and `InitSnap` are freed.  
+        - During teardown (`InstDeleteProc`), all remaining data buffers are released to prevent leaks.
+
+        This ensures that every simulation run starts with a clean state and that all memory ownership is consistent
+        between Tcl and ngspice.
+
+        ### Thread safety in data handling
+        - `SendDataCallback()` and `SendInitDataCallback()` run on ngspice’s thread; they lock `ctx->mutex` while
+          modifying shared buffers.  
+        - Tcl-side handlers (`NgSpiceEventProc()`) also lock the same mutex when consuming the data.  
+        - This producer–consumer pattern ensures no race conditions between ngspice data production and Tcl data
+          consumption.
+
+        Together, these layers implement a robust, zero-copy, thread-safe data pipeline from ngspice’s internal solver
+        to Tcl-accessible variables, capable of handling both real-time streaming and post-run inspection scenarios.
+
+
+        ## How message queue is implemented
+        ngspicetclbridge provides a unified and thread-safe mechanism for collecting text output and diagnostic messages
+        emitted by ngspice during simulation. This includes lines printed to ngspice’s stdout/stderr streams, status
+        messages, and optionally captured command output when `-capture` mode is active.
+
+        ### Overview
+        Each `NgSpiceContext` maintains two independent message queues:
+
+        - **`msgq`** — the **global asynchronous message queue**, which accumulates all text lines and status messages
+          emitted by ngspice during normal operation. These messages are accessible to Tcl via the `$s messages`
+          subcommand and are used by commands such as `waitevent` or logging facilities to display simulation output.
+
+        - **`capq`** — the **temporary capture queue**, which is used exclusively during the execution of
+          `$s command -capture ...`. While `cap_active` is set, any message that would normally go into `msgq`
+          is duplicated into `capq` as well. This allows Tcl to capture and return ngspice’s textual output specific
+          to a single command invocation, without interfering with the ongoing asynchronous log.
+
+        Both queues use the same lightweight data structure `MsgQueue`, defined as:
+
         ```c
         typedef struct {
             char **items;
-            size_t count, cap;
+            size_t count;
+            size_t cap;
         } MsgQueue;
         ```
 
-        Message queue is filled during each callback that calls `QueueMsg` function. Queue could be cleared with 
-        `MsgQ_Clear` function and freed with `MsgQ_Free`. Access to messages itself is done via handle subcommand 
-        `messages`.
+        The queue maintains a dynamically allocated array of C strings and tracks both the number of stored messages
+        (`count`) and the total allocated capacity (`cap`). Each new message is appended as a heap-allocated copy, and
+        capacity grows exponentially when needed.
+
+        ### Message production (ngspice callbacks)
+        ngspice produces text output through callbacks `SendCharCallback` and `SendStatCallback`. These callbacks are
+        invoked asynchronously from ngspice’s internal threads and may fire at any moment. To safely handle these
+        messages:
+
+        1. The callback locks `ctx->mutex` to synchronize access to shared state.
+
+        2. The callback calls `QueueMsg(ctx, line)` which appends the given text to `ctx->msgq`.
+
+        3. If `ctx->cap_active` is set (i.e., a `$s command -capture ...` is in progress), the same line is also
+           appended to `ctx->capq` for later retrieval by the capturing command.
+
+        4. The callback signals `Tcl_ConditionNotify(&ctx->cond)` to wake any threads waiting in `$s waitevent`
+           or `$s messages -wait`.
+
+        5. Finally, the callback unlocks `ctx->mutex` before returning.
+
+        The `QueueMsg()` function is responsible for ensuring capacity growth, copying the message, and maintaining
+        null-termination of the array. It performs no Tcl operations, keeping it completely thread-safe.
+
+        ### Message consumption (Tcl commands)
+        On the Tcl side, messages are retrieved by calling `$s messages`.  
+        This subcommand locks the same `ctx->mutex`, iterates over the `msgq` entries, and returns them as a Tcl list:
+
+        ```tcl
+        $s messages
+        → { "# circuit initialized" "# transient analysis running" "# background thread running started" ... }
+        ```
+
+        Optionally, `$s messages -clear` clears the message queue after reading, allowing the caller to poll for new
+        messages incrementally.
+
+        Because `msgq` is append-only and all reads occur under the same mutex, there is no race condition between
+        message production and consumption. Each message remains valid until explicitly cleared or freed.
+
+        ### Capture mode (`-capture`)
+        The capture mechanism allows a single `$s command` call to return the exact lines ngspice printed while
+        executing a specific command. This is handled transparently inside the command branch:
+
+        1. Before invoking `ngSpice_Command()`, the bridge:
+           - Locks `ctx->mutex`
+           - Clears `ctx->capq` using `MsgQ_Clear()`
+           - Sets `ctx->cap_active = 1`
+           - Unlocks `ctx->mutex`
+        2. ngspice executes the command, possibly emitting messages via `SendCharCallback`.
+        3. Each emitted line is recorded in both `msgq` (global) and `capq` (local).
+        4. After the command finishes, the bridge:
+           - Locks `ctx->mutex` again
+           - Disables capture (`ctx->cap_active = 0`)
+           - Copies messages from `capq` into a Tcl list (`outList`)
+           - Clears `capq`
+           - Unlocks the mutex
+        5. The Tcl result is a dictionary:
+        ```tcl
+        { rc <integer> output { "<line1>" "<line2>" ... } }
+        ```
+        
+        where `rc` is the return code from ngspice and `output` is the captured text.
+
+        This dual-queue approach ensures that capture mode never interferes with the persistent global message stream,
+        while still providing deterministic per-command output isolation.
+
+        ### Clearing and freeing queues
+        Both message queues can be cleared or destroyed via:
+
+        ```c
+        void MsgQ_Clear(MsgQueue *q);
+        void MsgQ_Free(MsgQueue *q);
+        ```
+
+        - `MsgQ_Clear()` frees individual strings and resets `count` to zero, but retains allocated capacity.  
+        - `MsgQ_Free()` releases both the strings and the queue’s internal array, used during context teardown.
+
+        The queues are cleared at multiple stages:
+        - At simulator initialization (empty start).
+        - After each `$s messages -clear` call.
+        - After each capture-mode command completes.
+        - During instance deletion and final free (`InstFreeProc`).
+
+        ### Synchronization and safety guarantees
+        - All modifications of either `msgq` or `capq` occur under `ctx->mutex`.  
+        - The queues store only heap-allocated strings — no Tcl objects or shared buffers — making them completely safe
+          to access from ngspice threads.
+        - During teardown (`ctx->destroying = 1`), callbacks stop queueing new messages immediately.
+        - All pending messages are safely freed during `InstFreeProc()`.
+
+        ### Summary
+        The message queue subsystem provides a clean, thread-safe bridge between ngspice’s asynchronous textual output
+        and Tcl’s event-driven interface.  
+        It ensures:
+        - reliable, lossless accumulation of ngspice messages,  
+        - isolated per-command capture without data loss,  
+        - and safe concurrent access across threads and teardown phases.
+
+        ## How dynamic library loading and portability is implemented
+        ngspicetclbridge is designed to operate seamlessly across all major platforms supported by Tcl — primarily
+        Linux, macOS, and Windows — using a unified abstraction layer for dynamic library management. Because the
+        simulator backend (ngspice) is distributed as a shared library (`libngspice.so`, `libngspice.dylib`, or
+        `ngspice.dll`), the bridge must dynamically load it at runtime, resolve function symbols, and safely unload it
+        during shutdown.
+
+        ### Abstracted portability layer
+        All platform differences in dynamic library handling are encapsulated in a small portability layer consisting
+        of three functions and an opaque handle type:
+
+        ```c
+        typedef void *PDlHandle;
+
+        PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj);
+        void *PDl_Sym(PDlHandle handle, const char *sym);
+        void PDl_Close(PDlHandle handle);
+        ```
+
+        Internally, this layer maps directly to the platform’s native API:
+        - On **POSIX** systems (Linux, macOS):  
+          `PDl_OpenFromObj()` calls `dlopen()`,  
+          `PDl_Sym()` calls `dlsym()`,  
+          `PDl_Close()` calls `dlclose()`.
+        - On **Windows**:  
+          `PDl_OpenFromObj()` calls `LoadLibraryW()`,  
+          `PDl_Sym()` calls `GetProcAddress()`,  
+          `PDl_Close()` calls `FreeLibrary()`.
+
+        This makes the rest of the code platform-agnostic.  
+        The bridge never calls `dlopen` or `LoadLibrary` directly — only through this wrapper.
+
+        ### Unicode and Tcl path integration
+        A key feature of the wrapper is that it accepts a Tcl path object (`Tcl_Obj *pathObj`) instead of a C string.
+        This allows proper handling of Unicode and cross-platform path semantics:
+        - On Windows, Tcl internally stores paths as UTF-16, so `PDl_OpenFromObj()` extracts the wide-string form and
+          passes it to `LoadLibraryW()` directly, avoiding encoding errors or locale dependence.
+        - On POSIX systems, the path is converted to UTF-8 and passed as a regular C string to `dlopen()`.
+
+        This guarantees that paths with non-ASCII characters (e.g., `C:/ユーザー/ngspice.dll`) are handled correctly on all
+        platforms.
+
+        ### Function symbol resolution
+        After opening the shared library, `NgSpiceNewCmd()` uses `PDl_Sym()` to resolve all required function symbols
+        dynamically. Each symbol pointer is stored in the instance’s `NgSpiceContext`:
+
+        ```c
+        ctx->ngSpice_Init      = PDl_Sym(handle, "ngSpice_Init");
+        ctx->ngSpice_Command   = PDl_Sym(handle, "ngSpice_Command");
+        ctx->ngGet_Vec_Info    = PDl_Sym(handle, "ngGet_Vec_Info");
+        ...
+        ```
+
+        If any symbol lookup fails, the bridge immediately closes the library and returns a descriptive Tcl error,
+        preventing partially initialized instances. This allows compatibility with multiple ngspice builds that may
+        export slightly different symbol sets.
+
+        ### Safe unloading and crash prevention
+        When an instance is destroyed (`InstDeleteProc` → `InstFreeProc`), the bridge normally calls `PDl_Close()` to
+        unload the ngspice library. However, under certain conditions (e.g., if ngspice has left background threads
+        running or its shutdown callbacks are incomplete), unloading can cause segmentation faults. To handle this
+        safely:
+
+        - A flag `ctx->skip_dlclose` is set if teardown was not clean (e.g., controlled exit didn’t complete).
+        - In such cases, `InstFreeProc()` skips `PDl_Close()` and leaks the handle intentionally, avoiding unsafe
+          deallocation while still allowing the Tcl interpreter to exit normally.
+
+        This design sacrifices a small amount of memory for guaranteed stability during process termination.
+
+        ### Platform-specific nuances
+        **Windows:**  
+          - Uses `LoadLibraryW()` for Unicode safety.  
+          - Relies on system DLL search path rules; Tcl’s `file normalize` is used to avoid relative path ambiguity.  
+          - Threaded interaction with ngspice’s background thread is identical to POSIX, as all synchronization uses
+            Tcl’s cross-platform `Tcl_Mutex` and `Tcl_Condition`.
+
+        **macOS:**  
+          - Uses `dlopen()` with `RTLD_NOW | RTLD_GLOBAL` to ensure ngspice’s internal dependencies are resolved
+            immediately.
+          - `.dylib` suffixes are automatically accepted alongside `.so`.
+
+        **Linux / BSD:**  
+          - Standard ELF dynamic linking via `dlopen()`; no special handling required.
+
+        ### Summary
+        The DLL loading layer provides:
+        - Transparent, cross-platform dynamic linking without preprocessor ifdefs in the main code.  
+        - Full Unicode path support using Tcl’s path abstractions.  
+        - Safe error handling and controlled unloading semantics.  
+        - Isolation of platform differences behind three simple functions.
+
+        This allows ngspicetclbridge to load any compatible ngspice shared library at runtime, regardless of platform
+        or path encoding, ensuring consistent behavior and portability across Tcl environments.
 
     }
 }
