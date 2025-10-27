@@ -3,6 +3,128 @@
 /* global process-wide fuses */
 static int g_disable_dlclose = 0;
 static int g_heap_poisoned = 0;
+
+void PrintRefCount(Tcl_Obj *objPtr) {
+    if (objPtr) {
+        fprintf(stderr,"refCount = %d\n", objPtr->refCount);
+        fflush(stderr);
+    } else {
+        fprintf(stderr,"objPtr is NULL\n");
+        fflush(stderr);
+    }
+}
+
+static Tcl_Obj *DeepCopyVectorData(Tcl_Interp *interp, Tcl_Obj *srcDict) {
+    Tcl_Obj *dstDict = Tcl_NewDictObj();
+
+    Tcl_DictSearch search;
+    Tcl_Obj *keyObj, *valListObj;
+    int done;
+
+    if (Tcl_DictObjFirst(interp, srcDict, &search, &keyObj, &valListObj, &done) != TCL_OK) {
+        // srcDict wasn't actually a dict? Just return empty.
+        return dstDict;
+    }
+
+    for (; !done; Tcl_DictObjNext(&search, &keyObj, &valListObj, &done)) {
+
+        // Make an independent copy of the key string so we don't alias ctx->vectorData's key objects.
+        const char *keyStr = Tcl_GetString(keyObj);
+        Tcl_Obj *keyCopy = Tcl_NewStringObj(keyStr, -1);
+
+        // valListObj is the list of samples for that vector.
+        // We build a deep new list where every element is fresh.
+        Tcl_Obj *valCopyList = Tcl_NewListObj(0, NULL);
+
+        Tcl_Size outerLen;
+        Tcl_Obj **outerElems;
+        if (Tcl_ListObjGetElements(interp, valListObj, &outerLen, &outerElems) != TCL_OK) {
+            // Weird/unexpected; just shallow-store (stringify) as fallback
+            const char *fallbackStr = Tcl_GetString(valListObj);
+            Tcl_Obj *fallbackCopy = Tcl_NewStringObj(fallbackStr, -1);
+            Tcl_DictObjPut(interp, dstDict, keyCopy, fallbackCopy);
+            continue;
+        }
+
+        for (Tcl_Size oi = 0; oi < outerLen; oi++) {
+            Tcl_Obj *outerElem = outerElems[oi];
+
+            // Try complex pair probe
+            Tcl_Obj **innerElems;
+            Tcl_Size innerLen;
+            int isList = (Tcl_ListObjGetElements(interp, outerElem, &innerLen, &innerElems) == TCL_OK);
+
+            if (isList && innerLen == 2) {
+                double reVal, imVal;
+                if (Tcl_GetDoubleFromObj(NULL, innerElems[0], &reVal) == TCL_OK &&
+                    Tcl_GetDoubleFromObj(NULL, innerElems[1], &imVal) == TCL_OK) {
+                    Tcl_Obj *pairCopy = Tcl_NewListObj(0, NULL);
+                    Tcl_ListObjAppendElement(interp, pairCopy, Tcl_NewDoubleObj(reVal));
+                    Tcl_ListObjAppendElement(interp, pairCopy, Tcl_NewDoubleObj(imVal));
+                    Tcl_ListObjAppendElement(interp, valCopyList, pairCopy);
+                    continue;
+                } else {
+                    Tcl_ResetResult(interp);
+                }
+            } else {
+                Tcl_ResetResult(interp);
+            }
+
+            // Treat as scalar real
+            double realVal;
+            if (Tcl_GetDoubleFromObj(NULL, outerElem, &realVal) == TCL_OK) {
+                Tcl_ListObjAppendElement(interp, valCopyList, Tcl_NewDoubleObj(realVal));
+            } else {
+                // fallback: stringify outerElem just in case
+                Tcl_ResetResult(interp);
+                const char *outerStr = Tcl_GetString(outerElem);
+                Tcl_ListObjAppendElement(interp, valCopyList, Tcl_NewStringObj(outerStr, -1));
+            }
+        }
+
+        Tcl_DictObjPut(interp, dstDict, keyCopy, valCopyList);
+    }
+
+    Tcl_DictObjDone(&search);
+    return dstDict;
+}
+
+static Tcl_Obj *DeepCopyVectorInit(Tcl_Interp *interp, Tcl_Obj *src) {
+    if (src == NULL) {
+        return NULL;
+    }
+    Tcl_Obj *dst = Tcl_NewDictObj();
+    Tcl_DictSearch search;
+    Tcl_Obj *keyObj, *valObj;
+    int done;
+    if (Tcl_DictObjFirst(interp, src, &search, &keyObj, &valObj, &done) != TCL_OK) {
+        // src is not a dict (or already invalid)
+        return NULL;
+    }
+    for (; !done; Tcl_DictObjNext(&search, &keyObj, &valObj, &done)) {
+        // Copy key
+        Tcl_Obj *newKey = Tcl_NewStringObj(Tcl_GetString(keyObj), -1);
+        // Copy value dict
+        Tcl_Obj *newMeta = Tcl_NewDictObj();
+        Tcl_DictSearch metaSearch;
+        Tcl_Obj *metaKey, *metaVal;
+        int metaDone;
+        if (Tcl_DictObjFirst(interp, valObj, &metaSearch, &metaKey, &metaVal, &metaDone) == TCL_OK) {
+            for (; !metaDone; Tcl_DictObjNext(&metaSearch, &metaKey, &metaVal, &metaDone)) {
+                Tcl_Obj *newMetaKey = Tcl_NewStringObj(Tcl_GetString(metaKey), -1);
+                Tcl_Obj *newMetaVal = Tcl_DuplicateObj(metaVal);
+                // insert into newMeta
+                Tcl_DictObjPut(interp, newMeta, newMetaKey, newMetaVal);
+            }
+            Tcl_DictObjDone(&metaSearch);
+        }
+        // insert into dst
+        Tcl_DictObjPut(interp, dst, newKey, newMeta);
+    }
+    Tcl_DictObjDone(&search);
+    return dst;
+}
+
 //** small helpers
 //***  ckstrdup function
 /*
@@ -600,8 +722,6 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         Tcl_MutexLock(&ctx->mutex);
         isnap = ctx->init_snap;
         ctx->init_snap = NULL;
-        int do_reset = ctx->new_run_pending;
-        ctx->new_run_pending = 0;
         Tcl_MutexUnlock(&ctx->mutex);
         if (isnap) {
             Tcl_Obj *dict = Tcl_NewDictObj();
@@ -617,14 +737,6 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             }
             ctx->vectorInit = dict;
             Tcl_IncrRefCount(dict);
-            if (do_reset) {
-                if (ctx->vectorData) {
-                    Tcl_DecrRefCount(ctx->vectorData);
-                }
-                ctx->vectorData = Tcl_NewDictObj();
-                Tcl_IncrRefCount(ctx->vectorData);
-                /* NOTE: prod was already cleared in the callback; don't touch it here */
-            }
             Tcl_MutexUnlock(&ctx->mutex);
             /* free snapshot */
             FreeInitSnap(isnap);
@@ -1207,12 +1319,7 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         Tcl_Free(ctx->init_snap);
     }
     ctx->init_snap = snap;
-    ctx->gen++;                // <— bump generation
-    ctx->new_run_pending = 1;  // <— request reset in event proc
-    uint64_t mygen = ctx->gen; // capture for queuing
-    DataBuf_Free(&ctx->prod);
-    DataBuf_Init(&ctx->prod);
-    ctx->new_run_pending = 1;
+    uint64_t mygen = ctx->gen;
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_INIT_DATA);
     NgSpiceQueueEvent(ctx, SEND_INIT_DATA, mygen);
@@ -1576,13 +1683,11 @@ static void InstFreeProc(void *cdata) {
         }
     }
     /* Finally, free the context itself and finalize mutexes*/
-    Tcl_ConditionFinalize(&ctx->cond);
-    Tcl_MutexFinalize(&ctx->mutex);
-    Tcl_ConditionFinalize(&ctx->exit_cv);
-    Tcl_MutexFinalize(&ctx->exit_mu);
     Tcl_ConditionFinalize(&ctx->bg_cv);
     Tcl_MutexFinalize(&ctx->bg_mu);
     Tcl_MutexFinalize(&ctx->cmd_mu);
+    //intRefCount(ctx->vectorData);
+    //intRefCount(ctx->vectorInit);
     Tcl_Free(ctx);
 }
 //***  InstDeleteProc function
@@ -2076,6 +2181,31 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             ctx->bg_started = 0;
             ctx->bg_ended = 0;
             Tcl_MutexUnlock(&ctx->bg_mu);
+            
+            Tcl_MutexLock(&ctx->mutex);
+            ctx->gen++;
+            ctx->new_run_pending = 0;
+            if (ctx->init_snap) {
+                for (int i = 0; i < ctx->init_snap->veccount; i++) {
+                    Tcl_Free(ctx->init_snap->vecs[i].name);
+                }
+                Tcl_Free(ctx->init_snap->vecs);
+                Tcl_Free(ctx->init_snap);
+                ctx->init_snap = NULL;
+            }
+            DataBuf_Free(&ctx->prod);
+            DataBuf_Init(&ctx->prod);
+            if (ctx->vectorData) {
+                Tcl_DecrRefCount(ctx->vectorData);
+            }
+            ctx->vectorData = Tcl_NewDictObj();
+            Tcl_IncrRefCount(ctx->vectorData);
+            if (ctx->vectorInit) {
+                Tcl_DecrRefCount(ctx->vectorInit);
+            }
+            ctx->vectorInit = Tcl_NewDictObj();
+            Tcl_IncrRefCount(ctx->vectorInit);
+            Tcl_MutexUnlock(&ctx->mutex);
         }
         /* Special handling for bg_halt */
         if (strcmp(cmd, "bg_halt") == 0) {
@@ -2128,12 +2258,17 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_ERROR;
             goto done;
         }
+        if (ctx->has_circuit) {
+            ctx->ngSpice_Command("remcirc");
+            ctx->has_circuit = 0;
+        }
         char **circuit = Tcl_Alloc((cirLinesListLen + 1) * sizeof(char *));
         for (Tcl_Size i = 0; i < cirLinesListLen; ++i) {
             circuit[i] = Tcl_GetString(cirLinesElems[i]);
         }
         circuit[cirLinesListLen] = NULL;
         int rc = ctx->ngSpice_Circ(circuit);
+        ctx->has_circuit = 1;
         Tcl_Free(circuit);
         Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
         code = TCL_OK;
@@ -2226,7 +2361,8 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_OK;
             goto done;
         } else {
-            Tcl_SetObjResult(interp, ctx->vectorData);
+            Tcl_Obj *dup = DeepCopyVectorData(interp, ctx->vectorData);
+            Tcl_SetObjResult(interp, dup);
             Tcl_MutexUnlock(&ctx->mutex);
             code = TCL_OK;
             goto done;
@@ -2462,7 +2598,8 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_OK;
             goto done;
         } else {
-            Tcl_SetObjResult(interp, ctx->vectorInit);
+            Tcl_Obj *dup = DeepCopyVectorInit(interp, ctx->vectorInit);
+            Tcl_SetObjResult(interp, dup);
             Tcl_MutexUnlock(&ctx->mutex);
             code = TCL_OK;
             goto done;

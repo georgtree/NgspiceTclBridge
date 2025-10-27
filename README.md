@@ -37,7 +37,26 @@ For package uninstall run `sudo make uninstall`.
 
 ## Documentation
 
-Documentation could be found [here](https://georgtree.github.io//). 
+Documentation could be found [here](https://georgtree.github.io//).
+
+## Notes
+
+The commands that are subcommand to the simulator command, like `$s1 command bg_run` are considered low level
+and communicate/interact directly with the simulator. On the other side, commands that accept simulator as a
+parameter are considered as "helper" commands, built on top of low-level commands.
+
+## Warnings
+
+This library should be considere semi-stable now. It works well for **single** loading of shared library per process,
+without unloading and loading again. It also works with multiple unloadings (destroying) and loadings of the same
+library, but I've encountered a few possible memory corruption cases. I am trying my best to eliminate them, but I am
+not in full control of Ngspice shared library behaviour.
+
+One of the instances I've encountered is the running two circuit in sequence, with pattern load circuit->run->load
+circuit->run, and then try destroying the instance. This could lead to segmentation violation, unless the command
+`remcirc` for unloading previous circuit is issued before loading new circuit. It is done automatically now if you
+previously loaded the circuit with `circuit` command. But in case you want to load circuit with command `circbyline`,
+you need to issue `remcirc` command yourself.
 
 ## Quick start (synchronous operation)
 
@@ -59,13 +78,6 @@ $sim init
 To feed a circuit one line at a time via ngspice’s circbyline:
 
 ``` tcl
-proc cirPass {sim circuitText} {
-    foreach line [split $circuitText "\n"] {
-        if {[string trim $line] ne ""} {
-            $sim command [concat circbyline $line]
-        }
-    }
-}
 set resDivCircuit {
     Resistor divider
     v1 in 0 1
@@ -77,24 +89,11 @@ set resDivCircuit {
 }
 ```
 
-Pass resistor divider circuit to Ngspice, and start the run background thread:
+Pass resistor divider circuit to Ngspice, and start the run (in background thread), and wait for completion:
 
 ``` tcl
-cirPass $sim $resDivCircuit
-$sim command bg_run
-```
-
-Wait for an event (e.g., status becoming ready):
-
-``` tcl
-set res [$sim waitevent send_stat 1000]
-```
-
-Explicitly process pending events handlers (without processing the events the messages, vector data and status will
-not be written into internal data storages)
-
-``` tcl
-update
+$sim circuit [split $resDivCircuit \n]
+run $sim
 ```
 
 Get vector data dictionary saved in internal buffer:

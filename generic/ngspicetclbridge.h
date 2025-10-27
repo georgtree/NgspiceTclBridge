@@ -172,6 +172,7 @@ typedef struct {
     int quitting;                                 /* True while sending "quit" command to ngspice */
     int aborting;                                 /* Soft abort flag for waitevent unblocking */
     int skip_dlclose;                             /* True to skip dlclose() on unsafe shutdown */
+    int has_circuit;                              /* True if circuit is loaded into ngspice */
 
     /*------------------------------------------------------------------------------------------------------------------
      * Background (bg_run) thread coordination

@@ -31,9 +31,9 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBplot\fP \fI-vecs name\fP
 .br
-\fBreadPlotVectorsAsync\fP \fI?args?\fP
+\fBreadVecsAsync\fP \fI?-info? sim\fP
 .br
-\fBrunAndWaitForCompletion\fP \fIsim\fP
+\fBrun\fP \fIsim\fP
 .br
 \fBvectors\fP \fI?-clear?\fP
 .br
@@ -405,13 +405,13 @@ name of the provided plot\&.
 current plot, or list of all plots, or list of all vectors
 .PP
 .RS -4n
-\fBreadPlotVectorsAsync\fR (::ngspicetclbridge)
+\fBreadVecsAsync\fR (::ngspicetclbridge)
 .RE
 .PP
-Reads all availible vectorsof current plot asynchronously and return dictionary with vector name as a key,
+Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key,
 and data as a value\&. If -info switch is provided, command returns information about each availiable vector\&.
 .RS 4n
-\fBreadPlotVectorsAsync\fP \fI?args?\fP
+\fBreadVecsAsync\fP \fI?-info? sim\fP
 .br
 .RE
 .PP
@@ -430,12 +430,12 @@ Simulator handler that is returned by ngspicetclbridge::new
 dictionary
 .PP
 .RS -4n
-\fBrunAndWaitForCompletion\fR (::ngspicetclbridge)
+\fBrun\fR (::ngspicetclbridge)
 .RE
 .PP
 Runs simulation in background thread, waits for the completion, process event in the queue and returns
 .RS 4n
-\fBrunAndWaitForCompletion\fP \fIsim\fP
+\fBrun\fP \fIsim\fP
 .br
 .RE
 .PP

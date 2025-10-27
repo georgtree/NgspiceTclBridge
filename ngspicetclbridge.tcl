@@ -2,9 +2,9 @@ package require argparse
 
 namespace eval ::ngspicetclbridge {
 
-    namespace export runAndWaitForCompletion readPlotVectorsAsync
+    namespace export run readVecsAsync
 
-    proc runAndWaitForCompletion {sim} {
+    proc run {sim} {
         # Runs simulation in background thread, waits for the completion, process event in the queue and returns
         #  sim -  simulator handler that is returned by `ngspicetclbridge::new`
         # Returns:
@@ -13,12 +13,14 @@ namespace eval ::ngspicetclbridge {
         update
         return
     }
-    proc readPlotVectorsAsync {args} {
-        # Reads all availible vectorsof current plot asynchronously and return dictionary with vector name as a key,
+    proc readVecsAsync {args} {
+        # Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key,
         # and data as a value. If `-info` switch is provided, command returns information about each availiable vector.
         #  -info - if provided, metainfo about vectors is returned instead of the data.
         #  sim - simulator handler that is returned by `ngspicetclbridge::new`
+        #
         # Returns: dictionary
+        # Synopsis: ?-info? sim
         argparse {
             -info
             sim
@@ -34,6 +36,5 @@ namespace eval ::ngspicetclbridge {
         }
         return $result
     }
-
 
 }
