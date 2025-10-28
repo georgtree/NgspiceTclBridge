@@ -54,11 +54,11 @@ enum vector_types {
 };
 
 typedef enum {
-    NGSTATE_IDLE = 0,          // no bg thread active
-    NGSTATE_STARTING_BG,       // bg_run issued, waiting for bg_started=1
-    NGSTATE_BG_ACTIVE,         // bg thread running normally
-    NGSTATE_STOPPING_BG,       // bg_halt issued and bg thread is winding down
-    NGSTATE_DEAD               // teardown/abort/destroy
+    NGSTATE_IDLE = 0,    // no bg thread active
+    NGSTATE_STARTING_BG, // bg_run issued, waiting for bg_started=1
+    NGSTATE_BG_ACTIVE,   // bg thread running normally
+    NGSTATE_STOPPING_BG, // bg_halt issued and bg thread is winding down
+    NGSTATE_DEAD         // teardown/abort/destroy
 } NgState;
 
 //** define data snaps for saving data during ngspice callbacks
@@ -79,7 +79,7 @@ typedef struct {
 
 typedef struct {
     int veccount;
-    DataCell *vecs;   // length = veccount
+    DataCell *vecs;
 } DataRow;
 
 typedef struct {
@@ -95,9 +95,9 @@ typedef struct {
 
 //** define commands buffer
 typedef struct PendingCmd {
-    char *cmd;                // Tcl string dup’d (must free later)
-    int  capture;             // 0 or 1, mirrors -capture mode
-    struct PendingCmd *next;  // linked list
+    char *cmd;               // Tcl string dup’d (must free later)
+    int capture;             // 0 or 1, mirrors -capture mode
+    struct PendingCmd *next; // linked list
 } PendingCmd;
 
 //** define functions pointers
