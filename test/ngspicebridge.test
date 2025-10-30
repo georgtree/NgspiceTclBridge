@@ -920,4 +920,47 @@ test test-40 {check run command, that blocks the caller until the simulation is 
     unset s1
 }
 
+test test-41 {check inputpath command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+} -body {
+    $s1 inputpath /home/georgtree/Downloads/
+ } -match glob -result {/home/georgtree/Downloads/} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-42 {check inputpath command, returning current path} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+} -body {
+    $s1 inputpath -current
+ } -result {.} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-43 {check inputpath command, returning current path} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+} -body {
+    $s1 inputpath /home/georgtree/Downloads/
+    $s1 inputpath -current
+ } -result {/home/georgtree/Downloads/} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-44 {check inputpath command with wrong number of arguments} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 init
+} -body {
+    catch {$s1 inputpath} errorStr
+    return $errorStr
+ } -result {wrong # args: should be "::ngspicetclbridge::s46 inputpath -current|path"} -cleanup {
+    $s1 destroy
+    unset s1 errorStr
+}
+
+
 cleanupTests

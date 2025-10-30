@@ -4,197 +4,15 @@
 static int g_disable_dlclose = 0;
 static int g_heap_poisoned = 0;
 
-/*void PrintRefCount(Tcl_Obj *objPtr) {
-    if (objPtr) {
-        fprintf(stderr, "refCount = %d\n", objPtr->refCount);
-        fflush(stderr);
-    } else {
-        fprintf(stderr, "objPtr is NULL\n");
-        fflush(stderr);
-    }
-}*/
-
-//***  DeepCopyVectorData function
-/*--------------------------------------------------------------------------------------------------
- * DeepCopyVectorData --
- *
- *      Perform a full deep copy of a Tcl dictionary representing simulation vector data.
- *      The dictionary follows the structure:
- *
- *          {
- *              "V(out)"   {1.0 2.0 3.0 ...}
- *              "I(R1)"    {{0.1 0.0} {0.2 0.1} ...}
- *              ...
- *          }
- *
- *      Each key is a vector name (string), and each value is a Tcl list of samples.
- *      Each sample element may be:
- *          - a scalar real number (e.g., 1.23), or
- *          - a two-element list representing a complex number (e.g., {1.23 0.45}).
- *
- *      This function constructs a completely independent Tcl dictionary where
- *      all keys, lists, and element objects are newly allocated and detached from
- *      the source dictionary. No internal `Tcl_Obj *` pointers are shared between
- *      the source (`srcDict`) and the copy (`dstDict`).
- *
- * Parameters:
- *      Tcl_Interp *interp               - input: interpreter used for creating Tcl objects.
- *      Tcl_Obj *srcDict                 - input: source dictionary to copy. Expected to contain
- *                                                key → list-of-samples entries as described above.
- *
- * Returns:
- *      Tcl_Obj *            - newly created deep copy of the dictionary (refCount == 0).
- *                             Returns an empty dict if `srcDict` is not a valid Tcl dict.
- *
- * Behavior:
- *      - Each vector key is duplicated as a fresh string object.
- *      - Each value list is rebuilt element-by-element.
- *      - Each numeric element is re-parsed via `Tcl_GetDoubleFromObj()` to ensure
- *        correct type duplication.
- *      - Complex pairs `{re im}` are detected automatically and re-encoded as
- *        new two-element lists.
- *      - If an element cannot be parsed as numeric, it is stringified and copied.
- *
- * Side Effects:
- *      - This function is defensive against malformed source data: any unexpected
- *        structure (non-list or invalid numeric element) falls back to a
- *        string-based shallow copy.
- *      - Caller owns the returned Tcl object and must manage its reference count.
- *      - The resulting object tree shares no memory with the source dictionary.
- *
- *--------------------------------------------------------------------------------------------------
- */
-static Tcl_Obj *DeepCopyVectorData(Tcl_Interp *interp, Tcl_Obj *srcDict) {
-    Tcl_Obj *dstDict = Tcl_NewDictObj();
-    Tcl_DictSearch search;
-    Tcl_Obj *keyObj, *valListObj;
-    int done;
-    if (Tcl_DictObjFirst(interp, srcDict, &search, &keyObj, &valListObj, &done) != TCL_OK) {
-        return dstDict;
-    }
-    for (; !done; Tcl_DictObjNext(&search, &keyObj, &valListObj, &done)) {
-        const char *keyStr = Tcl_GetString(keyObj);
-        Tcl_Obj *keyCopy = Tcl_NewStringObj(keyStr, -1);
-        Tcl_Obj *valCopyList = Tcl_NewListObj(0, NULL);
-        Tcl_Size outerLen;
-        Tcl_Obj **outerElems;
-        if (Tcl_ListObjGetElements(interp, valListObj, &outerLen, &outerElems) != TCL_OK) {
-            const char *fallbackStr = Tcl_GetString(valListObj);
-            Tcl_Obj *fallbackCopy = Tcl_NewStringObj(fallbackStr, -1);
-            Tcl_DictObjPut(interp, dstDict, keyCopy, fallbackCopy);
-            continue;
-        }
-        for (Tcl_Size oi = 0; oi < outerLen; oi++) {
-            Tcl_Obj *outerElem = outerElems[oi];
-            Tcl_Obj **innerElems;
-            Tcl_Size innerLen;
-            int isList = (Tcl_ListObjGetElements(interp, outerElem, &innerLen, &innerElems) == TCL_OK);
-            if (isList && innerLen == 2) {
-                double reVal, imVal;
-                if (Tcl_GetDoubleFromObj(NULL, innerElems[0], &reVal) == TCL_OK &&
-                    Tcl_GetDoubleFromObj(NULL, innerElems[1], &imVal) == TCL_OK) {
-                    Tcl_Obj *pairCopy = Tcl_NewListObj(0, NULL);
-                    Tcl_ListObjAppendElement(interp, pairCopy, Tcl_NewDoubleObj(reVal));
-                    Tcl_ListObjAppendElement(interp, pairCopy, Tcl_NewDoubleObj(imVal));
-                    Tcl_ListObjAppendElement(interp, valCopyList, pairCopy);
-                    continue;
-                } else {
-                    Tcl_ResetResult(interp);
-                }
-            } else {
-                Tcl_ResetResult(interp);
-            }
-            double realVal;
-            if (Tcl_GetDoubleFromObj(NULL, outerElem, &realVal) == TCL_OK) {
-                Tcl_ListObjAppendElement(interp, valCopyList, Tcl_NewDoubleObj(realVal));
-            } else {
-                Tcl_ResetResult(interp);
-                const char *outerStr = Tcl_GetString(outerElem);
-                Tcl_ListObjAppendElement(interp, valCopyList, Tcl_NewStringObj(outerStr, -1));
-            }
-        }
-        Tcl_DictObjPut(interp, dstDict, keyCopy, valCopyList);
-    }
-    Tcl_DictObjDone(&search);
-    return dstDict;
-}
-//***  DeepCopyVectorInit function
-/*--------------------------------------------------------------------------------------------------
- * DeepCopyVectorInit --
- *
- *      Create a deep, independent copy of a Tcl dictionary representing vector initialization
- *      metadata (the structure produced by SEND_INIT_DATA or by BuildInitDict()).
- *
- *      The dictionary structure is expected to be:
- *
- *          {
- *              "V(out)"   {number 0 real 1}
- *              "I(R1)"    {number 1 real 1}
- *              ...
- *          }
- *
- *      Each top-level key represents a vector name, and its value is a sub-dictionary containing
- *      two fields:
- *          - "number" → integer vector index
- *          - "real"   → boolean (1 if real-valued, 0 if complex)
- *
- *      This function performs a full deep copy, ensuring that no Tcl_Obj references are shared
- *      between the source and destination dictionaries. Both top-level and nested dicts are
- *      rebuilt, and all keys and values are newly allocated.
- *
- * Parameters:
- *      Tcl_Interp *interp               - input: interpreter used for creating new Tcl objects.
- *      Tcl_Obj *src                     - input: source dictionary (typically ctx->vectorInit).
- *
- * Returns:
- *      Tcl_Obj *           - new Tcl dictionary object (refCount == 0) containing a deep copy of
- *                            the input, or NULL if src is NULL or not a valid dict.
- *
- * Behavior:
- *      - Each vector name key is re-created as a new Tcl string object.
- *      - Each metadata sub-dictionary is rebuilt key-by-key.
- *      - Values ("number", "real") are duplicated with `Tcl_DuplicateObj()`, producing fresh
- *        Tcl objects even for immutable scalar types.
- *      - The resulting Tcl object shares no internal memory with `src`.
- *
- * Side Effects:
- *      - Caller owns the returned Tcl object and must manage its reference count.
- *      - If src is invalid or not a dict, the function returns NULL without raising an error.
- *      - This function is useful when you need to duplicate ctx->vectorInit safely while freeing
- *        or replacing the original.
- *
- *--------------------------------------------------------------------------------------------------
- */
-static Tcl_Obj *DeepCopyVectorInit(Tcl_Interp *interp, Tcl_Obj *src) {
-    if (src == NULL) {
-        return NULL;
-    }
-    Tcl_Obj *dst = Tcl_NewDictObj();
-    Tcl_DictSearch search;
-    Tcl_Obj *keyObj, *valObj;
-    int done;
-    if (Tcl_DictObjFirst(interp, src, &search, &keyObj, &valObj, &done) != TCL_OK) {
-        return NULL;
-    }
-    for (; !done; Tcl_DictObjNext(&search, &keyObj, &valObj, &done)) {
-        Tcl_Obj *newKey = Tcl_NewStringObj(Tcl_GetString(keyObj), -1);
-        Tcl_Obj *newMeta = Tcl_NewDictObj();
-        Tcl_DictSearch metaSearch;
-        Tcl_Obj *metaKey, *metaVal;
-        int metaDone;
-        if (Tcl_DictObjFirst(interp, valObj, &metaSearch, &metaKey, &metaVal, &metaDone) == TCL_OK) {
-            for (; !metaDone; Tcl_DictObjNext(&metaSearch, &metaKey, &metaVal, &metaDone)) {
-                Tcl_Obj *newMetaKey = Tcl_NewStringObj(Tcl_GetString(metaKey), -1);
-                Tcl_Obj *newMetaVal = Tcl_DuplicateObj(metaVal);
-                Tcl_DictObjPut(interp, newMeta, newMetaKey, newMetaVal);
-            }
-            Tcl_DictObjDone(&metaSearch);
-        }
-        Tcl_DictObjPut(interp, dst, newKey, newMeta);
-    }
-    Tcl_DictObjDone(&search);
-    return dst;
-}
+/* void PrintRefCount(Tcl_Obj *objPtr) { */
+/*     if (objPtr) { */
+/*         fprintf(stderr, "refCount = %d\n", objPtr->refCount); */
+/*         fflush(stderr); */
+/*     } else { */
+/*         fprintf(stderr, "objPtr is NULL\n"); */
+/*         fflush(stderr); */
+/*     } */
+/* } */
 
 //** small helpers
 //***  ckstrdup function
@@ -553,6 +371,30 @@ static void FreeInitSnap(InitSnap *snap) {
 }
 
 //***  DictLappend function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * DictLappend --
+ *
+ *      Append a list of values to an existing list stored at a given key in a Tcl dictionary.  
+ *      If the key does not exist, a new list is created and inserted.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp         - input: target interpreter
+ *      Tcl_Obj *dictObjPtr        - input: pointer to Tcl_Obj representing the dictionary (duplicated if shared)
+ *      Tcl_Obj *keyObj            - input: pointer to Tcl_Obj representing the dictionary key to update
+ *      Tcl_Obj *valuesList        - input: pointer to Tcl_Obj representing the list of values to append
+ *
+ * Results:
+ *      Code TCL_OK - values were successfully appended or inserted
+ *
+ * Side Effects:
+ *      If `dictObjPtr` or the existing list at `keyObj` is shared, it is duplicated before modification  
+ *      A new list is created if the key does not exist in the dictionary  
+ *      The updated list is stored under `keyObj` in the dictionary
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 int DictLappend(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Obj *valuesList) {
     Tcl_Obj *existingList = NULL;
     Tcl_Size listLen;
@@ -574,6 +416,30 @@ int DictLappend(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Ob
     return TCL_OK;
 }
 //***  DictLappendElem function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * DictLappend --
+ *
+ *      Append a value to an existing list stored at a given key in a Tcl dictionary.  
+ *      If the key does not exist, a new list is created and inserted.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp         - input: target interpreter
+ *      Tcl_Obj *dictObjPtr        - input: pointer to Tcl_Obj representing the dictionary (duplicated if shared)
+ *      Tcl_Obj *keyObj            - input: pointer to Tcl_Obj representing the dictionary key to update
+ *      Tcl_Obj *valueObj          - input: pointer to Tcl_Obj representing the value to append
+ *
+ * Results:
+ *      Code TCL_OK - values were successfully appended or inserted
+ *
+ * Side Effects:
+ *      If `dictObjPtr` or the existing list at `keyObj` is shared, it is duplicated before modification  
+ *      A new list is created if the key does not exist in the dictionary  
+ *      The updated list is stored under `keyObj` in the dictionary
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 int DictLappendElem(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Obj *valueObj) {
     Tcl_Obj *existingList = NULL;
     if (Tcl_IsShared(dictObjPtr)) {
@@ -1737,8 +1603,8 @@ static void InstFreeProc(void *cdata) {
             PDl_Close(ctx->handle);
         }
     }
-    // intRefCount(ctx->vectorData);
-    // intRefCount(ctx->vectorInit);
+    //PrintRefCount(ctx->vectorData);
+    //PrintRefCount(ctx->vectorInit);
     Tcl_Free(ctx);
 }
 //***  InstDeleteProc function
@@ -2287,6 +2153,27 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         code = TCL_OK;
         goto done;
     }
+    if (strcmp(sub, "inputpath") == 0) {
+        char *resPath;
+        if (objc == 3) {
+            const char *opt = Tcl_GetString(objv[2]);
+            if (strcmp(opt, "-current") == 0) {
+                resPath = ctx->ngCM_Input_Path(NULL);
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(resPath, -1));
+                code = TCL_OK;
+                goto done;
+            } else {
+                resPath = ctx->ngCM_Input_Path(opt);
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(resPath, -1));
+                code = TCL_OK;
+                goto done;
+            }
+        } else {
+            Tcl_WrongNumArgs(interp, 2, objv, "-current|path");
+            code = TCL_ERROR;
+            goto done;
+        }
+    }
     if (strcmp(sub, "waitevent") == 0) {
         int which;
         uint64_t need = 1;
@@ -2370,8 +2257,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_OK;
             goto done;
         } else {
-            Tcl_Obj *dup = DeepCopyVectorData(interp, ctx->vectorData);
-            Tcl_SetObjResult(interp, dup);
+            Tcl_SetObjResult(interp, ctx->vectorData);
             Tcl_MutexUnlock(&ctx->mutex);
             code = TCL_OK;
             goto done;
@@ -2427,6 +2313,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             const char *opt = Tcl_GetString(objv[2]);
             const char *vecname = Tcl_GetString(objv[3]);
             if (strcmp(opt, "-info") == 0) {
+                ctx->ngSpice_LockRealloc();
                 pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
                 if (vinfo == NULL) {
                     Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
@@ -2517,6 +2404,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 } else {
                     Tcl_DictObjPut(interp, info, Tcl_NewStringObj("ntype", -1), Tcl_NewStringObj("real", -1));
                 }
+                ctx->ngSpice_UnlockRealloc();
                 Tcl_SetObjResult(interp, info);
                 code = TCL_OK;
                 goto done;
@@ -2527,9 +2415,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             }
         } else if (objc == 3) {
             const char *vecname = Tcl_GetString(objv[2]);
+            ctx->ngSpice_LockRealloc();
             pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
             if (vinfo == NULL) {
                 Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
+                ctx->ngSpice_UnlockRealloc();
                 Tcl_SetObjResult(interp, errMsg);
                 code = TCL_ERROR;
                 goto done;
@@ -2550,6 +2440,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                     Tcl_ListObjAppendElement(interp, dataObj, Tcl_NewDoubleObj(rdata[i]));
                 }
             }
+            ctx->ngSpice_UnlockRealloc();
             Tcl_SetObjResult(interp, dataObj);
             code = TCL_OK;
             goto done;
@@ -2604,8 +2495,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_OK;
             goto done;
         } else {
-            Tcl_Obj *dup = DeepCopyVectorInit(interp, ctx->vectorInit);
-            Tcl_SetObjResult(interp, dup);
+            Tcl_SetObjResult(interp, ctx->vectorInit);
             Tcl_MutexUnlock(&ctx->mutex);
             code = TCL_OK;
             goto done;
@@ -2815,6 +2705,8 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     RESOLVE_OR_BAIL(ngSpice_SetBkpt, "ngSpice_SetBkpt");
     RESOLVE_OR_BAIL(ngSpice_nospinit, "ngSpice_nospinit");
     RESOLVE_OR_BAIL(ngSpice_nospiceinit, "ngSpice_nospiceinit");
+    RESOLVE_OR_BAIL(ngSpice_LockRealloc, "ngSpice_LockRealloc");
+    RESOLVE_OR_BAIL(ngSpice_UnlockRealloc, "ngSpice_UnlockRealloc");
     static unsigned long seq = 0;
     Tcl_Obj *name = Tcl_ObjPrintf("::ngspicetclbridge::s%lu", ++seq);
     Tcl_CreateObjCommand2(interp, Tcl_GetString(name), InstObjCmd, ctx, InstDeleteProc);

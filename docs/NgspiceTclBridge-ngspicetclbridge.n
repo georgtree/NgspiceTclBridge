@@ -21,6 +21,10 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBinitvectors\fP \fI?-clear?\fP
 .br
+\fBinputpath\fP \fI-current\fP
+.br
+\fBinputpath\fP \fIpath\fP
+.br
 \fBisrunning\fP
 .br
 \fBmessages\fP \fI?-clear?\fP
@@ -289,6 +293,36 @@ in the storage\&.
 .PP
 Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.
 dict with initial vector metadata saved in internal structure
+.PP
+.RS -4n
+\fBinputpath\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns current path for XSPICE code models if -current switch is provided, or set current path to value
+provided\&.
+current path
+.RS 4n
+\fBinputpath\fP \fI-current\fP
+.br
+\fBinputpath\fP \fIpath\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-current
+Switch to return current path\&.
+.TP
+path
+Full path to desired location\&.
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns current path for XSPICE code models if -current switch is provided, or set current path to value
+provided\&.
+current path
 .PP
 .RS -4n
 \fBisrunning\fR (::ngspicetclbridge)

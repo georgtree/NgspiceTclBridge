@@ -71,6 +71,17 @@ namespace eval ::ngspicetclbridge {
         # Synopsis: -vecs name
     }
 
+    proc inputpath {args} {
+        # Returns current path for XSPICE code models if `-current` switch is provided, or set current path to value 
+        # provided.
+        #  -current - switch to return current path
+        #  path - full path to desired location
+        # Returns: current path
+        #
+        # Synopsis: -current
+        # Synopsis: path
+    }
+
     proc waitevent {args} {
         # Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, 
         # or the timeout expires (if provided).

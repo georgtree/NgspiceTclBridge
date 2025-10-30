@@ -118,33 +118,37 @@ typedef NG_BOOL (*ngSpice_running_t)(void);
 typedef NG_BOOL (*ngSpice_SetBkpt_t)(double);
 typedef int (*ngSpice_nospinit_t)(void);
 typedef int (*ngSpice_nospiceinit_t)(void);
+typedef int (*ngSpice_LockRealloc_t)(void);
+typedef int (*ngSpice_UnlockRealloc_t)(void);
 
 //** define ngspice per-instance context structure
 typedef struct {
     /*------------------------------------------------------------------------------------------------------------------
      * Dynamic library and function pointers (ngspice shared library symbols)
-     *------------------------------------------------------------------------------------------------------------------*/
-    PDlHandle handle;                             /* Dynamic library handle (libngspice.so / .dll) */
-    ngSpice_Init_t ngSpice_Init;                  /* Classic ngspice initialization entry */
-    ngSpice_Init_Sync_t ngSpice_Init_Sync;        /* Synchronous initialization (newer API) */
-    ngSpice_Command_t ngSpice_Command;            /* Main command entry point */
-    ngGet_Vec_Info_t ngGet_Vec_Info;              /* Query vector info (type, length, data) */
-    ngCM_Input_Path_t ngCM_Input_Path;            /* Optional input path hook */
-    ngGet_Evt_NodeInfo_t ngGet_Evt_NodeInfo;      /* Event-driven node information query */
-    ngSpice_AllEvtNodes_t ngSpice_AllEvtNodes;    /* Enumerate all event-driven nodes */
-    ngSpice_Init_Evt_t ngSpice_Init_Evt;          /* Event-mode initialization */
-    ngSpice_Circ_t ngSpice_Circ;                  /* Send entire circuit deck */
-    ngSpice_CurPlot_t ngSpice_CurPlot;            /* Get current plot name */
-    ngSpice_AllPlots_t ngSpice_AllPlots;          /* Enumerate all available plots */
-    ngSpice_AllVecs_t ngSpice_AllVecs;            /* Enumerate all vectors in a given plot */
-    ngSpice_running_t ngSpice_running;            /* Query if background thread is active */
-    ngSpice_SetBkpt_t ngSpice_SetBkpt;            /* Set breakpoint callback */
-    ngSpice_nospinit_t ngSpice_nospinit;          /* Disable built-in ngspice init */
-    ngSpice_nospiceinit_t ngSpice_nospiceinit;    /* Alternative init disable entry */
+     *-----------------------------------------------------------------------------------------------------------------*/
+    PDlHandle handle;                              /* Dynamic library handle (libngspice.so / .dll) */
+    ngSpice_Init_t ngSpice_Init;                   /* Classic ngspice initialization entry */
+    ngSpice_Init_Sync_t ngSpice_Init_Sync;         /* Synchronous initialization (newer API) */
+    ngSpice_Command_t ngSpice_Command;             /* Main command entry point */
+    ngGet_Vec_Info_t ngGet_Vec_Info;               /* Query vector info (type, length, data) */
+    ngCM_Input_Path_t ngCM_Input_Path;             /* Optional input path hook */
+    ngGet_Evt_NodeInfo_t ngGet_Evt_NodeInfo;       /* Event-driven node information query */
+    ngSpice_AllEvtNodes_t ngSpice_AllEvtNodes;     /* Enumerate all event-driven nodes */
+    ngSpice_Init_Evt_t ngSpice_Init_Evt;           /* Event-mode initialization */
+    ngSpice_Circ_t ngSpice_Circ;                   /* Send entire circuit deck */
+    ngSpice_CurPlot_t ngSpice_CurPlot;             /* Get current plot name */
+    ngSpice_AllPlots_t ngSpice_AllPlots;           /* Enumerate all available plots */
+    ngSpice_AllVecs_t ngSpice_AllVecs;             /* Enumerate all vectors in a given plot */
+    ngSpice_running_t ngSpice_running;             /* Query if background thread is active */
+    ngSpice_SetBkpt_t ngSpice_SetBkpt;             /* Set breakpoint callback */
+    ngSpice_nospinit_t ngSpice_nospinit;           /* Disable built-in ngspice init */
+    ngSpice_nospiceinit_t ngSpice_nospiceinit;     /* Alternative init disable entry */
+    ngSpice_LockRealloc_t ngSpice_LockRealloc;     /* Locking the realloc of output vectors during simulation */
+    ngSpice_UnlockRealloc_t ngSpice_UnlockRealloc; /* Unlocking the realloc of output vectors during simulation */
 
     /*------------------------------------------------------------------------------------------------------------------
      * Core synchronization and Tcl linkage
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     Tcl_Mutex mutex;                              /* Protects general shared data (vectors, msgq, etc.) */
     Tcl_Condition cond;                           /* Signals data arrival or waitevent wake-up */
     Tcl_Interp *interp;                           /* Owning Tcl interpreter */
@@ -152,7 +156,7 @@ typedef struct {
 
     /*------------------------------------------------------------------------------------------------------------------
      * Simulation data and initialization state
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     InitSnap *init_snap;                          /* One-shot vector metadata snapshot (SEND_INIT_DATA) */
     DataBuf prod;                                 /* Primary data buffer — rows appended by ngspice thread */
     DataBuf pend;                                 /* Reserved future buffer (unused or staging) */
@@ -162,7 +166,7 @@ typedef struct {
 
     /*------------------------------------------------------------------------------------------------------------------
      * Event and message tracking
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     MsgQueue msgq;                                /* Async message queue for log/status lines */
     uint64_t evt_counts[NUM_EVTS];                /* Per-callback counters */
     uint64_t gen;                                 /* Generation number (run_id) for event validation */
@@ -176,7 +180,7 @@ typedef struct {
 
     /*------------------------------------------------------------------------------------------------------------------
      * Background (bg_run) thread coordination
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     int bg_started;                               /* Set after first “started” callback received */
     int bg_ended;                                 /* Set after “ended” callback or post-quit */
     Tcl_Mutex bg_mu;                              /* Protects bg_started/bg_ended/state transitions */
@@ -184,20 +188,20 @@ typedef struct {
 
     /*------------------------------------------------------------------------------------------------------------------
      * Controlled exit synchronization (used by ControlledExitCallback)
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     int exited;                                   /* 1 after ControlledExitCallback() runs */
     Tcl_Mutex exit_mu;                            /* Protects 'exited' flag */
     Tcl_Condition exit_cv;                        /* Signaled to wake teardown waiting for exit */
 
     /*------------------------------------------------------------------------------------------------------------------
      * Command capture window (used during "command -capture")
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     int cap_active;                               /* 0/1 — true while capturing ngspice output */
     MsgQueue capq;                                /* Temporary capture buffer for stdout/stderr */
 
     /*------------------------------------------------------------------------------------------------------------------
      * Command queue and global run state
-     *------------------------------------------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------------------------------------------*/
     NgState state;                                /* High-level simulator state (IDLE, STARTING_BG, etc.) */
     PendingCmd *pending_head;                     /* Head of queued Tcl commands awaiting safe dispatch */
     PendingCmd *pending_tail;                     /* Tail of queued Tcl commands */
