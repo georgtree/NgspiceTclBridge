@@ -88,9 +88,6 @@ set ngspiceLibPath /path/to/libngspice\&.so
 
 # Create a new instance bound to a Tcl command
 set sim [ngspicetclbridge::new $ngspiceLibPath]
-
-# Initialize callbacks and internal structures
-$sim init
 .fi
 .RE
 .PP

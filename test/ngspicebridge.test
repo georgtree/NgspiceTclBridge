@@ -90,7 +90,6 @@ set fourBitAdderCircuit [split {
 
 test test-1 {get initial vectors information} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command bg_run
@@ -104,7 +103,6 @@ test test-1 {get initial vectors information} -setup {
 
 test test-2 {clear initial vectors information} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command bg_run
@@ -119,7 +117,6 @@ test test-2 {clear initial vectors information} -setup {
 
 test test-3 {get vectors information} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command bg_run
@@ -165,7 +162,6 @@ test test-3 {get vectors information} -setup {
 
 test test-4 {clear vectors information} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -178,7 +174,6 @@ test test-4 {clear vectors information} -setup {
 
 test test-5 {get messages} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -193,7 +188,6 @@ stdout No. of Data Rows : 51
 
 test test-6 {clear messages} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -206,7 +200,6 @@ test test-6 {clear messages} -setup {
 
 test test-7 {reset of events counters} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -219,7 +212,6 @@ test test-7 {reset of events counters} -setup {
 
 test test-8 {waitevent status} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command bg_run
@@ -231,7 +223,6 @@ test test-8 {waitevent status} -setup {
 
 test test-9 {waitevent status - timeout condition} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     return [$s1 waitevent send_stat 1000]
@@ -242,7 +233,6 @@ test test-9 {waitevent status - timeout condition} -setup {
 
 # test test-9 {waitevent status - aborted} -setup {
 #     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-#     $s1 init
 #     $s1 circuit $resDivCircuit
 # } -body {
 #     after 1000 { $s1 abort; $s1 destroy }   ;# destroy after 1 sec
@@ -254,7 +244,6 @@ test test-9 {waitevent status - timeout condition} -setup {
 
 test test-10 {run long simulation and wait for two event, the second one marks the end of bg thread simulation} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -274,7 +263,6 @@ test test-10 {run long simulation and wait for two event, the second one marks t
 test test-10.1 {run long simulation and wait for two event, the second one marks the end of bg thread simulation, but\
                         with built-in command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -289,7 +277,6 @@ test test-10.1 {run long simulation and wait for two event, the second one marks
 
 test test-10.2 {run long simulation and wait for three events (never happens, so exits with the timeout)} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -304,7 +291,6 @@ test test-10.2 {run long simulation and wait for three events (never happens, so
 
 test test-11 {run long simulation, wait for ready message, and print status message} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -324,7 +310,6 @@ test test-11 {run long simulation, wait for ready message, and print status mess
 
 test test-12 {test asyncvector command after finising simulation} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -343,7 +328,6 @@ test test-12 {test asyncvector command after finising simulation} -setup {
 
 test test-13 {test asyncvector command after finising simulation with wrong name of the vector} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -357,7 +341,6 @@ test test-13 {test asyncvector command after finising simulation with wrong name
 
 test test-14 {test of isrunning command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -379,7 +362,6 @@ test test-14 {test of isrunning command} -setup {
 test test-15 {run two times without processing events with update after first time - check that internal storage and Tcl\
                      vectors values are resetted} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command bg_run
@@ -427,7 +409,6 @@ test test-15 {run two times without processing events with update after first ti
 
 test test-17 {halt simulation, then resume it} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -449,7 +430,6 @@ test test-17 {halt simulation, then resume it} -setup {
 
 test test-18 {get the current plot name} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -461,7 +441,6 @@ test test-18 {get the current plot name} -setup {
 
 test test-19 {get all vectors belong to the current plot} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -473,7 +452,6 @@ test test-19 {get all vectors belong to the current plot} -setup {
 
 test test-20 {get all vector with plot name prefix} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -492,7 +470,6 @@ test test-20 {get all vector with plot name prefix} -setup {
 
 test test-21 {wrong arguments to plot command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -505,7 +482,6 @@ test test-21 {wrong arguments to plot command} -setup {
 
 test test-22 {wrong arguments to plot command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -518,7 +494,6 @@ test test-22 {wrong arguments to plot command} -setup {
 
 test test-23 {wrong arguments to plot command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -531,7 +506,6 @@ test test-23 {wrong arguments to plot command} -setup {
 
 test test-24 {test listing command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     ngspicetclbridge::run $s1
@@ -548,7 +522,6 @@ resistor divider} {stdout v1 in 0 1} {stdout r1 in out 1e3} {stdout r2 out 0 2e3
 
 test test-24.1 {test listing command with -capture} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     ngspicetclbridge::run $s1
@@ -565,7 +538,6 @@ resistor divider} {stdout v1 in 0 1} {stdout r1 in out 1e3} {stdout r2 out 0 2e3
 
 test test-25 {get initial vector information metadata} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     ngspicetclbridge::run $s1
@@ -577,7 +549,6 @@ test test-25 {get initial vector information metadata} -setup {
 
 test test-26 {read all vectors of once for the current plot} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     ngspicetclbridge::run $s1
@@ -596,7 +567,6 @@ test test-26 {read all vectors of once for the current plot} -setup {
 
 test test-27 {get information about the particular vector} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     ngspicetclbridge::run $s1
@@ -608,7 +578,6 @@ test test-27 {get information about the particular vector} -setup {
 
 test test-28 {get information about all vectors presented} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     ngspicetclbridge::run $s1
@@ -621,7 +590,6 @@ length 51 ntype real} v-sweep {type voltage length 51 ntype real}} -cleanup {
 
 test test-29 {run long simulation and exit with error due to wrong subcommand before running thread stops} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -635,7 +603,6 @@ test test-29 {run long simulation and exit with error due to wrong subcommand be
 
 test test-30 {check if unknown command hits ngspice during thread state transition} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command -capture bg_run
@@ -647,7 +614,6 @@ test test-30 {check if unknown command hits ngspice during thread state transiti
 
 test test-31 {check if unknown command hits ngspice during thread state transition} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -661,7 +627,6 @@ test test-31 {check if unknown command hits ngspice during thread state transiti
 
 test test-32 {check if unknown command hits ngspice during run of background thread} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command -capture bg_run
@@ -674,7 +639,6 @@ test test-32 {check if unknown command hits ngspice during run of background thr
 
 test test-33 {check quit command sending that triggers controlled exit of ngspice} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -688,7 +652,6 @@ test test-33 {check quit command sending that triggers controlled exit of ngspic
 
 test test-34 {check run command, that blocks the caller until the simulation is ready} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command run
@@ -702,7 +665,6 @@ test test-34 {check run command, that blocks the caller until the simulation is 
 test test-35 {load different circuit to run in background thread without stopping it, caused segfault without using the\
                       remcirc command between circuits loading} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     run $s1
@@ -749,7 +711,6 @@ test test-35 {load different circuit to run in background thread without stoppin
 test test-36 {load different circuit to run in background thread without stopping it, caused segfault without using the\
                       remcirc command between circuits loading with additional intermediate commands} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuitAlt
 } -body {
     run $s1
@@ -802,7 +763,6 @@ test test-36 {load different circuit to run in background thread without stoppin
 
 test test-37 {load circuit, pause the background thread, change model parameter, and then run thread again} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
@@ -819,7 +779,6 @@ test test-37 {load circuit, pause the background thread, change model parameter,
 
 test test-38 {alter circuit parameter between invocations} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
@@ -864,7 +823,6 @@ test test-38 {alter circuit parameter between invocations} -setup {
 
 test test-39 {check run command, that blocks the caller until the simulation is ready, with bg_halt} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command run
@@ -910,7 +868,6 @@ test test-39 {check run command, that blocks the caller until the simulation is 
 
 test test-40 {check run command, that blocks the caller until the simulation is ready, with not processing of events} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
     $s1 circuit $resDivCircuit
 } -body {
     $s1 command run
@@ -922,7 +879,6 @@ test test-40 {check run command, that blocks the caller until the simulation is 
 
 test test-41 {check inputpath command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
 } -body {
     $s1 inputpath /home/georgtree/Downloads/
  } -match glob -result {/home/georgtree/Downloads/} -cleanup {
@@ -932,7 +888,6 @@ test test-41 {check inputpath command} -setup {
 
 test test-42 {check inputpath command, returning current path} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
 } -body {
     $s1 inputpath -current
  } -result {.} -cleanup {
@@ -942,7 +897,6 @@ test test-42 {check inputpath command, returning current path} -setup {
 
 test test-43 {check inputpath command, returning current path} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
 } -body {
     $s1 inputpath /home/georgtree/Downloads/
     $s1 inputpath -current
@@ -953,13 +907,67 @@ test test-43 {check inputpath command, returning current path} -setup {
 
 test test-44 {check inputpath command with wrong number of arguments} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
 } -body {
     catch {$s1 inputpath} errorStr
     return $errorStr
- } -result {wrong # args: should be "::ngspicetclbridge::s46 inputpath -current|path"} -cleanup {
+ } -match glob -result {wrong # args: should be "::ngspicetclbridge::s* inputpath -current|path"} -cleanup {
     $s1 destroy
     unset s1 errorStr
+}
+
+test test-45 {} -body {
+    set s1 [ngspicetclbridge::new -nospinit $ngspiceLibPath]
+} -match glob -result ::ngspicetclbridge::s* -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-46 {} -body {
+    set s1 [ngspicetclbridge::new -nospiceinit $ngspiceLibPath]
+} -match glob -result ::ngspicetclbridge::s* -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-47 {} -body {
+    catch {ngspicetclbridge::new -nospiceinit -nospinit $ngspiceLibPath} errorStr
+    return $errorStr
+} -result {wrong # args: should be "ngspicetclbridge::new -nospinit|-nospiceinit|-noinit libpath"} -cleanup {
+    unset  errorStr
+}
+
+test test-48 {} -body {
+    catch {ngspicetclbridge::new -spin $ngspiceLibPath} errorStr
+    return $errorStr
+} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
+    unset errorStr
+}
+
+test test-49 {} -body {
+    catch {ngspicetclbridge::new -spin $ngspiceLibPath} errorStr
+    return $errorStr
+} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
+    unset errorStr
+}
+
+test test-50 {} -body {
+    catch {ngspicetclbridge::new -spin} errorStr
+    return $errorStr
+} -result {-spin: cannot open shared object file: No such file or directory} -cleanup {
+    unset errorStr
+}
+
+test test-51 {} -body {
+    catch {ngspicetclbridge::new -nospinit} errorStr
+    return $errorStr
+} -result {in case of one argument, it must be library path, not -nospinit} -cleanup {
+    unset errorStr
+}
+test test-52 {} -body {
+    catch {ngspicetclbridge::new} errorStr
+    return $errorStr
+} -result {wrong # args: should be "ngspicetclbridge::new libpath"} -cleanup {
+    unset errorStr
 }
 
 

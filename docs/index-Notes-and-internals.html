@@ -48,10 +48,9 @@
 <figure  class='ruff-snippet ruff-figure'><pre class='ruff'>static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[])
 </pre>
 
-</figure><p class='ruff'>Here, <code>cdata</code> is the <code>NgSpiceContext *</code> pointer for this instance. The dispatcher parses <code>objv[1]</code> as the subcommand name (e.g., <code><font color=#035103>&quot;init&quot;</font></code>, <code><font color=#035103>&quot;command&quot;</font></code>, <code><font color=#035103>&quot;vectors&quot;</font></code>, etc.) and executes the corresponding branch of code.</p>
+</figure><p class='ruff'>Here, <code>cdata</code> is the <code>NgSpiceContext *</code> pointer for this instance. The dispatcher parses <code>objv[1]</code> as the subcommand name (e.g., <code><font color=#035103>&quot;command&quot;</font></code>, <code><font color=#035103>&quot;vectors&quot;</font></code>, etc.) and executes the corresponding branch of code.</p>
 <p class='ruff'>Each subcommand performs specific work, typically involving interaction with the ngspice API or the context’s internal data structures. For example:</p>
 <ul class='ruff'>
-<li><strong>init</strong> — Registers callbacks by calling <code>ngSpice_Init()</code>, sets up Tcl dictionary objects for <code>vectorData</code> and <code>vectorInit</code>, and returns ngspice’s integer return code.</li>
 <li><strong>command ?-capture? string</strong> — Sends arbitrary ngspice commands via <code>ngSpice_Command()</code>. If <code><font color=#463e11>-capture</font></code> is used, temporarily enables output capturing in <code>ctx-&gt;capq</code>, then returns a dictionary with <code>rc</code> and <code>output</code> fields.</li>
 <li><strong>circuit list</strong> — Sends a complete circuit deck to ngspice via <code>ngSpice_Circ()</code>.</li>
 <li><strong>waitevent</strong> — Blocks until an ngspice event occurs or a timeout expires, returning a result dictionary.</li>

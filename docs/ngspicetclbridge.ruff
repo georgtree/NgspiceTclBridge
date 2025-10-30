@@ -1,26 +1,21 @@
  
 namespace eval ::ngspicetclbridge {
 
-    proc new {path} {
+    proc new {args} {
         # Load dynamic library, path should be provided in native form for target OS.  Every `::ngspicetclbridge::new`
         # returns a command (e.g. `::ngspicetclbridge::s1`). The following subcommands operate on that instance.
-        #  path -  absolute full path to dynamic library
+        # Optionally the spinit and/or spiceinit initialization files could be forbidden for loading.
+        #  -nospinit - inhibits spinit
+        #  -nospiceinit - inhibits spiceinit
+        #  -noinit - inhibit both spinit and spiceinit
+        #  libpath -  absolute full path to dynamic library
         # Returns: command name to work with Ngspice instance
         #
         # Example:
         #```
         # set sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
         #```
-    }
-    
-    proc init {} {
-        # Initializes the ngspice shared instance and the bridge’s data structures.
-        # Returns: Ngspice init code
-        #
-        # Example:
-        #```
-        # $sim init
-        #```
+        # Synopsis: ?-nospinit|nospiceinit|noinit? libpath
     }
 
     proc command {string} {

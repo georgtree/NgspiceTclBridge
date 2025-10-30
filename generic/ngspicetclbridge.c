@@ -1896,12 +1896,6 @@ static void InstDeleteProc(void *cdata) {
  *
  * Supported Subcommands:
  *
- *   init
- *      - Calls ngSpice_Init() with our callbacks:
- *          SendCharCallback, SendStatCallback, ControlledExitCallback,
- *          SendDataCallback, SendInitDataCallback, BGThreadRunningCallback.
- *      - Ensures ctx->vectorData / ctx->vectorInit exist (refcounted dicts).
- *      - Result: int rc from ngSpice_Init().
  *
  *   command ?-capture? string
  *      - Sends an ngspice command via ngSpice_Command().
@@ -2004,21 +1998,6 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     const char *sub = Tcl_GetString(objv[1]);
-    if (strcmp(sub, "init") == 0) {
-        int rc = ctx->ngSpice_Init(SendCharCallback, SendStatCallback, ControlledExitCallback, SendDataCallback,
-                                   SendInitDataCallback, BGThreadRunningCallback, ctx);
-        if (!ctx->vectorData) {
-            ctx->vectorData = Tcl_NewDictObj();
-            Tcl_IncrRefCount(ctx->vectorData);
-        }
-        if (!ctx->vectorInit) {
-            ctx->vectorInit = Tcl_NewDictObj();
-            Tcl_IncrRefCount(ctx->vectorInit);
-        }
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
-        code = TCL_OK;
-        goto done;
-    }
     if (strcmp(sub, "command") == 0) {
         int do_capture = 0;
         int argi = 2;
@@ -2651,6 +2630,9 @@ done:
  *          - Sets the interpreter result to an error message
  *
  * Side Effects:
+ *      - Calls ngSpice_Init() with our callbacks:
+ *          SendCharCallback, SendStatCallback, ControlledExitCallback,
+ *          SendDataCallback, SendInitDataCallback, BGThreadRunningCallback.
  *      - Allocates and initializes an NgSpiceContext structure
  *      - Opens the specified shared library and resolves all required symbols
  *      - Registers a new instance-specific Tcl object command bound to InstObjCmd()
@@ -2669,11 +2651,38 @@ done:
     } while (0)
 
 static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
-    if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "library_path");
+    Tcl_Obj *libPathObj;
+    int selector = 0;
+    if (objc == 1) {
+        Tcl_WrongNumArgs(interp, 1, objv, "libpath");
+        return TCL_ERROR;
+    } else if (objc == 2) {
+        const char *opt = Tcl_GetString(objv[1]);
+        if ((strcmp(opt, "-nospinit") == 0) || (strcmp(opt, "-nospiceinit") == 0) || (strcmp(opt, "-noinit") == 0)) {
+            Tcl_SetObjResult(interp,
+                             Tcl_ObjPrintf("in case of one argument, it must be library path, not %s", opt));
+            return TCL_ERROR;
+        }
+        libPathObj = objv[1];
+    } else if (objc == 3) {
+        const char *opt = Tcl_GetString(objv[1]);
+        libPathObj = objv[2];
+        if (strcmp(opt, "-nospinit") == 0) {
+            selector = 1;
+        } else if (strcmp(opt, "-nospiceinit") == 0) {
+            selector = 2;
+        } else if (strcmp(opt, "-noinit") == 0) {
+            selector = 3;
+        } else {
+            Tcl_SetObjResult(interp,
+                             Tcl_ObjPrintf("unknown option: %s (expected -nospinit, -nospiceinit or -noinit)", opt));
+            return TCL_ERROR;
+        }
+    } else {
+        Tcl_WrongNumArgs(interp, 1, objv, "-nospinit|-nospiceinit|-noinit libpath");
         return TCL_ERROR;
     }
-    Tcl_Obj *libPathObj = objv[1];
+    
     NgSpiceContext *ctx = (NgSpiceContext *)Tcl_Alloc(sizeof *ctx);
     memset(ctx, 0, sizeof *ctx);
     ctx->exited = 0;
@@ -2710,6 +2719,24 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     static unsigned long seq = 0;
     Tcl_Obj *name = Tcl_ObjPrintf("::ngspicetclbridge::s%lu", ++seq);
     Tcl_CreateObjCommand2(interp, Tcl_GetString(name), InstObjCmd, ctx, InstDeleteProc);
+    ctx->ngSpice_Init(SendCharCallback, SendStatCallback, ControlledExitCallback, SendDataCallback,
+                      SendInitDataCallback, BGThreadRunningCallback, ctx);
+    if (!ctx->vectorData) {
+        ctx->vectorData = Tcl_NewDictObj();
+        Tcl_IncrRefCount(ctx->vectorData);
+    }
+    if (!ctx->vectorInit) {
+        ctx->vectorInit = Tcl_NewDictObj();
+        Tcl_IncrRefCount(ctx->vectorInit);
+    }
+    if (selector == 1) {
+        ctx->ngSpice_nospinit();
+    } else if (selector == 2) {
+        ctx->ngSpice_nospiceinit();
+    } else if (selector == 3) {
+        ctx->ngSpice_nospinit();
+        ctx->ngSpice_nospiceinit();
+    }
     Tcl_SetObjResult(interp, name);
     return TCL_OK;
 }

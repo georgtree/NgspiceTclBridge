@@ -62,13 +62,10 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
 .RE
 .PP
 Here, cdata is the NgSpiceContext * pointer for this instance\&. The dispatcher parses objv[1] as the
-subcommand name (e\&.g\&., "init", "command", "vectors", etc\&.) and executes the corresponding branch of code\&.
+subcommand name (e\&.g\&., "command", "vectors", etc\&.) and executes the corresponding branch of code\&.
 .PP
 Each subcommand performs specific work, typically involving interaction with the ngspice API or the context’s
 internal data structures\&. For example:
-.TP
-\(bu
-\fBinit\fP — Registers callbacks by calling ngSpice_Init(), sets up Tcl dictionary objects for vectorData and vectorInit, and returns ngspice’s integer return code\&.
 .TP
 \(bu
 \fBcommand ?-capture? string\fP — Sends arbitrary ngspice commands via ngSpice_Command()\&. If -capture is used, temporarily enables output capturing in ctx->capq, then returns a dictionary with rc and output fields\&.

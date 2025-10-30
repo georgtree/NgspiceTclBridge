@@ -70,9 +70,6 @@ set ngspiceLibPath /path/to/libngspice.so
 
 # Create a new instance bound to a Tcl command
 set sim [ngspicetclbridge::new $ngspiceLibPath]
-
-# Initialize callbacks and internal structures
-$sim init
 ```
 
 To feed a circuit one line at a time via ngspice’s circbyline:

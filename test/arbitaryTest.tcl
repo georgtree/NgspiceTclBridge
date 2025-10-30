@@ -90,28 +90,18 @@ set fourBitAdderCircuit [split {
 
 
 
-# test test-24.1 {test listing command with -capture} -setup {
-#     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-#     $s1 init
-#     $s1 circuit $resDivCircuit
-# } -body {
-#     ngspicetclbridge::run $s1
-#     #$s1 command bg_halt
-#     return [$s1 command -capture {listing runnable}]
-# } -result {{stdout Background thread stopped with timeout = 0} {stdout * expanded deck of resistor divider} {stdout *\
-# resistor divider} {stdout v1 in 0 1} {stdout r1 in out 1e3} {stdout r2 out 0 2e3} {stdout .dc v1 0 5 0.1} {stdout\
-# .end}} -cleanup {
-#     $s1 destroy
-#     unset s1
-# }
-
-test test-44 {check inputpath command, returning current path} -setup {
-    set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 init
-} -body {
-    catch {$s1 inputpath} errorStr
+test test-49 {check init command with wrong switch} -body {
+    catch {ngspicetclbridge::new -spin} errorStr
     return $errorStr
- } -match glob -result {/home/georgtree/Downloads/} -cleanup {
-    $s1 destroy
-    unset s1 errorStr
+} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
+    unset errorStr
 }
+
+test test-49 {check init command with wrong switch} -body {
+    catch {ngspicetclbridge::new -nospinit} errorStr
+    return $errorStr
+} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
+    unset errorStr
+}
+
+

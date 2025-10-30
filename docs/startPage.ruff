@@ -73,9 +73,6 @@ variable startPage {
 
     # Create a new instance bound to a Tcl command
     set sim [ngspicetclbridge::new $ngspiceLibPath]
-
-    # Initialize callbacks and internal structures
-    $sim init
     ```
 
     Pass resistor divider circuit to Ngspice, and start the run (in background thread), and wait for completion:
