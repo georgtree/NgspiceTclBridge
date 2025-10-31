@@ -17,6 +17,8 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBeventcounts\fP \fI?-clear?\fP
 .br
+\fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
+.br
 \fBinitvectors\fP \fI?-clear?\fP
 .br
 \fBinputpath\fP \fI-current\fP
@@ -230,6 +232,47 @@ $sim eventcounts
 \fBReturn value\fR
 .PP
 returns a dict with keys as events names, and counts for each event as a value
+.PP
+.RS -4n
+\fBgetCircuit\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns list with currently loaded circuit (its listing) in the form specified by the switch\&.
+list with listing lines
+.RS 4n
+\fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-deck
+Just like the physical listing, except without the line numbers it recreates the input file verbatim (except that it does not preserve case)
+.TP
+-expand
+The circuit is printed with all subcircuits expanded\&.
+.TP
+-logical
+The circuit is with all continuation lines collapsed into one line\&.
+.TP
+-param
+Printing all parameters and their actual values\&.
+.TP
+-physical
+The circuits lines are printed out as they were found in the file\&.
+.TP
+-runnable
+Circuit netlist expanded, but without additional line numbers, ready to be sourced again and run in ngspice\&. Default version if no witch is provided\&.
+.TP
+sim
+Simulator handler that is returned by ngspicetclbridge::new
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns list with currently loaded circuit (its listing) in the form specified by the switch\&.
+list with listing lines
 .PP
 .RS -4n
 \fBinitvectors\fR (::ngspicetclbridge)

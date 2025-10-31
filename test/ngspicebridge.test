@@ -178,10 +178,11 @@ test test-5 {get messages} -setup {
 } -body {
     run $s1
     update
-    return [join [lrange [$s1 messages] end-2 end] \n]
+    return [join [lrange [$s1 messages] end-3 end] \n]
 } -result {# status[0]: --ready--
 stdout No. of Data Rows : 51
-# background thread running ended} -cleanup {
+# background thread running ended
+stdout Background thread stopped with timeout = 0} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -513,10 +514,8 @@ test test-24 {test listing command} -setup {
     $s1 command {listing runnable}
     update
     return [$s1 messages]
-} -result {{stdout Background thread stopped with timeout = 0} {stdout * expanded deck of resistor divider} {stdout *\
-resistor divider} {stdout v1 in 0 1} {stdout r1 in out 1e3} {stdout r2 out 0 2e3} {stdout .dc v1 0 5 0.1} {stdout\
-.end}} -cleanup {
-    $s1 destroy
+} -result {{stdout * expanded deck of resistor divider} {stdout * resistor divider} {stdout v1 in 0 1} {stdout r1 in\
+out 1e3} {stdout r2 out 0 2e3} {stdout .dc v1 0 5 0.1} {stdout .end}} -cleanup { $s1 destroy
     unset s1
 }
 
@@ -529,10 +528,8 @@ test test-24.1 {test listing command with -capture} -setup {
     $s1 command -capture {listing runnable}
     update
     return [$s1 messages]
-} -result {{stdout Background thread stopped with timeout = 0} {stdout * expanded deck of resistor divider} {stdout *\
-resistor divider} {stdout v1 in 0 1} {stdout r1 in out 1e3} {stdout r2 out 0 2e3} {stdout .dc v1 0 5 0.1} {stdout\
-.end}} -cleanup {
-    $s1 destroy
+} -result {{stdout * expanded deck of resistor divider} {stdout * resistor divider} {stdout v1 in 0 1} {stdout r1 in\
+out 1e3} {stdout r2 out 0 2e3} {stdout .dc v1 0 5 0.1} {stdout .end}} -cleanup { $s1 destroy
     unset s1
 }
 
@@ -963,12 +960,73 @@ test test-51 {} -body {
 } -result {in case of one argument, it must be library path, not -nospinit} -cleanup {
     unset errorStr
 }
+
 test test-52 {} -body {
     catch {ngspicetclbridge::new} errorStr
     return $errorStr
 } -result {wrong # args: should be "ngspicetclbridge::new libpath"} -cleanup {
     unset errorStr
 }
+
+test test-53 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit $s1 
+} -result {{* expanded deck of resistor divider} {* resistor divider} {v1 in 0 1} {r1 in out 1e3} {r2 out 0 2e3} {.dc\
+    v1 0 5 0.1} .end} -cleanup { $s1 destroy
+    unset s1
+}
+
+test test-54 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit -logical $s1 
+} -result {{resistor divider} {1 : resistor divider} {2 : .global gnd} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out\
+    0 2e3} {6 : .dc v1 0 5 0.1} {7 : .save all} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+
+test test-55 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit -physical $s1 
+} -result {{resistor divider} {1 : resistor divider} {2 : .global gnd} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out\
+    0 2e3} {6 : .dc v1 0 5 0.1} {7 : .save all} {8 : *end} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+
+test test-56 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit -deck $s1 
+} -result {{resistor divider} {.global gnd} {v1 in 0 1} {r1 in out 1e3} {r2 out 0 2e3} {.dc v1 0 5 0.1} {.save all}\
+    *end .end} -cleanup { $s1 destroy unset s1 }
+
+test test-57 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit -expand $s1 
+} -result {{resistor divider} {1 : resistor divider} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out 0 2e3} {6 : .dc v1\
+    0 5 0.1} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+
+test test-58 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit -param $s1 
+} -result {{global symbol definitions:}} -cleanup { $s1 destroy
+    unset s1
+}
+
+test test-59 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    run $s1
+    $s1 circuit $resDivCircuit
+} -body {
+    getCircuit -expand $s1 
+} -result {{resistor divider} {1 : resistor divider} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out 0 2e3} {6 : .dc v1\
+    0 5 0.1} {9 : .end}} -cleanup { $s1 destroy unset s1 }
 
 
 cleanupTests

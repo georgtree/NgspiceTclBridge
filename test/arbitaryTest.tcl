@@ -90,18 +90,13 @@ set fourBitAdderCircuit [split {
 
 
 
-test test-49 {check init command with wrong switch} -body {
-    catch {ngspicetclbridge::new -spin} errorStr
-    return $errorStr
-} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
-    unset errorStr
-}
 
-test test-49 {check init command with wrong switch} -body {
-    catch {ngspicetclbridge::new -nospinit} errorStr
-    return $errorStr
-} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
-    unset errorStr
-}
-
-
+test test-59 {check getCircuit command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+    run $s1
+    
+} -body {
+    readVecsAsync -info $s1
+} -result {{resistor divider} {1 : resistor divider} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out 0 2e3} {6 : .dc v1\
+    0 5 0.1} {9 : .end}} -cleanup { $s1 destroy unset s1 }
