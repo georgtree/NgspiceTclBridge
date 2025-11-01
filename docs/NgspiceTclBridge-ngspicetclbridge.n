@@ -245,8 +245,7 @@ returns a dict with keys as events names, and counts for each event as a value
 \fBgetCircuit\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns list with currently loaded circuit (its listing) in the form specified by the switch\&.
-list with listing lines
+Gets list with currently loaded circuit (its listing) in the form specified by the switch\&.
 .RS 4n
 \fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
 .br
@@ -279,15 +278,13 @@ Simulator handler that is returned by ngspicetclbridge::new
 .PP
 \fBReturn value\fR
 .PP
-Returns list with currently loaded circuit (its listing) in the form specified by the switch\&.
 list with listing lines
 .PP
 .RS -4n
 \fBgetCircuitTitle\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns title of the current circuit (first line of circuits netlist)\&.
-title
+Gets title of the current circuit (first line of circuits netlist)\&.
 .RS 4n
 \fBgetCircuitTitle\fP \fIsim\fP
 .br
@@ -302,15 +299,13 @@ Not documented\&.
 .PP
 \fBReturn value\fR
 .PP
-Returns title of the current circuit (first line of circuits netlist)\&.
 title
 .PP
 .RS -4n
 \fBgetPlotDate\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns time stamp of current plot generation\&.
-time stamp
+Gets time stamp of current plot generation\&.
 .RS 4n
 \fBgetPlotDate\fP \fIsim\fP
 .br
@@ -325,15 +320,13 @@ Not documented\&.
 .PP
 \fBReturn value\fR
 .PP
-Returns time stamp of current plot generation\&.
 time stamp
 .PP
 .RS -4n
 \fBgetPlotName\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
-name of the plot
+Gets name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
 .RS 4n
 \fBgetPlotName\fP \fIsim\fP
 .br
@@ -348,15 +341,13 @@ Not documented\&.
 .PP
 \fBReturn value\fR
 .PP
-Returns name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
 name of the plot
 .PP
 .RS -4n
 \fBgetScaleInfo\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns dictionary with information about current scale vector\&.
-dictionary with the information
+Gets dictionary with information about current scale vector\&.
 .RS 4n
 \fBgetScaleInfo\fP \fIsim\fP
 .br
@@ -371,7 +362,6 @@ Not documented\&.
 .PP
 \fBReturn value\fR
 .PP
-Returns dictionary with information about current scale vector\&.
 dictionary with the information
 .PP
 .RS -4n

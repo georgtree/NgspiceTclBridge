@@ -38,7 +38,7 @@ namespace eval ::ngspicetclbridge {
         return $result
     }
     proc getCircuit {args} {
-        # Returns list with currently loaded circuit (its listing) in the form specified by the switch.
+        # Gets list with currently loaded circuit (its listing) in the form specified by the switch.
         #  -logical - the circuit is with all continuation lines collapsed into one line.
         #  -physical - the circuits lines are printed out as they were found in the file.
         #  -deck - just like the physical listing, except without the line numbers it recreates the input file verbatim
@@ -67,7 +67,7 @@ namespace eval ::ngspicetclbridge {
         return $result
     }
     proc getScaleInfo {sim} {
-        # Returns dictionary with information about current scale vector.
+        # Gets dictionary with information about current scale vector.
         #
         # Returns: dictionary with the information
         set info [dict get [$sim command -capture setscale] output]
@@ -75,19 +75,19 @@ namespace eval ::ngspicetclbridge {
         return [dict create name $name type $type ntype $ntype length $length]
     }
     proc getPlotName {sim} {
-        # Returns name of the current plot, i.e. Operating Point, AC Analysis, etc.
+        # Gets name of the current plot, i.e. Operating Point, AC Analysis, etc.
         #
         # Returns: name of the plot
         return {*}[string map {{stdout } {}} [dict get [$sim command -capture {echo $curplotname}] output]]
     }
     proc getCircuitTitle {sim} {
-        # Returns title of the current circuit (first line of circuits netlist).
+        # Gets title of the current circuit (first line of circuits netlist).
         #
         # Returns: title
         return {*}[string map {{stdout } {}} [dict get [$sim command -capture {echo $curplottitle}] output]]
     }
     proc getPlotDate {sim} {
-        # Returns time stamp of current plot generation.
+        # Gets time stamp of current plot generation.
         #
         # Returns: time stamp
         return {*}[string map {{stdout } {}} [dict get [$sim command -capture {echo $curplotdate}] output]]
