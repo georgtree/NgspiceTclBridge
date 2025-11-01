@@ -19,6 +19,14 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
 .br
+\fBgetCircuitTitle\fP \fIsim\fP
+.br
+\fBgetPlotDate\fP \fIsim\fP
+.br
+\fBgetPlotName\fP \fIsim\fP
+.br
+\fBgetScaleInfo\fP \fIsim\fP
+.br
 \fBinitvectors\fP \fI?-clear?\fP
 .br
 \fBinputpath\fP \fI-current\fP
@@ -273,6 +281,98 @@ Simulator handler that is returned by ngspicetclbridge::new
 .PP
 Returns list with currently loaded circuit (its listing) in the form specified by the switch\&.
 list with listing lines
+.PP
+.RS -4n
+\fBgetCircuitTitle\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns title of the current circuit (first line of circuits netlist)\&.
+title
+.RS 4n
+\fBgetCircuitTitle\fP \fIsim\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+sim
+Not documented\&.
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns title of the current circuit (first line of circuits netlist)\&.
+title
+.PP
+.RS -4n
+\fBgetPlotDate\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns time stamp of current plot generation\&.
+time stamp
+.RS 4n
+\fBgetPlotDate\fP \fIsim\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+sim
+Not documented\&.
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns time stamp of current plot generation\&.
+time stamp
+.PP
+.RS -4n
+\fBgetPlotName\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
+name of the plot
+.RS 4n
+\fBgetPlotName\fP \fIsim\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+sim
+Not documented\&.
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
+name of the plot
+.PP
+.RS -4n
+\fBgetScaleInfo\fR (::ngspicetclbridge)
+.RE
+.PP
+Returns dictionary with information about current scale vector\&.
+dictionary with the information
+.RS 4n
+\fBgetScaleInfo\fP \fIsim\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+sim
+Not documented\&.
+.RE
+.PP
+\fBReturn value\fR
+.PP
+Returns dictionary with information about current scale vector\&.
+dictionary with the information
 .PP
 .RS -4n
 \fBinitvectors\fR (::ngspicetclbridge)

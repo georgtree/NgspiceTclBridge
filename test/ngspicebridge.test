@@ -1015,18 +1015,99 @@ test test-58 {check getCircuit command} -setup {
     $s1 circuit $resDivCircuit
 } -body {
     getCircuit -param $s1 
-} -result {{global symbol definitions:}} -cleanup { $s1 destroy
+} -result {{global symbol definitions:}} -cleanup { 
+    $s1 destroy
     unset s1
 }
 
 test test-59 {check getCircuit command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    run $s1
     $s1 circuit $resDivCircuit
+    run $s1
 } -body {
     getCircuit -expand $s1 
 } -result {{resistor divider} {1 : resistor divider} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out 0 2e3} {6 : .dc v1\
-    0 5 0.1} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+    0 5 0.1} {9 : .end}} -cleanup { 
+    $s1 destroy
+    unset s1 
+}
+
+test test-60 {check getScaleInfo command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+    run $s1
+} -body {
+    getScaleInfo $s1 
+} -result {name v-sweep type voltage ntype real length 51} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+test test-61 {check getScaleInfo command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $fourBitAdderCircuit
+    run $s1
+} -body {
+    getScaleInfo $s1 
+} -result {name time type time ntype real length 21557} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+test test-62 {check getPlotName command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+    run $s1
+} -body {
+    getPlotName $s1 
+} -result {DC transfer characteristic} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+test test-63 {check getPlotName command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $fourBitAdderCircuit
+    run $s1
+} -body {
+    getPlotName $s1 
+} -result {Transient Analysis} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+test test-64 {check getCircuitTitle command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+    run $s1
+} -body {
+    getCircuitTitle $s1 
+} -result {resistor divider} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+test test-65 {check getCircuitTitle command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $fourBitAdderCircuit
+    run $s1
+} -body {
+    getCircuitTitle $s1 
+} -result {four-bit adder} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+test test-66 {check getPlotDate command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuit
+    run $s1
+} -body {
+    getPlotDate $s1
+} -match glob -result {??? ???  ? ??:??:??  ????} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
 
 
 cleanupTests
