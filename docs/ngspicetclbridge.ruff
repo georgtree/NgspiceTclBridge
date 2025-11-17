@@ -34,9 +34,12 @@ namespace eval ::ngspicetclbridge {
         #```
     }
 
-    proc circuit {list} {
-        # Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist.
-        #  list -  list of string
+    proc circuit {args} {
+        # Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch 
+        # `-string` is provided, the input netlists could be passed as ordinary string with newline character as a
+        # separator between netlists lines.
+        #  -string - allows to pass circuit as ordinary string
+        #  circuit -  list of string
         # Returns: Ngspice result code
         #
         # Example:
@@ -53,6 +56,7 @@ namespace eval ::ngspicetclbridge {
         # $sim circuit [split $resDivCircuit \n]
         # $sim command bg_run
         #```
+        # Synopsis: ?-string? circuit
     }
 
     proc plot {args} {

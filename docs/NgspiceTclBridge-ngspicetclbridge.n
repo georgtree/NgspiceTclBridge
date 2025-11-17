@@ -9,7 +9,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBasyncvector\fP \fI?-info? name\fP
 .br
-\fBcircuit\fP \fIlist\fP
+\fBcircuit\fP \fI?-string? circuit\fP
 .br
 \fBcommand\fP \fIstring\fP
 .br
@@ -112,16 +112,21 @@ does not exists\&.
 \fBcircuit\fR (::ngspicetclbridge)
 .RE
 .PP
-Sends an circuit to Ngspice in form of the list, each element is the lineof the netlist\&.
+Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist\&. If switch
+-string is provided, the input netlists could be passed as ordinary string with newline character as a
+separator between netlists lines\&.
 .RS 4n
-\fBcircuit\fP \fIlist\fP
+\fBcircuit\fP \fI?-string? circuit\fP
 .br
 .RE
 .PP
 \fBParameters\fR
 .RS 4n
 .TP
-list
+-string
+Allows to pass circuit as ordinary string\&.
+.TP
+circuit
 List of string\&.
 .RE
 .PP

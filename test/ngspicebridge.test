@@ -87,6 +87,25 @@ set fourBitAdderCircuit [split {
     .save v(9) v(10) v(11) v(12)
     .end
 } \n]
+set resDivCircuitOpPoint [split {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    .op
+    .save all
+    .end
+} \n]
+
+set resDivCircuitV1 [split {
+    Resistor divider
+    v1 v1 0 1
+    r1 v1 out 1e3
+    r2 out 0 2e3
+    .dc v1 0 5 0.1
+    .save all
+    .end
+} \n]
 
 test test-1 {get initial vectors information} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
@@ -1104,10 +1123,61 @@ test test-66 {check getPlotDate command} -setup {
     run $s1
 } -body {
     getPlotDate $s1
-} -match glob -result {??? ???  ? ??:??:??  ????} -cleanup { 
+} -match regexp -result {^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+([0-3][0-9])\s+([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\s{2}([0-9]{4})$} -cleanup { 
     $s1 destroy 
     unset s1 
 }
 
+test test-67 {check getScaleInfo command} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit $resDivCircuitOpPoint
+    run $s1
+} -body {
+    getScaleInfo $s1 
+} -result {name in type voltage ntype real length 1} -cleanup { 
+    $s1 destroy 
+    unset s1 
+}
+
+set resDivCircuitNotSplitted {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    .dc v1 0 5 0.1
+    .save all
+    .end
+}
+
+test test-68 {test passing circuit as a whole string, not list} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+    $s1 circuit -string $resDivCircuitNotSplitted
+} -body {
+    run $s1
+    return [$s1 initvectors]
+} -result {v1#branch {number 0 real 1} out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}} -cleanup {
+    $s1 destroy
+    unset s1
+}
+
+test test-69 {test passing circuit as a whole string, not list} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+} -body {
+    catch {$s1 circuit} errorStr
+    return $errorStr
+} -match glob -result {wrong # args: should be "::ngspicetclbridge::s* circuit ?-string? value"} -cleanup {
+    $s1 destroy
+    unset s1 errorStr
+}
+
+test test-70 {test passing circuit as a whole string, not list} -setup {
+    set s1 [ngspicetclbridge::new $ngspiceLibPath]
+} -body {
+    catch {$s1 circuit -strings $resDivCircuitNotSplitted} errorStr
+    return $errorStr
+} -result {unknown option: -strings (expected -string)} -cleanup {
+    $s1 destroy
+    unset s1 errorStr
+}
 
 cleanupTests

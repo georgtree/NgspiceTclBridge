@@ -44,6 +44,85 @@ static char *ckstrdup(const char *s) {
     memcpy(copy, s, len);
     return copy;
 }
+
+char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
+    char **lines = NULL;
+    Tcl_Size cap = 0;
+    Tcl_Size count = 0;
+    Tcl_Size len_text = strlen(text);
+    Tcl_Size start = 0;
+    Tcl_Size i = 0;
+    while (i < len_text) {
+        if (text[i] == '\n' || text[i] == '\r') {
+            Tcl_Size len = i - start;
+            if (count == cap) {
+                cap = cap ? cap * 2 : 4;
+                char **tmp = Tcl_AttemptRealloc(lines, cap * sizeof(char *));
+                if (tmp == NULL) {
+                    for (Tcl_Size k = 0; k < count; k++) {
+                        Tcl_Free(lines[k]);
+                    }
+                    Tcl_Free(lines);
+                    *nlines = 0;
+                    return NULL;
+                }
+                lines = tmp;
+            }
+            lines[count] = Tcl_AttemptAlloc(len + 1);
+            if (lines[count] == NULL) {
+                for (Tcl_Size k = 0; k < count; k++) {
+                    Tcl_Free(lines[k]);
+                }
+                Tcl_Free(lines);
+                *nlines = 0;
+                return NULL;
+            }
+            memcpy(lines[count], text + start, len);
+            lines[count][len] = '\0';
+            count++;
+            // Handle CRLF: if we saw '\r' and next char is '\n', skip it
+            if (text[i] == '\r' && i + 1 < len_text && text[i + 1] == '\n') {
+                i++;
+            }
+            i++;
+            start = i;
+        } else {
+            i++;
+        }
+    }
+    // Last line (after the final newline, or whole text if no newline)
+    // This also adds an empty last line if the text ended with a newline.
+    if (start <= len_text) {
+        Tcl_Size len = len_text - start;
+        if (count == cap) {
+            cap = cap ? cap * 2 : 4;
+            char **tmp = Tcl_AttemptRealloc(lines, cap * sizeof(char *));
+            if (tmp == NULL) {
+                for (Tcl_Size k = 0; k < count; k++) {
+                    Tcl_Free(lines[k]);
+                }
+                Tcl_Free(lines);
+                *nlines = 0;
+                return NULL;
+            }
+            lines = tmp;
+        }
+        lines[count] = Tcl_AttemptAlloc(len + 1);
+        if (lines[count] == NULL) {
+            for (Tcl_Size k = 0; k < count; k++) {
+                Tcl_Free(lines[k]);
+            }
+            Tcl_Free(lines);
+            *nlines = 0;
+            return NULL;
+        }
+        memcpy(lines[count], text + start, len);
+        lines[count][len] = '\0';
+        count++;
+    }
+    *nlines = count;
+    return lines;
+}
 //***  NameToEvtId function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -2104,25 +2183,41 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "circuit") == 0) {
-        if (objc != 3) {
-            Tcl_WrongNumArgs(interp, 2, objv, "list");
+        int split_string = 0;
+        if (objc == 4) {
+            const char *opt = Tcl_GetString(objv[2]);
+            if (strcmp(opt, "-string") == 0) {
+                split_string = 1;
+            } else {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -string)", opt));
+                code = TCL_ERROR;
+                goto done;
+            }
+        }
+        if ((objc < 3) || (objc > 4)) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?-string? value");
             code = TCL_ERROR;
             goto done;
         }
         Tcl_Size cirLinesListLen;
-        Tcl_Obj **cirLinesElems;
-        if (Tcl_ListObjGetElements(interp, objv[2], &cirLinesListLen, &cirLinesElems) != TCL_OK) {
-            Tcl_SetObjResult(interp, Tcl_NewStringObj("error getting circuit list", -1));
-            code = TCL_ERROR;
-            goto done;
-        }
-        if (ctx->has_circuit) {
-            ctx->ngSpice_Command("remcirc");
-            ctx->has_circuit = 0;
-        }
-        char **circuit = Tcl_Alloc((cirLinesListLen + 1) * sizeof(char *));
-        for (Tcl_Size i = 0; i < cirLinesListLen; ++i) {
-            circuit[i] = Tcl_GetString(cirLinesElems[i]);
+        char **circuit;
+        if (split_string) {
+            circuit = splitStringByNewline(Tcl_GetString(objv[3]), &cirLinesListLen);
+        } else {
+            Tcl_Obj **cirLinesElems;
+            if (Tcl_ListObjGetElements(interp, objv[2], &cirLinesListLen, &cirLinesElems) != TCL_OK) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("error getting circuit list", -1));
+                code = TCL_ERROR;
+                goto done;
+            }
+            if (ctx->has_circuit) {
+                ctx->ngSpice_Command("remcirc");
+                ctx->has_circuit = 0;
+            }
+            circuit = Tcl_Alloc((cirLinesListLen + 1) * sizeof(char *));
+            for (Tcl_Size i = 0; i < cirLinesListLen; ++i) {
+                circuit[i] = Tcl_GetString(cirLinesElems[i]);
+            }
         }
         circuit[cirLinesListLen] = NULL;
         int rc = ctx->ngSpice_Circ(circuit);
