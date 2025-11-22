@@ -1,343 +1,56 @@
 '\"
 '\" '\" Copyright (c) George Yashin
 '\"
-.TH "ngspicetclbridge" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.TH "ngspicetclbridge::SIM" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
 .SH NAME
-ngspicetclbridge - Commands in namespace ngspicetclbridge
+ngspicetclbridge::SIM - Commands in namespace ngspicetclbridge::SIM
 .SH SYNOPSIS
-\fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
+\fBabort\fP
 .br
-\fBgetCircuitTitle\fP \fIsim\fP
+\fBasyncvector\fP \fI?-info? name\fP
 .br
-\fBgetPlotDate\fP \fIsim\fP
+\fBcircuit\fP \fI?-string? circuit\fP
 .br
-\fBgetPlotName\fP \fIsim\fP
+\fBcommand\fP \fIstring\fP
 .br
-\fBgetScaleInfo\fP \fIsim\fP
+\fBdestroy\fP
 .br
-\fBnew\fP \fI?-nospinit|nospiceinit|noinit? libpath\fP
+\fBeventcounts\fP \fI?-clear?\fP
 .br
-\fBreadVecsAsync\fP \fI?-info? sim\fP
+\fBinitvectors\fP \fI?-clear?\fP
 .br
-\fBrun\fP \fIsim\fP
+\fBinputpath\fP \fI-current\fP
 .br
-\fBSIM\fP \fIsubcommand \&.\&.\&.\fP
+\fBinputpath\fP \fIpath\fP
 .br
-\fBSIM abort\fP
+\fBisrunning\fP
 .br
-\fBSIM asyncvector\fP \fI?-info? name\fP
+\fBmessages\fP \fI?-clear?\fP
 .br
-\fBSIM circuit\fP \fI?-string? circuit\fP
+\fBplot\fP \fI-all\fP
 .br
-\fBSIM command\fP \fIstring\fP
+\fBplot\fP \fI-vecs name\fP
 .br
-\fBSIM destroy\fP
+\fBvectors\fP \fI?-clear?\fP
 .br
-\fBSIM eventcounts\fP \fI?-clear?\fP
+\fBwaitevent\fP \fI?args?\fP
 .br
-\fBSIM initvectors\fP \fI?-clear?\fP
-.br
-\fBSIM inputpath\fP \fI-current\fP
-.br
-\fBSIM inputpath\fP \fIpath\fP
-.br
-\fBSIM isrunning\fP
-.br
-\fBSIM messages\fP \fI?-clear?\fP
-.br
-\fBSIM plot\fP \fI-all\fP
-.br
-\fBSIM plot\fP \fI-vecs name\fP
-.br
-\fBSIM vectors\fP \fI?-clear?\fP
-.br
-\fBSIM waitevent\fP \fI?args?\fP
-.br
-.SH ::NGSPICETCLBRIDGE
+.SH ::NGSPICETCLBRIDGE::SIM
 .SH COMMANDS
 .PP
 .RS -4n
-\fBgetCircuit\fR (::ngspicetclbridge)
-.RE
-.PP
-Gets list with currently loaded circuit (its listing) in the form specified by the switch\&.
-.RS 4n
-\fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
--deck
-Just like the physical listing, except without the line numbers it recreates the input file verbatim (except that it does not preserve case)
-.TP
--expand
-The circuit is printed with all subcircuits expanded\&.
-.TP
--logical
-The circuit is with all continuation lines collapsed into one line\&.
-.TP
--param
-Printing all parameters and their actual values\&.
-.TP
--physical
-The circuits lines are printed out as they were found in the file\&.
-.TP
--runnable
-Circuit netlist expanded, but without additional line numbers, ready to be sourced again and run in ngspice\&. Default version if no witch is provided\&.
-.TP
-sim
-Simulator handler that is returned by ngspicetclbridge::new
-.RE
-.PP
-\fBReturn value\fR
-.PP
-list with listing lines
-.PP
-.RS -4n
-\fBgetCircuitTitle\fR (::ngspicetclbridge)
-.RE
-.PP
-Gets title of the current circuit (first line of circuits netlist)\&.
-.RS 4n
-\fBgetCircuitTitle\fP \fIsim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
-sim
-Not documented\&.
-.RE
-.PP
-\fBReturn value\fR
-.PP
-title
-.PP
-.RS -4n
-\fBgetPlotDate\fR (::ngspicetclbridge)
-.RE
-.PP
-Gets time stamp of current plot generation\&.
-.RS 4n
-\fBgetPlotDate\fP \fIsim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
-sim
-Not documented\&.
-.RE
-.PP
-\fBReturn value\fR
-.PP
-time stamp
-.PP
-.RS -4n
-\fBgetPlotName\fR (::ngspicetclbridge)
-.RE
-.PP
-Gets name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
-.RS 4n
-\fBgetPlotName\fP \fIsim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
-sim
-Not documented\&.
-.RE
-.PP
-\fBReturn value\fR
-.PP
-name of the plot
-.PP
-.RS -4n
-\fBgetScaleInfo\fR (::ngspicetclbridge)
-.RE
-.PP
-Gets dictionary with information about current scale vector\&.
-.RS 4n
-\fBgetScaleInfo\fP \fIsim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
-sim
-Not documented\&.
-.RE
-.PP
-\fBReturn value\fR
-.PP
-dictionary with the information
-.PP
-.RS -4n
-\fBnew\fR (::ngspicetclbridge)
-.RE
-.PP
-Load dynamic library, path should be provided in native form for target OS\&.  Every ::ngspicetclbridge::new
-returns a command (e\&.g\&. ::ngspicetclbridge::s1)\&. The following subcommands operate on that instance\&.
-Optionally the spinit and/or spiceinit initialization files could be forbidden for loading\&.
-.RS 4n
-\fBnew\fP \fI?-nospinit|nospiceinit|noinit? libpath\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
--noinit
-Inhibit both spinit and spiceinit\&.
-.TP
--nospiceinit
-Inhibits spiceinit\&.
-.TP
--nospinit
-Inhibits spinit\&.
-.TP
-libpath
-Absolute full path to dynamic library\&.
-.RE
-.PP
-\fBDescription\fR
-.PP
-Example:
-.PP
-.RS 4n
-.nf
-set sim [::ngspicetclbridge::new /usr/local/lib/libngspice\&.so]
-.fi
-.RE
-.PP
-\fBReturn value\fR
-.PP
-command name to work with Ngspice instance, references as SIM later
-.PP
-.RS -4n
-\fBreadVecsAsync\fR (::ngspicetclbridge)
-.RE
-.PP
-Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key,
-and data as a value\&. If -info switch is provided, command returns information about each availiable vector\&.
-.RS 4n
-\fBreadVecsAsync\fP \fI?-info? sim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
--info
-If provided, metainfo about vectors is returned instead of the data\&.
-.TP
-sim
-Simulator handler that is returned by ngspicetclbridge::new
-.RE
-.PP
-\fBReturn value\fR
-.PP
-dictionary
-.PP
-.RS -4n
-\fBrun\fR (::ngspicetclbridge)
-.RE
-.PP
-Runs simulation in background thread, waits for the completion, process event in the queue and returns
-.RS 4n
-\fBrun\fP \fIsim\fP
-.br
-.RE
-.PP
-\fBParameters\fR
-.RS 4n
-.TP
-sim
-Simulator handler that is returned by ngspicetclbridge::new
-.RE
-.PP
-\fBReturn value\fR
-.PP
-.PP
-.RS -4n
-\fBSIM\fR (::ngspicetclbridge)
-.RE
-.PP
-A
-command
-ensemble\&.
-.RS 4n
-\fBSIM\fP \fIsubcommand \&.\&.\&.\fP
-.br
-.RE
-.PP
-\fBDescription\fR
-.PP
-The ensemble supports the following subcommands:
-.RS 4n
-.TP
-\fIabort\fP
-Sets an internal abort flag and wake any waiters (useful to force waitevent to return)\&. This does \fBnot\fP free the instance\&.
-.TP
-\fIasyncvector\fP
-Fetches the current values of a named vector on demand via ngspice ngGet_Vec_Info\&. Works after the simulation has produced any data (not necessarily the complete vector)\&. By addding -info switch, vector metadata is provided, i\&.e\&. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector\&.
-.TP
-\fIcircuit\fP
-Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist\&. If switch -string is provided, the input netlists could be passed as ordinary string with newline character as a separator between netlists lines\&.
-.TP
-\fIcommand\fP
-Sends an arbitrary Ngspice command line (e\&.g\&., bg_run, circbyline \&.\&.\&., \&.save, \&.tran, \&.dc)\&. If we provide -capture switch, it returns not only the result code, but also the next message from stdout of Ngspice\&. Also, if command is send in the moment background thread is starting or stopping, it will be deferred to the time is could be safely sent, and in that case -capture message and command results code are not availaible as a return of command\&.
-.TP
-\fIdestroy\fP
-Deletes the instance command\&. In details:
-.TP
-\fIeventcounts\fP
-Gets or reset the cumulative event counters for this simulator instance\&.
-.TP
-\fIinitvectors\fP
-Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.  dict with initial vector metadata saved in internal structure\&.
-.TP
-\fIinputpath\fP
-Returns current path for XSPICE code models if -current switch is provided, or set current path to value provided\&.  current path\&.
-.TP
-\fIisrunning\fP
-Calls asynchronously to check if background thread is running\&.
-.TP
-\fImessages\fP
-Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines\&.
-.TP
-\fIplot\fP
-Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot\&.  current plot, or list of all plots, or list of all vectors\&.
-.TP
-\fIvectors\fP
-Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.  dict with vectors values accumulated up to this point in internal structure\&.
-.TP
-\fIwaitevent\fP
-Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided)\&.
-.RE
-.PP
-Refer to the documentation of each subcommand for details\&.
-.PP
-.RS -4n
-\fBSIM abort\fR (::ngspicetclbridge)
+\fBabort\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Sets an internal abort flag and wake any waiters (useful to force waitevent to return)\&. This does \fBnot\fP free
 the instance\&.
 .RS 4n
-\fBSIM abort\fP
+\fBabort\fP
 .br
 .RE
 .PP
 .RS -4n
-\fBSIM asyncvector\fR (::ngspicetclbridge)
+\fBasyncvector\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Fetches the current values of a named vector on demand via ngspice ngGet_Vec_Info\&. Works after the
@@ -345,7 +58,7 @@ simulation has produced any data (not necessarily the complete vector)\&. By add
 metadata is provided, i\&.e\&. type of the vector (current, voltage, time, etc), type of the numbers (complex or
 real), and length of the vector\&.
 .RS 4n
-\fBSIM asyncvector\fP \fI?-info? name\fP
+\fBasyncvector\fP \fI?-info? name\fP
 .br
 .RE
 .PP
@@ -380,14 +93,14 @@ real vectors as a flat list of doubles, complex vectors as a list of {re im} pai
 does not exists\&.
 .PP
 .RS -4n
-\fBSIM circuit\fR (::ngspicetclbridge)
+\fBcircuit\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist\&. If switch
 -string is provided, the input netlists could be passed as ordinary string with newline character as a
 separator between netlists lines\&.
 .RS 4n
-\fBSIM circuit\fP \fI?-string? circuit\fP
+\fBcircuit\fP \fI?-string? circuit\fP
 .br
 .RE
 .PP
@@ -426,7 +139,7 @@ $sim command bg_run
 Ngspice result code
 .PP
 .RS -4n
-\fBSIM command\fR (::ngspicetclbridge)
+\fBcommand\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Sends an arbitrary Ngspice command line (e\&.g\&., bg_run, circbyline \&.\&.\&., \&.save, \&.tran, \&.dc)\&. If
@@ -435,7 +148,7 @@ of Ngspice\&. Also, if command is send in the moment background thread is starti
 deferred to the time is could be safely sent, and in that case -capture message and command results code
 are not availaible as a return of command\&.
 .RS 4n
-\fBSIM command\fP \fIstring\fP
+\fBcommand\fP \fIstring\fP
 .br
 .RE
 .PP
@@ -462,12 +175,12 @@ $sim command bg_run
 Ngspice result code, or dictionary with result code and the message
 .PP
 .RS -4n
-\fBSIM destroy\fR (::ngspicetclbridge)
+\fBdestroy\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Deletes the instance command\&. In details:
 .RS 4n
-\fBSIM destroy\fP
+\fBdestroy\fP
 .br
 .RE
 .PP
@@ -486,12 +199,12 @@ Quiesces the ngspice background thread
 Defers and performs full cleanup
 .PP
 .RS -4n
-\fBSIM eventcounts\fR (::ngspicetclbridge)
+\fBeventcounts\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Gets or reset the cumulative event counters for this simulator instance\&.
 .RS 4n
-\fBSIM eventcounts\fP \fI?-clear?\fP
+\fBeventcounts\fP \fI?-clear?\fP
 .br
 .RE
 .PP
@@ -518,13 +231,13 @@ $sim eventcounts
 returns a dict with keys as events names, and counts for each event as a value
 .PP
 .RS -4n
-\fBSIM initvectors\fR (::ngspicetclbridge)
+\fBinitvectors\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.
 dict with initial vector metadata saved in internal structure
 .RS 4n
-\fBSIM initvectors\fP \fI?-clear?\fP
+\fBinitvectors\fP \fI?-clear?\fP
 .br
 .RE
 .PP
@@ -555,16 +268,16 @@ Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict
 dict with initial vector metadata saved in internal structure
 .PP
 .RS -4n
-\fBSIM inputpath\fR (::ngspicetclbridge)
+\fBinputpath\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Returns current path for XSPICE code models if -current switch is provided, or set current path to value
 provided\&.
 current path
 .RS 4n
-\fBSIM inputpath\fP \fI-current\fP
+\fBinputpath\fP \fI-current\fP
 .br
-\fBSIM inputpath\fP \fIpath\fP
+\fBinputpath\fP \fIpath\fP
 .br
 .RE
 .PP
@@ -585,12 +298,12 @@ provided\&.
 current path
 .PP
 .RS -4n
-\fBSIM isrunning\fR (::ngspicetclbridge)
+\fBisrunning\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Calls asynchronously to check if background thread is running\&.
 .RS 4n
-\fBSIM isrunning\fP
+\fBisrunning\fP
 .br
 .RE
 .PP
@@ -599,12 +312,12 @@ Calls asynchronously to check if background thread is running\&.
 1 if thread is running, 0 otherwise\&.
 .PP
 .RS -4n
-\fBSIM messages\fR (::ngspicetclbridge)
+\fBmessages\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines\&.
 .RS 4n
-\fBSIM messages\fP \fI?-clear?\fP
+\fBmessages\fP \fI?-clear?\fP
 .br
 .RE
 .PP
@@ -637,16 +350,16 @@ clear the data storage\&.
 list of messages
 .PP
 .RS -4n
-\fBSIM plot\fR (::ngspicetclbridge)
+\fBplot\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot\&.
 current plot, or list of all plots, or list of all vectors
 .RS 4n
-\fBSIM plot\fP \fI-all\fP
+\fBplot\fP \fI-all\fP
 .br
-\fBSIM plot\fP \fI-vecs name\fP
+\fBplot\fP \fI-vecs name\fP
 .br
 .RE
 .PP
@@ -667,13 +380,13 @@ name of the provided plot\&.
 current plot, or list of all plots, or list of all vectors
 .PP
 .RS -4n
-\fBSIM vectors\fR (::ngspicetclbridge)
+\fBvectors\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
 dict with vectors values accumulated up to this point in internal structure
 .RS 4n
-\fBSIM vectors\fP \fI?-clear?\fP
+\fBvectors\fP \fI?-clear?\fP
 .br
 .RE
 .PP
@@ -704,13 +417,13 @@ Returns held \fBsynchronously accumulated\fP vector values (built from send_data
 dict with vectors values accumulated up to this point in internal structure
 .PP
 .RS -4n
-\fBSIM waitevent\fR (::ngspicetclbridge)
+\fBwaitevent\fR (::ngspicetclbridge::SIM)
 .RE
 .PP
 Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed,
 or the timeout expires (if provided)\&.
 .RS 4n
-\fBSIM waitevent\fP \fI?args?\fP
+\fBwaitevent\fP \fI?args?\fP
 .br
 .RE
 .PP

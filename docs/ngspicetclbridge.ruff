@@ -9,7 +9,7 @@ namespace eval ::ngspicetclbridge {
         #  -nospiceinit - inhibits spiceinit
         #  -noinit - inhibit both spinit and spiceinit
         #  libpath -  absolute full path to dynamic library
-        # Returns: command name to work with Ngspice instance
+        # Returns: command name to work with Ngspice instance, references as `SIM` later
         #
         # Example:
         #```
@@ -17,7 +17,9 @@ namespace eval ::ngspicetclbridge {
         #```
         # Synopsis: ?-nospinit|nospiceinit|noinit? libpath
     }
+}
 
+namespace eval ::ngspicetclbridge::SIM {
     proc command {string} {
         # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`). If
         # we provide `-capture` switch, it returns not only the result code, but also the next message from stdout
@@ -353,4 +355,7 @@ namespace eval ::ngspicetclbridge {
         # - Quiesces the ngspice background thread
         # - Defers and performs full cleanup
     }
+
+    namespace export *
+    namespace ensemble create
 }

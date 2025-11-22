@@ -17,91 +17,6 @@
 <div style='clear:both;'></div>
 <h2 class='ruff'><a name='::ngspicetclbridge-Commands'></a>Commands<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
 <div style='clear:both;'></div>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::abort'>abort</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>abort</span> </div>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>?-info? name</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code>name</code></nobr></td><td>Name of the vector.</td></tr>
-<tr><td><nobr><code><font color=#463e11>-info</font></code></nobr></td><td>If this switch is provided, commands return dictionary with vector metadata.</td></tr>
-</table>
-<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> initvectors
-<font color=#4A181B>$sim</font> asyncvector out
-<i><font color=#4b5d50># -&gt; {0.0 0.066666... 0.133333... ...}</font></i>
-
-<font color=#4A181B>$sim</font> asyncvector V(9)
-<i><font color=#4b5d50># -&gt; {{0.01 0.00} {0.02 0.00} ...}   ;# if complex</font></i>
-</pre>
-
-</figure><h5 class='ruff'>Return value</h5><p class='ruff'>real vectors as a flat list of doubles, complex vectors as a list of <code>{re im}</code> pairs. Error if vector does not exists.</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::circuit'>circuit</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch <code><font color=#463e11>-string</font></code> is provided, the input netlists could be passed as ordinary string with newline character as a separator between netlists lines.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>circuit</span> <span class='ruff_arg'>?-string? circuit</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><font color=#463e11>-string</font></code></nobr></td><td>Allows to pass circuit as ordinary string.</td></tr>
-<tr><td><nobr><code>circuit</code></nobr></td><td>List of string.</td></tr>
-</table>
-<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> resDivCircuit {
-    Resistor divider
-    v1 in 0 1
-    r1 in out 1e3
-    r2 out 0 2e3
-    .dc v1 0 5 0.1
-    .save all
-    .end
-}
-<font color=#4A181B>$sim</font> circuit [<b><font color=#923B23>split</font></b> <font color=#4A181B>$resDivCircuit</font> \n]
-<font color=#4A181B>$sim</font> command bg_run
-</pre>
-
-</figure><h5 class='ruff'>Return value</h5><p class='ruff'>Ngspice result code</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::command'>command</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>). If we provide <code><font color=#463e11>-capture</font></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be deferred to the time is could be safely sent, and in that case <code><font color=#463e11>-capture</font></code> message and command results code are not availaible as a return of <code>command</code>.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>command</span> <span class='ruff_arg'>string</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><b><font color=#923B23>string</font></b></code></nobr></td><td>Command string.</td></tr>
-</table>
-<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> command {circbyline v1 in 0 1}
-<font color=#4A181B>$sim</font> command bg_run
-</pre>
-
-</figure><h5 class='ruff'>Return value</h5><p class='ruff'>Ngspice result code, or dictionary with result code and the message</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::destroy'>destroy</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Deletes the instance command. In details:</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>destroy</span> </div>
-<h5 class='ruff'>Description</h5><ul class='ruff'>
-<li>Marks the context as destroying</li>
-<li>Wakes any waiters</li>
-<li>Quiesces the ngspice background thread</li>
-<li>Defers and performs full cleanup</li>
-</ul>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::eventcounts'>eventcounts</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Gets or reset the cumulative event counters for this simulator instance.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>eventcounts</span> <span class='ruff_arg'>?-clear?</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Zeros all counts and returns nothing.</td></tr>
-</table>
-<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> eventcounts
-<i><font color=#4b5d50># -&gt; send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N</font></i>
-</pre>
-
-</figure><h5 class='ruff'>Return value</h5><p class='ruff'>returns a dict with keys as events names, and counts for each event as a value</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::getCircuit'>getCircuit</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Gets list with currently loaded circuit (its listing) in the form specified by the switch.</p>
@@ -148,53 +63,6 @@
 <tr><td><nobr><code>sim</code></nobr></td><td>Not documented.</td></tr>
 </table>
 <h5 class='ruff'>Return value</h5><p class='ruff'>dictionary with the information</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::initvectors'>initvectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>initvectors</span> <span class='ruff_arg'>?-clear?</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal memory structure and returns <strong>nothing</strong>.</td></tr>
-</table>
-<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> initvectors
-<i><font color=#4b5d50># -&gt; out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}</font></i>
-</pre>
-
-</figure><p class='ruff'><strong>Warning</strong>: accumulation of data <strong>do not</strong> continues after call <code>bg_run</code>, new metadata replace the old one in the storage.</p>
-<h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::inputpath'>inputpath</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>inputpath</span> <span class='ruff_arg'>-current</span><br><span class='ruff_cmd'>inputpath</span> <span class='ruff_arg'>path</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><font color=#463e11>-current</font></code></nobr></td><td>Switch to return current path.</td></tr>
-<tr><td><nobr><code>path</code></nobr></td><td>Full path to desired location.</td></tr>
-</table>
-<h5 class='ruff'>Return value</h5><p class='ruff'>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::isrunning'>isrunning</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Calls asynchronously to check if background thread is running.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>isrunning</span> </div>
-<h5 class='ruff'>Return value</h5><p class='ruff'><code>1</code> if thread is running, <code>0</code> otherwise.</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::messages'>messages</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>messages</span> <span class='ruff_arg'>?-clear?</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal queue structure and returns <strong>nothing</strong>.</td></tr>
-</table>
-<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>join</font></b> [<font color=#4A181B>$sim</font> messages] \n
-<i><font color=#4b5d50># stdout ******</font></i>
-<i><font color=#4b5d50># stdout ** ngspice-44.x shared library</font></i>
-<i><font color=#4b5d50># ...</font></i>
-<i><font color=#4b5d50># # status[0]: --ready--</font></i>
-</pre>
-
-</figure><p class='ruff'><strong>Warning</strong>: accumulation of messages continues even if you run new circuit or analysis until you explicitly clear the data storage.</p>
-<h5 class='ruff'>Return value</h5><p class='ruff'>list of messages</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::new'>new</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Load dynamic library, path should be provided in native form for target OS.  Every <code>::ngspicetclbridge::new</code> returns a command (e.g. <code>::ngspicetclbridge::s1</code>). The following subcommands operate on that instance. Optionally the spinit and/or spiceinit initialization files could be forbidden for loading.</p>
@@ -210,16 +78,7 @@
 <figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
 </pre>
 
-</figure><h5 class='ruff'>Return value</h5><p class='ruff'>command name to work with Ngspice instance</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::plot'>plot</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
-<div style='clear:both;'></div>
-<p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-all</span><br><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-vecs name</span></div>
-<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
-<tr><td><nobr><code><font color=#463e11>-all</font></code></nobr></td><td>Switch to return all plots names.</td></tr>
-<tr><td><nobr><code><font color=#463e11>-vecs</font> plotname</code></nobr></td><td>Switch with argument to get all vectors names belonging to <code>name</code> plot.</td></tr>
-</table>
-<h5 class='ruff'>Return value</h5><p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>command name to work with Ngspice instance, references as <code>SIM</code> later</p>
 <h3 class='ruffproc'><a name='::ngspicetclbridge::readVecsAsync'>readVecsAsync</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key, and data as a value. If <code><font color=#463e11>-info</font></code> switch is provided, command returns information about each availiable vector.</p>
@@ -237,10 +96,172 @@
 <tr><td><nobr><code>sim</code></nobr></td><td>Simulator handler that is returned by <code>ngspicetclbridge::new</code></td></tr>
 </table>
 <h5 class='ruff'>Return value</h5><p class='ruff'></p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::vectors'>vectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM'>SIM</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>A command ensemble.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM</span> <span class='ruff_arg'>subcommand ...</span></div>
+<h5 class='ruff'>Description</h5><p class='ruff'>The ensemble supports the following subcommands:</p>
+<table class='ruff_deflist'>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM abort" title="abort" class='ruff_cmd'>abort</a></nobr></td><td>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM asyncvector" title="asyncvector" class='ruff_cmd'>asyncvector</a></nobr></td><td>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM circuit" title="circuit" class='ruff_cmd'>circuit</a></nobr></td><td>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch <code><font color=#463e11>-string</font></code> is provided, the input netlists could be passed as ordinary string with newline character as a separator between netlists lines.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM command" title="command" class='ruff_cmd'>command</a></nobr></td><td>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>). If we provide <code><font color=#463e11>-capture</font></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be deferred to the time is could be safely sent, and in that case <code><font color=#463e11>-capture</font></code> message and command results code are not availaible as a return of <code>command</code>.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM destroy" title="destroy" class='ruff_cmd'>destroy</a></nobr></td><td>Deletes the instance command. In details:</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM eventcounts" title="eventcounts" class='ruff_cmd'>eventcounts</a></nobr></td><td>Gets or reset the cumulative event counters for this simulator instance.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM initvectors" title="initvectors" class='ruff_cmd'>initvectors</a></nobr></td><td>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM inputpath" title="inputpath" class='ruff_cmd'>inputpath</a></nobr></td><td>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM isrunning" title="isrunning" class='ruff_cmd'>isrunning</a></nobr></td><td>Calls asynchronously to check if background thread is running.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM messages" title="messages" class='ruff_cmd'>messages</a></nobr></td><td>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM plot" title="plot" class='ruff_cmd'>plot</a></nobr></td><td>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM vectors" title="vectors" class='ruff_cmd'>vectors</a></nobr></td><td>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure.</td></tr>
+<tr><td><nobr><a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM waitevent" title="waitevent" class='ruff_cmd'>waitevent</a></nobr></td><td>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided).</td></tr>
+</table>
+<p class='ruff'>Refer to the documentation of each subcommand for details.</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM abort'>SIM abort</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM abort</span> </div>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM asyncvector'>SIM asyncvector</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM asyncvector</span> <span class='ruff_arg'>?-info? name</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code>name</code></nobr></td><td>Name of the vector.</td></tr>
+<tr><td><nobr><code><font color=#463e11>-info</font></code></nobr></td><td>If this switch is provided, commands return dictionary with vector metadata.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> initvectors
+<font color=#4A181B>$sim</font> asyncvector out
+<i><font color=#4b5d50># -&gt; {0.0 0.066666... 0.133333... ...}</font></i>
+
+<font color=#4A181B>$sim</font> asyncvector V(9)
+<i><font color=#4b5d50># -&gt; {{0.01 0.00} {0.02 0.00} ...}   ;# if complex</font></i>
+</pre>
+
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>real vectors as a flat list of doubles, complex vectors as a list of <code>{re im}</code> pairs. Error if vector does not exists.</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM circuit'>SIM circuit</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch <code><font color=#463e11>-string</font></code> is provided, the input netlists could be passed as ordinary string with newline character as a separator between netlists lines.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM circuit</span> <span class='ruff_arg'>?-string? circuit</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-string</font></code></nobr></td><td>Allows to pass circuit as ordinary string.</td></tr>
+<tr><td><nobr><code>circuit</code></nobr></td><td>List of string.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> resDivCircuit {
+    Resistor divider
+    v1 in 0 1
+    r1 in out 1e3
+    r2 out 0 2e3
+    .dc v1 0 5 0.1
+    .save all
+    .end
+}
+<font color=#4A181B>$sim</font> circuit [<b><font color=#923B23>split</font></b> <font color=#4A181B>$resDivCircuit</font> \n]
+<font color=#4A181B>$sim</font> command bg_run
+</pre>
+
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>Ngspice result code</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM command'>SIM command</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>). If we provide <code><font color=#463e11>-capture</font></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be deferred to the time is could be safely sent, and in that case <code><font color=#463e11>-capture</font></code> message and command results code are not availaible as a return of <code>command</code>.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM command</span> <span class='ruff_arg'>string</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><b><font color=#923B23>string</font></b></code></nobr></td><td>Command string.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> command {circbyline v1 in 0 1}
+<font color=#4A181B>$sim</font> command bg_run
+</pre>
+
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>Ngspice result code, or dictionary with result code and the message</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM destroy'>SIM destroy</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Deletes the instance command. In details:</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM destroy</span> </div>
+<h5 class='ruff'>Description</h5><ul class='ruff'>
+<li>Marks the context as destroying</li>
+<li>Wakes any waiters</li>
+<li>Quiesces the ngspice background thread</li>
+<li>Defers and performs full cleanup</li>
+</ul>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM eventcounts'>SIM eventcounts</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Gets or reset the cumulative event counters for this simulator instance.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM eventcounts</span> <span class='ruff_arg'>?-clear?</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Zeros all counts and returns nothing.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> eventcounts
+<i><font color=#4b5d50># -&gt; send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N</font></i>
+</pre>
+
+</figure><h5 class='ruff'>Return value</h5><p class='ruff'>returns a dict with keys as events names, and counts for each event as a value</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM initvectors'>SIM initvectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM initvectors</span> <span class='ruff_arg'>?-clear?</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal memory structure and returns <strong>nothing</strong>.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> initvectors
+<i><font color=#4b5d50># -&gt; out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}</font></i>
+</pre>
+
+</figure><p class='ruff'><strong>Warning</strong>: accumulation of data <strong>do not</strong> continues after call <code>bg_run</code>, new metadata replace the old one in the storage.</p>
+<h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM inputpath'>SIM inputpath</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM inputpath</span> <span class='ruff_arg'>-current</span><br><span class='ruff_cmd'>SIM inputpath</span> <span class='ruff_arg'>path</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-current</font></code></nobr></td><td>Switch to return current path.</td></tr>
+<tr><td><nobr><code>path</code></nobr></td><td>Full path to desired location.</td></tr>
+</table>
+<h5 class='ruff'>Return value</h5><p class='ruff'>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM isrunning'>SIM isrunning</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Calls asynchronously to check if background thread is running.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM isrunning</span> </div>
+<h5 class='ruff'>Return value</h5><p class='ruff'><code>1</code> if thread is running, <code>0</code> otherwise.</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM messages'>SIM messages</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM messages</span> <span class='ruff_arg'>?-clear?</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal queue structure and returns <strong>nothing</strong>.</td></tr>
+</table>
+<h5 class='ruff'>Description</h5><p class='ruff'>Example:</p>
+
+<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>join</font></b> [<font color=#4A181B>$sim</font> messages] \n
+<i><font color=#4b5d50># stdout ******</font></i>
+<i><font color=#4b5d50># stdout ** ngspice-44.x shared library</font></i>
+<i><font color=#4b5d50># ...</font></i>
+<i><font color=#4b5d50># # status[0]: --ready--</font></i>
+</pre>
+
+</figure><p class='ruff'><strong>Warning</strong>: accumulation of messages continues even if you run new circuit or analysis until you explicitly clear the data storage.</p>
+<h5 class='ruff'>Return value</h5><p class='ruff'>list of messages</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM plot'>SIM plot</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<div style='clear:both;'></div>
+<p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM plot</span> <span class='ruff_arg'>-all</span><br><span class='ruff_cmd'>SIM plot</span> <span class='ruff_arg'>-vecs name</span></div>
+<h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
+<tr><td><nobr><code><font color=#463e11>-all</font></code></nobr></td><td>Switch to return all plots names.</td></tr>
+<tr><td><nobr><code><font color=#463e11>-vecs</font> plotname</code></nobr></td><td>Switch with argument to get all vectors names belonging to <code>name</code> plot.</td></tr>
+</table>
+<h5 class='ruff'>Return value</h5><p class='ruff'>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors</p>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM vectors'>SIM vectors</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></div>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM vectors</span> <span class='ruff_arg'>?-clear?</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code><font color=#463e11>-clear</font></code></nobr></td><td>Empties the internal memory structure and returns <strong>nothing</strong>.</td></tr>
 </table>
@@ -254,10 +275,10 @@
 </pre>
 
 </figure><h5 class='ruff'>Return value</h5><p class='ruff'>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure</p>
-<h3 class='ruffproc'><a name='::ngspicetclbridge::waitevent'>waitevent</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
+<h3 class='ruffproc'><a name='::ngspicetclbridge::SIM waitevent'>SIM waitevent</a><span class='ns_scope'> [<a href="index-ngspicetclbridge.html#::ngspicetclbridge" title="::ngspicetclbridge" class='ruff_cmd'>::ngspicetclbridge</a>]</span><span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h3>
 <div style='clear:both;'></div>
 <p class='ruff'>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided).</p>
-<div class='ruff_synopsis'><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></div>
+<div class='ruff_synopsis'><span class='ruff_cmd'>SIM waitevent</span> <span class='ruff_arg'>?args?</span></div>
 <h5 class='ruff'>Parameters</h5><table class='ruff_deflist'>
 <tr><td><nobr><code><font color=#463e11>-n</font> N</code></nobr></td><td>Number of events that should happend for termination after waiting is started.</td></tr>
 <tr><td><nobr><code>name</code></nobr></td><td>Name of the event.</td></tr>
@@ -272,28 +293,30 @@
 <li class='ruff-toc1'><a class='ruff-highlight' href='index-ngspicetclbridge.html'>ngspicetclbridge</a></li>
 <li class='ruff-toc1'><a href='index-Notes-and-internals.html'>Notes and internals</a></li>
 <li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
-<hr><li class='ruff-toc2'><a href='#::ngspicetclbridge-Commands'>Commands</a></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::abort'>abort</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>abort</span> </pre>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::asyncvector'>asyncvector</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>asyncvector</span> <span class='ruff_arg'>?-info? name</span></pre>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::circuit'>circuit</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>circuit</span> <span class='ruff_arg'>?-string? circuit</span></pre>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch <code><font color=#463e11>-string</font></code> is provided, the input netlists could be passed as ordinary string with newline character as a separator between netlists lines.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::command'>command</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>command</span> <span class='ruff_arg'>string</span></pre>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>). If we provide <code><font color=#463e11>-capture</font></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be deferred to the time is could be safely sent, and in that case <code><font color=#463e11>-capture</font></code> message and command results code are not availaible as a return of <code>command</code>.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::destroy'>destroy</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>destroy</span> </pre>Deletes the instance command. In details:
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::eventcounts'>eventcounts</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>eventcounts</span> <span class='ruff_arg'>?-clear?</span></pre>Gets or reset the cumulative event counters for this simulator instance.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::getCircuit'>getCircuit</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>getCircuit</span> <span class='ruff_arg'>?-logical|-physical|-deck|-expand|-runnable|-param? sim</span></pre>Gets list with currently loaded circuit (its listing) in the form specified by the switch.
+<li class='ruff-toc1'><a href='index-Examples.html'>Examples</a></li>
+<hr><li class='ruff-toc2'><a href='#::ngspicetclbridge-Commands'>Commands</a></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::getCircuit'>getCircuit</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>getCircuit</span> <span class='ruff_arg'>?-logical|-physical|-deck|-expand|-runnable|-param? sim</span></pre>Gets list with currently loaded circuit (its listing) in the form specified by the switch.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::getCircuitTitle'>getCircuitTitle</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>getCircuitTitle</span> <span class='ruff_arg'>sim</span></pre>Gets title of the current circuit (first line of circuits netlist).
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::getPlotDate'>getPlotDate</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>getPlotDate</span> <span class='ruff_arg'>sim</span></pre>Gets time stamp of current plot generation.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::getPlotName'>getPlotName</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>getPlotName</span> <span class='ruff_arg'>sim</span></pre>Gets name of the current plot, i.e. Operating Point, AC Analysis, etc.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::getScaleInfo'>getScaleInfo</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>getScaleInfo</span> <span class='ruff_arg'>sim</span></pre>Gets dictionary with information about current scale vector.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::initvectors'>initvectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>initvectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::inputpath'>inputpath</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>inputpath</span> <span class='ruff_arg'>-current</span>
-<span class='ruff_cmd'>inputpath</span> <span class='ruff_arg'>path</span></pre>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::isrunning'>isrunning</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>isrunning</span> </pre>Calls asynchronously to check if background thread is running.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::messages'>messages</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>messages</span> <span class='ruff_arg'>?-clear?</span></pre>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::new'>new</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>new</span> <span class='ruff_arg'>?-nospinit|nospiceinit|noinit? libpath</span></pre>Load dynamic library, path should be provided in native form for target OS.  Every <code>::ngspicetclbridge::new</code> returns a command (e.g. <code>::ngspicetclbridge::s1</code>). The following subcommands operate on that instance. Optionally the spinit and/or spiceinit initialization files could be forbidden for loading.
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::plot'>plot</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-all</span>
-<span class='ruff_cmd'>plot</span> <span class='ruff_arg'>-vecs name</span></pre>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::readVecsAsync'>readVecsAsync</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>readVecsAsync</span> <span class='ruff_arg'>?-info? sim</span></pre>Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key, and data as a value. If <code><font color=#463e11>-info</font></code> switch is provided, command returns information about each availiable vector.
 </span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::run'>run</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>run</span> <span class='ruff_arg'>sim</span></pre>Runs simulation in background thread, waits for the completion, process event in the queue and returns
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::vectors'>vectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>vectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure
-</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::waitevent'>waitevent</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>waitevent</span> <span class='ruff_arg'>?args?</span></pre>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided).
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM'>SIM</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM</span> <span class='ruff_arg'>subcommand ...</span></pre>A command ensemble.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM abort'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> abort</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM abort</span> </pre>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free the instance.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM asyncvector'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> asyncvector</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM asyncvector</span> <span class='ruff_arg'>?-info? name</span></pre>Fetches the current values of a named vector on demand via ngspice <code>ngGet_Vec_Info</code>. Works after the simulation has produced any data (not necessarily the complete vector). By addding <code><font color=#463e11>-info</font></code> switch, vector metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or real), and length of the vector.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM circuit'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> circuit</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM circuit</span> <span class='ruff_arg'>?-string? circuit</span></pre>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch <code><font color=#463e11>-string</font></code> is provided, the input netlists could be passed as ordinary string with newline character as a separator between netlists lines.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM command'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> command</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM command</span> <span class='ruff_arg'>string</span></pre>Sends an arbitrary Ngspice command line (e.g., <code>bg_run</code>, <code>circbyline</code> ..., <code>.save</code>, <code>.tran</code>, <code>.dc</code>). If we provide <code><font color=#463e11>-capture</font></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be deferred to the time is could be safely sent, and in that case <code><font color=#463e11>-capture</font></code> message and command results code are not availaible as a return of <code>command</code>.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM destroy'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> destroy</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM destroy</span> </pre>Deletes the instance command. In details:
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM eventcounts'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> eventcounts</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM eventcounts</span> <span class='ruff_arg'>?-clear?</span></pre>Gets or reset the cumulative event counters for this simulator instance.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM initvectors'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> initvectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM initvectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.  dict with initial vector metadata saved in internal structure
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM inputpath'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> inputpath</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM inputpath</span> <span class='ruff_arg'>-current</span>
+<span class='ruff_cmd'>SIM inputpath</span> <span class='ruff_arg'>path</span></pre>Returns current path for XSPICE code models if <code><font color=#463e11>-current</font></code> switch is provided, or set current path to value provided.  current path
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM isrunning'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> isrunning</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM isrunning</span> </pre>Calls asynchronously to check if background thread is running.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM messages'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> messages</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM messages</span> <span class='ruff_arg'>?-clear?</span></pre>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM plot'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> plot</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM plot</span> <span class='ruff_arg'>-all</span>
+<span class='ruff_cmd'>SIM plot</span> <span class='ruff_arg'>-vecs name</span></pre>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot.  current plot, or list of all plots, or list of all vectors
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM vectors'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> vectors</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM vectors</span> <span class='ruff_arg'>?-clear?</span></pre>Returns held <strong>synchronously accumulated</strong> vector values (built from <code>send_data</code> events) in a dict.  dict with vectors values accumulated up to this point in internal structure
+</span></li><li class='ruff-toc3 ruff-tip'><a href='index-ngspicetclbridge.html#::ngspicetclbridge::SIM waitevent'><span style='visibility:hidden'>&nbsp;&nbsp;&nbsp;</span> waitevent</a><span class='ruff-tiptext'><pre><span class='ruff_cmd'>SIM waitevent</span> <span class='ruff_arg'>?args?</span></pre>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided).
 </span></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
 </div></body></html>

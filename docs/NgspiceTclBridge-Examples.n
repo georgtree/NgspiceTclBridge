@@ -1,0 +1,117 @@
+'\"
+'\" '\" Copyright (c) George Yashin
+'\"
+.TH "Examples" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.SH NAME
+Examples - Commands in namespace Examples
+.SH EXAMPLES
+.PP
+Examples in this section describes examples from folder examples in root directory of NgspiceTclBridge\&.
+List of availible tutorials:
+.TP
+\(bu
+\fIParametric simulation\fP - "examples/parametric_simulation\&.tcl" file
+.SH "PARAMETRIC SIMULATION"
+.PP
+In this example we alter diode model parameter n (emission coefficient) and observe how diode IV curve is
+changed from original\&.
+.PP
+First step is to provide path to Ngspice library\&. In Linux case it is usually saved under /usr/local/lib, for
+Windows it depends on the installation prefix:
+.PP
+.RS 4n
+.nf
+set ngspiceLibPath /usr/local/lib/libngspice\&.so
+.fi
+.RE
+.PP
+The circuit we simulate is defined by string:
+.PP
+.RS 4n
+.nf
+set circuit {Diode IV
+d1 anode 0 diomod area=1 lm=1e-6
+va anode 0 0
+\&.model diomod d(is=1e-12 n=1\&.2 rs=0\&.01 cj0=1e-9 trs=0\&.001 xti=5 ikf=100)
+\&.dc va 0 2 0\&.01
+\&.temp 25
+\&.end}
+.fi
+.RE
+.PP
+.PP
+Be carefull: for correct usage you have to provide \&.end statement at the the end of the netlist\&.
+.PP
+Load ngspice library and initialize command for library control by \fI::ngspicetclbridge::new\fP command:
+.PP
+.RS 4n
+.nf
+set sim [ngspicetclbridge::new $ngspiceLibPath]
+.fi
+.RE
+.PP
+Load circuit into simulation with \fI::ngspicetclbridge::SIM circuit\fP command:
+.PP
+.RS 4n
+.nf
+$sim circuit -string $circuit
+.fi
+.RE
+.PP
+By default subcommand circuit accepts list of lines where each line contains one line of netlist, but switch
+-string allows to pass circuit as a string with lines being delimited by newline symbol\&.
+.PP
+Add list of n parameter values we want to simulate:
+.PP
+.RS 4n
+.nf
+set ns {0\&.8 0\&.9 1\&.0 1\&.1 1\&.2}
+.fi
+.RE
+.PP
+Then we run loop for each value of n, send altermod Ngspice command by \fI::ngspicetclbridge::SIM command\fP,
+run simulation by \fI::ngspicetclbridge::run\fP command (procedure waits for the end of simulation), then
+read vectors with \fI::ngspicetclbridge::SIM asyncvector\fP command and prepare data for plotting:
+.PP
+.RS 4n
+.nf
+foreach n $ns {
+    # change model parameter
+    $sim command "altermod diomod n = $n"
+    # run simulation and wait for the end
+    run $sim
+    # read result vectors and prepare for plotting
+    foreach x [$sim asyncvector anode] y [$sim asyncvector i(va)] {
+        set xf [format "%\&.3f" $x]
+        set yf [format "%\&.3f" [= {-$y}]]
+        lappend xydata [list $xf $yf]
+    }
+    lappend dataList $xydata
+    unset xydata
+}
+.fi
+.RE
+.PP
+Subcommand command send the string to Ngspice as is\&. In this case we send altermod command (see Ngspice
+manual 13\&.5\&.4) that allows to alter parameter of particular model without resetting the circuit or
+circuit reparsing\&.
+.PP
+The we use ticklecharts package to plot resulted curves:
+.PP
+.RS 4n
+.nf
+set chart [ticklecharts::chart new]
+$chart Xaxis -name "v(anode), V" -minorTick {show "True"}  -type "value" -splitLine {show "True"}
+$chart Yaxis -name "Idiode, A" -minorTick {show "True"}  -type "value" -splitLine {show "True"}
+$chart SetOptions -title {} -tooltip {trigger "axis"} -animation "False" -legend {} -toolbox {feature {dataZoom {yAxisIndex "none"}}}  -grid {left "5%" right "15%"}
+foreach data $dataList n $ns {
+    $chart Add "lineSeries" -data $data -showAllSymbol "nothing" -name "n=${n}" -symbolSize "2"
+}
+set fbasename [file rootname [file tail [info script]]]
+
+$chart Render -outfile [file normalize [file join html_charts $fbasename\&.html]]
+.fi
+.RE
+.PP
+!ticklechart_parametric_simulation!
+

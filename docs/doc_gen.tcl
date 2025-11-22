@@ -11,6 +11,7 @@ source [file join $docDir startPage.ruff]
 source [file join $docDir notesAndInternals.ruff]
 source [file join $docDir troubleshooting.ruff]
 source [file join $docDir ngspicetclbridge.ruff]
+source [file join $docDir examples.ruff]
 source [file join $sourceDir ngspicetclbridge.tcl]
 
 set packageVersion [package versions ngspicetclbridge]
@@ -26,8 +27,8 @@ set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -
                          -product NgspiceTclBridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
                          -copyright "George Yashin" {*}$::argv]
 
-set namespaces [list ::ngspicetclbridge "::Notes and internals" ::Troubleshooting ]
-set namespacesNroff [list ::ngspicetclbridge "::Notes and internals" ::Troubleshooting ]
+set namespaces [list ::ngspicetclbridge "::Notes and internals" ::Troubleshooting ::Examples]
+set namespacesNroff [list ::ngspicetclbridge "::Notes and internals" ::Troubleshooting ::Examples]
 
 if {[llength $argv] == 0 || "html" in $argv} {
     ruff::document $namespaces -outdir $docDir -format html -outfile index.html {*}$common
@@ -61,3 +62,18 @@ set tableWrapping {
     }
 }
 ::fileutil::appendToFile [file join $docDir assets ruff-min.css] $tableWrapping
+
+# ticklechart graphs substitutions
+
+proc processContentsTutorial {fileContents} {
+    global path chartsMap
+    dict for {mark file} $chartsMap {
+        set fileData [fileutil::cat [file join $path $file]]
+        set fileContents [string map [list $mark $fileData] $fileContents]
+    }
+    return $fileContents
+}
+
+set chartsMap [dict create !ticklechart_parametric_simulation! parametric_simulation.html]
+set path [file join $docDir .. examples html_charts]
+fileutil::updateInPlace [file join $docDir index-Examples.html] processContentsTutorial
