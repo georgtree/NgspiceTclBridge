@@ -12,19 +12,23 @@
 #include "sharedspice.h"
 #include "portable_dl.h"
 
+int ngSpice_LockRealloc(void);
+int ngSpice_UnlockRealloc(void);
+int ngSpice_Reset(void);
+
 enum CallbacksIds { SEND_CHAR, SEND_STAT, CONTROLLED_EXIT, SEND_DATA, SEND_INIT_DATA, BG_THREAD_RUNNING, NUM_EVTS };
 typedef enum { NGSPICE_WAIT_OK, NGSPICE_WAIT_TIMEOUT, NGSPICE_WAIT_ABORTED } wait_rc;
 /* Dvec flags from dvec.h of ngspice source files */
 enum dvec_flags {
-    VF_REAL = (1 << 0),      /* The data is real. */
-    VF_COMPLEX = (1 << 1),   /* The data is complex. */
-    VF_ACCUM = (1 << 2),     /* writedata should save this vector. */
-    VF_PLOT = (1 << 3),      /* writedata should incrementally plot it. */
-    VF_PRINT = (1 << 4),     /* writedata should print this vector. */
-    VF_MINGIVEN = (1 << 5),  /* The v_minsignal value is valid. */
-    VF_MAXGIVEN = (1 << 6),  /* The v_maxsignal value is valid. */
-    VF_PERMANENT = (1 << 7), /* Don't garbage collect this vector. */
-    VF_EVENT_NODE = (1 << 8) /* Derived from and XSPICE event node. */
+    VF_REAL = ((uint32_t)1u << 0),      /* The data is real. */
+    VF_COMPLEX = ((uint32_t)1u << 1),   /* The data is complex. */
+    VF_ACCUM = ((uint32_t)1u << 2),     /* writedata should save this vector. */
+    VF_PLOT = ((uint32_t)1u << 3),      /* writedata should incrementally plot it. */
+    VF_PRINT = ((uint32_t)1u << 4),     /* writedata should print this vector. */
+    VF_MINGIVEN = ((uint32_t)1u << 5),  /* The v_minsignal value is valid. */
+    VF_MAXGIVEN = ((uint32_t)1u << 6),  /* The v_maxsignal value is valid. */
+    VF_PERMANENT = ((uint32_t)1u << 7), /* Don't garbage collect this vector. */
+    VF_EVENT_NODE = ((uint32_t)1u << 8) /* Derived from and XSPICE event node. */
 };
 
 enum vector_types {
@@ -74,7 +78,8 @@ typedef struct {
 typedef struct {
     char *name;
     int is_complex;
-    double creal, cimag;
+    double creal;
+    double cimag;
 } DataCell;
 
 typedef struct {
@@ -84,13 +89,21 @@ typedef struct {
 
 typedef struct {
     DataRow *rows;
-    size_t count, cap;
+    size_t count;
+    size_t cap;
 } DataBuf;
+
+//** define struct for symbols initialization
+typedef struct {
+    const char *name;
+    void **slot;
+} NgSymEntry;
 
 //** define message queue
 typedef struct {
     char **items;
-    size_t count, cap;
+    size_t count;
+    size_t cap;
 } MsgQueue;
 
 //** define commands buffer
@@ -130,8 +143,10 @@ typedef struct {
     ngSpice_Init_t ngSpice_Init;                   /* Classic ngspice initialization entry */
     ngSpice_Init_Sync_t ngSpice_Init_Sync;         /* Synchronous initialization (newer API) */
     ngSpice_Command_t ngSpice_Command;             /* Main command entry point */
+    /* cppcheck-suppress misra-c2012-17.3 */
     ngGet_Vec_Info_t ngGet_Vec_Info;               /* Query vector info (type, length, data) */
     ngCM_Input_Path_t ngCM_Input_Path;             /* Optional input path hook */
+    /* cppcheck-suppress misra-c2012-17.3 */
     ngGet_Evt_NodeInfo_t ngGet_Evt_NodeInfo;       /* Event-driven node information query */
     ngSpice_AllEvtNodes_t ngSpice_AllEvtNodes;     /* Enumerate all event-driven nodes */
     ngSpice_Init_Evt_t ngSpice_Init_Evt;           /* Event-mode initialization */
@@ -215,3 +230,6 @@ typedef struct {
     int callbackId;
     uint64_t gen;
 } NgSpiceEvent;
+
+//** functions
+DLLEXPORT int Ngspicetclbridge_Init(Tcl_Interp *interp);

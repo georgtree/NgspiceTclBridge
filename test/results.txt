@@ -1,0 +1,31 @@
+Checking ../generic/ngspicetclbridge.c.dump...
+Checking ../generic/ngspicetclbridge.c.dump, config TCL_OK=0;TCL_ERROR=1;TCL_RETURN=2;TCL_BREAK=3;TCL_CONTINUE=4;PACKAGE_NAME="ngspicetclbridge";PACKAGE_VERSION=0.1...
+
+MISRA rules violations found:
+	Advisory: 146
+	Required: 90
+	Undefined: 42
+	Mandatory: 10
+
+MISRA rules violated:
+	misra-c2012-2.7 (-): 10
+	misra-c2012-7.3 (-): 4
+	misra-c2012-10.1 (-): 1
+	misra-c2012-11.3 (-): 5
+	misra-c2012-11.5 (-): 20
+	misra-c2012-11.8 (-): 4
+	misra-c2012-12.2 (-): 1
+	misra-c2012-14.4 (-): 1
+	misra-c2012-15.1 (-): 57
+	misra-c2012-15.4 (-): 2
+	misra-c2012-15.5 (-): 39
+	misra-c2012-17.3 (-): 10
+	misra-c2012-17.7 (-): 71
+	misra-c2012-17.8 (-): 2
+	misra-c2012-18.5 (-): 11
+	misra-c2012-19.2 (-): 8
+	misra-c2012-20.1 (-): 2
+	misra-c2012-20.5 (-): 30
+	misra-c2012-20.7 (-): 3
+	misra-c2012-20.10 (-): 4
+	misra-c2012-21.1 (-): 3

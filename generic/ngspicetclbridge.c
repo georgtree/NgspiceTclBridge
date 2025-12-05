@@ -39,13 +39,12 @@ static int g_heap_poisoned = 0;
  *----------------------------------------------------------------------------------------------------------------------
  */
 static char *ckstrdup(const char *s) {
-    size_t len = strlen(s) + 1;
-    char *copy = (char *)Tcl_Alloc(len);
-    memcpy(copy, s, len);
-    return copy;
+    size_t len = strlen(s) + (size_t)1;
+    /* cppcheck-suppress misra-c2012-11.5 */
+    return memcpy(Tcl_Alloc(len), s, len);
 }
 
-char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
+static char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
     char **lines = NULL;
     Tcl_Size cap = 0;
     Tcl_Size count = 0;
@@ -53,11 +52,11 @@ char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
     Tcl_Size start = 0;
     Tcl_Size i = 0;
     while (i < len_text) {
-        if (text[i] == '\n' || text[i] == '\r') {
+        if ((text[i] == '\n') || (text[i] == '\r')) {
             Tcl_Size len = i - start;
             if (count == cap) {
-                cap = cap ? cap * 2 : 4;
-                char **tmp = Tcl_AttemptRealloc(lines, cap * sizeof(char *));
+                cap = cap ? (cap * 2) : 4;
+                char **tmp = Tcl_AttemptRealloc(lines, (size_t)cap * sizeof(char *));
                 if (tmp == NULL) {
                     for (Tcl_Size k = 0; k < count; k++) {
                         Tcl_Free(lines[k]);
@@ -77,11 +76,12 @@ char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
                 *nlines = 0;
                 return NULL;
             }
-            memcpy(lines[count], text + start, len);
+            /* cppcheck-suppress misra-c2012-17.7 */
+            memcpy(lines[count], &text[start], len);
             lines[count][len] = '\0';
             count++;
             // Handle CRLF: if we saw '\r' and next char is '\n', skip it
-            if (text[i] == '\r' && i + 1 < len_text && text[i + 1] == '\n') {
+            if ((text[i] == '\r') && ((i + 1) < len_text) && (text[i + 1] == '\n')) {
                 i++;
             }
             i++;
@@ -95,8 +95,8 @@ char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
     if (start <= len_text) {
         Tcl_Size len = len_text - start;
         if (count == cap) {
-            cap = cap ? cap * 2 : 4;
-            char **tmp = Tcl_AttemptRealloc(lines, cap * sizeof(char *));
+            cap = cap ? (cap * 2) : 4;
+            char **tmp = Tcl_AttemptRealloc(lines, (size_t)cap * sizeof(char *));
             if (tmp == NULL) {
                 for (Tcl_Size k = 0; k < count; k++) {
                     Tcl_Free(lines[k]);
@@ -116,7 +116,8 @@ char **splitStringByNewline(const char *text, Tcl_Size *nlines) {
             *nlines = 0;
             return NULL;
         }
-        memcpy(lines[count], text + start, len);
+        /* cppcheck-suppress misra-c2012-17.7 */
+        memcpy(lines[count], &text[start], len);
         lines[count][len] = '\0';
         count++;
     }
@@ -241,31 +242,34 @@ static inline void BumpAndSignal(NgSpiceContext *ctx, int which) {
  */
 static wait_rc wait_for(NgSpiceContext *ctx, int which, uint64_t need, long timeout_ms, int *reached_out,
                         uint64_t *count_out) {
-    if (need == 0) {
-        need = 1;
+    uint64_t needLoc;
+    if (need == (uint64_t)0) {
+        needLoc = 1;
+    } else {
+        needLoc = need;
     }
     const int slice_ms = 25;
-    long remaining = timeout_ms;
     Tcl_MutexLock(&ctx->mutex);
     uint64_t start = ctx->evt_counts[which];
-    uint64_t target = start + need;
+    uint64_t target = start + needLoc;
     if (ctx->evt_counts[which] >= target) {
         uint64_t cnt = ctx->evt_counts[which];
         Tcl_MutexUnlock(&ctx->mutex);
-        if (reached_out) {
+        if (reached_out != NULL) {
             *reached_out = 1;
         }
-        if (count_out) {
+        if (count_out != NULL) {
             *count_out = cnt;
         }
         return NGSPICE_WAIT_OK;
     }
     if (timeout_ms <= 0) {
-        while (!ctx->destroying && !ctx->aborting && ctx->evt_counts[which] < target) {
+        while (!ctx->destroying && !ctx->aborting && (ctx->evt_counts[which] < target)) {
             Tcl_ConditionWait(&ctx->cond, &ctx->mutex, NULL);
         }
     } else {
-        while (!ctx->destroying && ctx->evt_counts[which] < target && remaining > 0) {
+        long remaining = timeout_ms;
+        while (!ctx->destroying && (ctx->evt_counts[which] < target) && (remaining > 0)) {
             Tcl_MutexUnlock(&ctx->mutex);
             int step = (remaining < slice_ms) ? (int)remaining : slice_ms;
             Tcl_Sleep(step);
@@ -273,20 +277,20 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, uint64_t need, long time
             Tcl_MutexLock(&ctx->mutex);
         }
     }
-    int reached = (ctx->evt_counts[which] >= target);
+    int reached = (ctx->evt_counts[which] >= target) ? 1 : 0;
     uint64_t cnt = ctx->evt_counts[which];
-    int aborted = (ctx->destroying || ctx->aborting);
+    int aborted = (ctx->destroying || ctx->aborting) ? 1 : 0;
     Tcl_MutexUnlock(&ctx->mutex);
-    if (reached_out) {
+    if (reached_out != NULL) {
         *reached_out = reached;
     }
-    if (count_out) {
+    if (count_out != NULL) {
         *count_out = cnt;
     }
-    if (aborted) {
+    if (aborted == 1) {
         return NGSPICE_WAIT_ABORTED;
     }
-    if (!reached && timeout_ms > 0) {
+    if (!reached && (timeout_ms > 0)) {
         return NGSPICE_WAIT_TIMEOUT;
     }
     return NGSPICE_WAIT_OK;
@@ -408,7 +412,7 @@ static void DataBuf_Ensure(DataBuf *b, size_t need) {
     if (need <= b->cap) {
         return;
     }
-    size_t ncap = b->cap ? b->cap * 2 : 64;
+    size_t ncap = b->cap ? b->cap * (size_t)2 : (size_t)64;
     if (ncap < need) {
         ncap = need;
     }
@@ -474,11 +478,12 @@ static void FreeInitSnap(InitSnap *snap) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-int DictLappend(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Obj *valuesList) {
+static int DictLappend(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Obj *valuesList) {
     Tcl_Obj *existingList = NULL;
     Tcl_Size listLen;
     Tcl_Obj **elements;
     if (Tcl_IsShared(dictObjPtr)) {
+        /* cppcheck-suppress misra-c2012-17.8 */
         dictObjPtr = Tcl_DuplicateObj(dictObjPtr);
     }
     Tcl_DictObjGet(interp, dictObjPtr, keyObj, &existingList);
@@ -486,6 +491,8 @@ int DictLappend(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Ob
         existingList = Tcl_NewListObj(0, NULL);
     } else if (Tcl_IsShared(existingList)) {
         existingList = Tcl_DuplicateObj(existingList);
+    } else {
+        /* No action required: all valid cases handled above (MISRA 15.7) */
     }
     Tcl_ListObjGetElements(interp, valuesList, &listLen, &elements);
     for (Tcl_Size i = 0; i < listLen; i++) {
@@ -519,9 +526,10 @@ int DictLappend(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Ob
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-int DictLappendElem(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Obj *valueObj) {
+static int DictLappendElem(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tcl_Obj *valueObj) {
     Tcl_Obj *existingList = NULL;
     if (Tcl_IsShared(dictObjPtr)) {
+        /* cppcheck-suppress misra-c2012-17.8 */
         dictObjPtr = Tcl_DuplicateObj(dictObjPtr);
     }
     Tcl_DictObjGet(interp, dictObjPtr, keyObj, &existingList);
@@ -529,6 +537,8 @@ int DictLappendElem(Tcl_Interp *interp, Tcl_Obj *dictObjPtr, Tcl_Obj *keyObj, Tc
         existingList = Tcl_NewListObj(0, NULL);
     } else if (Tcl_IsShared(existingList)) {
         existingList = Tcl_DuplicateObj(existingList);
+    } else {
+        /* No action required: all valid cases handled above (MISRA 15.7) */
     }
     Tcl_ListObjAppendElement(interp, existingList, valueObj);
     Tcl_DictObjPut(interp, dictObjPtr, keyObj, existingList);
@@ -587,12 +597,13 @@ static void MsgQ_Init(MsgQueue *q) {
  */
 static void MsgQ_Push(MsgQueue *q, const char *s) {
     if (q->count == q->cap) {
-        size_t ncap = q->cap ? q->cap * 2 : 32; // grow
+        size_t ncap = q->cap ? q->cap * (size_t)2 : (size_t)32; // grow
         char **n = (char **)Tcl_Realloc(q->items, ncap * sizeof(char *));
         q->items = n;
         q->cap = ncap;
     }
-    q->items[q->count++] = ckstrdup(s);
+    q->items[q->count] = ckstrdup(s);
+    q->count++;
 }
 //***  MsgQ_Clear function
 /*
@@ -723,7 +734,9 @@ static void QueueMsg(NgSpiceContext *ctx, const char *msg) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+/* cppcheck-suppress misra-c2012-2.7 - have to comply with Tcl expected interface*/
 static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
+    /* cppcheck-suppress misra-c2012-11.3 - Tcl embedding pattern*/
     NgSpiceEvent *sp = (NgSpiceEvent *)ev;
     NgSpiceContext *ctx = sp->ctx;
     Tcl_Interp *interp = ctx->interp;
@@ -741,7 +754,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         isnap = ctx->init_snap;
         ctx->init_snap = NULL;
         Tcl_MutexUnlock(&ctx->mutex);
-        if (isnap) {
+        if (isnap != NULL) {
             Tcl_Obj *dict = Tcl_NewDictObj();
             for (int i = 0; i < isnap->veccount; i++) {
                 Tcl_Obj *meta = Tcl_NewDictObj();
@@ -750,7 +763,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
                 Tcl_DictObjPut(interp, dict, Tcl_NewStringObj(isnap->vecs[i].name, -1), meta);
             }
             Tcl_MutexLock(&ctx->mutex);
-            if (ctx->vectorInit) {
+            if (ctx->vectorInit != NULL) {
                 Tcl_DecrRefCount(ctx->vectorInit);
             }
             ctx->vectorInit = dict;
@@ -767,7 +780,8 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         Tcl_MutexLock(&ctx->mutex);
         take = ctx->prod;
         ctx->prod.rows = NULL;
-        ctx->prod.count = ctx->prod.cap = 0;
+        ctx->prod.count = 0;
+        ctx->prod.cap = 0;
         if (Tcl_IsShared(ctx->vectorData)) {
             Tcl_Obj *dup = Tcl_DuplicateObj(ctx->vectorData);
             Tcl_IncrRefCount(dup);
@@ -779,7 +793,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             DataRow *dr = &take.rows[r];
             for (int i = 0; i < dr->veccount; i++) {
                 Tcl_Obj *key = Tcl_NewStringObj(dr->vecs[i].name, -1);
-                if (dr->vecs[i].is_complex) {
+                if (dr->vecs[i].is_complex == 1) {
                     Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
                     Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].creal));
                     Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].cimag));
@@ -846,8 +860,9 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
  *----------------------------------------------------------------------------------------------------------------------
  */
 static int DeleteNgSpiceEventProc(Tcl_Event *evPtr, ClientData cd) {
+    /* cppcheck-suppress misra-c2012-11.3 - Tcl embedding pattern*/
     NgSpiceEvent *e = (NgSpiceEvent *)evPtr;
-    NgSpiceContext *ctx = (NgSpiceContext *)cd;
+    const NgSpiceContext *ctx = (NgSpiceContext *)cd;
     if (e->header.proc != NgSpiceEventProc) {
         return 0;
     }
@@ -888,12 +903,13 @@ static int DeleteNgSpiceEventProc(Tcl_Event *evPtr, ClientData cd) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; function must match the prototype defined in Tcl C API */
 static void NgSpiceQueueEvent(NgSpiceContext *ctx, int callbackId, uint64_t gen) {
-    if (ctx->destroying) {
+    if (ctx->destroying == 1) {
         return;
     }
     Tcl_Preserve((ClientData)ctx);
-    NgSpiceEvent *ev = (NgSpiceEvent *)Tcl_Alloc(sizeof *ev);
+    NgSpiceEvent *ev = Tcl_Alloc(sizeof *ev);
     ev->header.proc = NgSpiceEventProc;
     ev->header.nextPtr = NULL;
     ev->ctx = ctx;
@@ -943,8 +959,9 @@ static void QuiesceNgspice(NgSpiceContext *ctx, int wait_ms) {
             const int slice = 25;
             int left = wait_ms;
             while (left > 0) {
-                if (ctx->ngSpice_running() == 0)
+                if (ctx->ngSpice_running() == 0) {
                     break;
+                }
                 if ((left % 200) == 0) {
                     ctx->ngSpice_Command("bg_halt");
                 }
@@ -980,12 +997,12 @@ static void QuiesceNgspice(NgSpiceContext *ctx, int wait_ms) {
  *----------------------------------------------------------------------------------------------------------------------
  */
 static void EnqueuePending(NgSpiceContext *ctx, const char *cmd, int capture) {
-    PendingCmd *n = (PendingCmd *)Tcl_Alloc(sizeof *n);
+    PendingCmd *n = Tcl_Alloc(sizeof *n);
     n->cmd = ckstrdup(cmd);
     n->capture = capture;
     n->next = NULL;
     Tcl_MutexLock(&ctx->cmd_mu);
-    if (ctx->pending_tail) {
+    if (ctx->pending_tail != NULL) {
         ctx->pending_tail->next = n;
     } else {
         ctx->pending_head = n;
@@ -1027,7 +1044,8 @@ static void FlushPending(NgSpiceContext *ctx) {
     ctx->pending_head = NULL;
     ctx->pending_tail = NULL;
     Tcl_MutexUnlock(&ctx->cmd_mu);
-    for (PendingCmd *p = list; p;) {
+    PendingCmd *p = list;
+    while (p != NULL)  {
         PendingCmd *next = p->next;
         if (!ctx->destroying && ctx->ngSpice_Command) {
             ctx->ngSpice_Command((char *)p->cmd);
@@ -1070,12 +1088,12 @@ static void FlushPending(NgSpiceContext *ctx) {
 static inline void MsgMaybeCaptureAndSignal(NgSpiceContext *ctx, const char *msg, int evt, uint64_t *gen_out) {
     Tcl_MutexLock(&ctx->mutex);
     MsgQ_Push(&ctx->msgq, msg);
-    if (ctx->cap_active) {
+    if (ctx->cap_active == 1) {
         MsgQ_Push(&ctx->capq, msg);
     }
     ctx->evt_counts[evt]++;
     Tcl_ConditionNotify(&ctx->cond);
-    if (gen_out) {
+    if (gen_out != NULL) {
         *gen_out = ctx->gen;
     }
     Tcl_MutexUnlock(&ctx->mutex);
@@ -1110,7 +1128,9 @@ static inline void MsgMaybeCaptureAndSignal(NgSpiceContext *ctx, const char *msg
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-int SendCharCallback(char *msg, int id, void *user) {
+/* cppcheck-suppress constParameterCallback -- function signature cannot be changed */
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; same as above */
+static int SendCharCallback(char *msg, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
     if (!ctx || !msg || ctx->destroying) {
         return 0;
@@ -1150,14 +1170,14 @@ int SendCharCallback(char *msg, int id, void *user) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-int SendStatCallback(char *msg, int id, void *user) {
+/* cppcheck-suppress constParameterCallback -- function signature cannot be changed */
+static int SendStatCallback(char *msg, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
     uint64_t mygen;
     if (!ctx || ctx->destroying) {
         return 0;
     }
-    char line[128 + 1];
-    snprintf(line, sizeof line, "# status[%d]: %s", id, msg);
+    const char *line = Tcl_GetString(Tcl_ObjPrintf("# status[%d]: %s", id, msg));
     QueueMsg(ctx, line);
     BumpAndSignal(ctx, SEND_STAT);
     Tcl_MutexLock(&ctx->mutex);
@@ -1200,12 +1220,12 @@ int SendStatCallback(char *msg, int id, void *user) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-
-int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int id, void *user) {
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Ngspice callback signature */
+static int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
-    if (!ctx)
+    if (!ctx) {
         return 0;
-
+    }
     Tcl_MutexLock(&ctx->exit_mu);
     ctx->exited = 1;
     ctx->quitting = 0;
@@ -1252,15 +1272,17 @@ int ControlledExitCallback(int status, bool immediate, bool exit_upon_exit, int 
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+/* cppcheck-suppress misra-c2012-7.3 - not in my code */
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Ngspice callback signature */
 static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
     uint64_t mygen;
-    if (!ctx || !all || count <= 0 || ctx->destroying) {
+    if (!ctx || !all || (count <= 0) || (ctx->destroying)) {
         return 0;
     }
     DataRow row;
     row.veccount = all->veccount;
-    row.vecs = (DataCell *)Tcl_Alloc(sizeof(DataCell) * row.veccount);
+    row.vecs = Tcl_Alloc(sizeof(DataCell) * (size_t)row.veccount);
     for (int i = 0; i < row.veccount; i++) {
         pvecvalues v = all->vecsa[i];
         row.vecs[i].name = ckstrdup(v->name);
@@ -1270,8 +1292,9 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
     }
     Tcl_MutexLock(&ctx->mutex);
     mygen = ctx->gen;
-    DataBuf_Ensure(&ctx->prod, ctx->prod.count + 1);
-    ctx->prod.rows[ctx->prod.count++] = row;
+    DataBuf_Ensure(&ctx->prod, ctx->prod.count + (size_t)1);
+    ctx->prod.rows[ctx->prod.count] = row;
+    ctx->prod.count++;
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_DATA);
     NgSpiceQueueEvent(ctx, SEND_DATA, mygen);
@@ -1310,14 +1333,15 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Ngspice callback signature */
 static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
     if (!ctx || !vinfo || ctx->destroying) {
         return 0;
     }
-    InitSnap *snap = (InitSnap *)Tcl_Alloc(sizeof *snap);
+    InitSnap *snap = Tcl_Alloc(sizeof *snap);
     snap->veccount = vinfo->veccount;
-    snap->vecs = (typeof(snap->vecs))Tcl_Alloc(snap->veccount * sizeof *snap->vecs);
+    snap->vecs = Tcl_Alloc((size_t)snap->veccount * sizeof *snap->vecs);
     for (int i = 0; i < snap->veccount; i++) {
         pvecinfo vec = vinfo->vecs[i];
         snap->vecs[i].name = ckstrdup(vec->vecname);
@@ -1325,7 +1349,7 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         snap->vecs[i].is_real = vec->is_real;
     }
     Tcl_MutexLock(&ctx->mutex);
-    if (ctx->init_snap) {
+    if (ctx->init_snap != NULL) {
         for (int i = 0; i < ctx->init_snap->veccount; i++) {
             Tcl_Free(ctx->init_snap->vecs[i].name);
         }
@@ -1391,6 +1415,7 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Ngspice callback signature */
 static int BGThreadRunningCallback(bool running, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
     uint64_t mygen;
@@ -1414,6 +1439,8 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
         } else if (ctx->state == NGSTATE_BG_ACTIVE) {
             ctx->state = NGSTATE_IDLE;
             FlushPending(ctx);
+        } else {
+            /* No action required: all valid cases handled above (MISRA 15.7) */
         }
     }
     Tcl_ConditionNotify(&ctx->bg_cv);
@@ -1455,13 +1482,14 @@ static void WaitForBGStarted(NgSpiceContext *ctx, int timeout_ms) {
         Tcl_Sleep(10);
         return;
     }
-    Tcl_Time deadline, now;
-    int use_deadline = (timeout_ms > 0);
-    if (use_deadline) {
+    Tcl_Time deadline;
+    Tcl_Time now;
+    int use_deadline = (timeout_ms > 0) ? 1 : 0;
+    if (use_deadline == 1) {
         Tcl_GetTime(&deadline);
         long us = (long)timeout_ms * 1000;
         deadline.usec += us % 1000000;
-        deadline.sec += us / 1000000 + deadline.usec / 1000000;
+        deadline.sec += (us / 1000000) + (deadline.usec / 1000000);
         deadline.usec %= 1000000;
     }
     Tcl_MutexLock(&ctx->bg_mu);
@@ -1474,8 +1502,9 @@ static void WaitForBGStarted(NgSpiceContext *ctx, int timeout_ms) {
             Tcl_ConditionWait(&ctx->bg_cv, &ctx->bg_mu, NULL);
         } else {
             Tcl_GetTime(&now);
-            if (now.sec > deadline.sec || (now.sec == deadline.sec && now.usec >= deadline.usec))
+            if ((now.sec > deadline.sec) || ((now.sec == deadline.sec) && (now.usec >= deadline.usec))) {
                 break;
+            }
             Tcl_Time rel = deadline;
             rel.sec -= now.sec;
             rel.usec -= now.usec;
@@ -1513,13 +1542,14 @@ static void WaitForBGStarted(NgSpiceContext *ctx, int timeout_ms) {
  *----------------------------------------------------------------------------------------------------------------------
  */
 static void WaitForBGEnded(NgSpiceContext *ctx, int timeout_ms) {
-    Tcl_Time deadline, now;
-    int use_deadline = (timeout_ms > 0);
-    if (use_deadline) {
+    Tcl_Time deadline;
+    Tcl_Time now;
+    int use_deadline = (timeout_ms > 0) ? 1 : 0;
+    if (use_deadline == 1) {
         Tcl_GetTime(&deadline);
         long us = (long)timeout_ms * 1000;
         deadline.usec += us % 1000000;
-        deadline.sec += us / 1000000 + deadline.usec / 1000000;
+        deadline.sec += (us / 1000000) + (deadline.usec / 1000000);
         deadline.usec %= 1000000;
     }
     Tcl_MutexLock(&ctx->bg_mu);
@@ -1532,8 +1562,9 @@ static void WaitForBGEnded(NgSpiceContext *ctx, int timeout_ms) {
             Tcl_ConditionWait(&ctx->bg_cv, &ctx->bg_mu, NULL);
         } else {
             Tcl_GetTime(&now);
-            if (now.sec > deadline.sec || (now.sec == deadline.sec && now.usec >= deadline.usec))
+            if ((now.sec > deadline.sec) || ((now.sec == deadline.sec) && (now.usec >= deadline.usec))) {
                 break;
+            }
             Tcl_Time rel = deadline;
             rel.sec -= now.sec;
             rel.usec -= now.usec;
@@ -1653,16 +1684,16 @@ static void WaitForBGEnded(NgSpiceContext *ctx, int timeout_ms) {
  */
 static void InstFreeProc(void *cdata) {
     NgSpiceContext *ctx = (NgSpiceContext *)cdata;
-    if (g_heap_poisoned) {
+    if (g_heap_poisoned == 1) {
         return;
     }
     Tcl_MutexLock(&ctx->mutex);
     Tcl_ConditionNotify(&ctx->cond);
     Tcl_MutexUnlock(&ctx->mutex);
-    if (ctx->vectorData) {
+    if (ctx->vectorData != NULL) {
         Tcl_DecrRefCount(ctx->vectorData);
     }
-    if (ctx->vectorInit) {
+    if (ctx->vectorInit != NULL) {
         Tcl_DecrRefCount(ctx->vectorInit);
     }
     MsgQ_Free(&ctx->msgq);
@@ -1676,7 +1707,7 @@ static void InstFreeProc(void *cdata) {
     Tcl_ConditionFinalize(&ctx->bg_cv);
     Tcl_MutexFinalize(&ctx->bg_mu);
     Tcl_MutexFinalize(&ctx->cmd_mu);
-    if (ctx->handle) {
+    if (ctx->handle != NULL) {
         if (ctx->skip_dlclose || g_disable_dlclose) {
         } else {
             PDl_Close(ctx->handle);
@@ -1841,14 +1872,14 @@ static void InstFreeProc(void *cdata) {
  */
 static void InstDeleteProc(void *cdata) {
     NgSpiceContext *ctx = (NgSpiceContext *)cdata;
-    if (g_heap_poisoned) {
+    if (g_heap_poisoned == 1) {
         ctx->destroying = 1;
         Tcl_MutexLock(&ctx->cmd_mu);
         PendingCmd *plist = ctx->pending_head;
         ctx->pending_head = NULL;
         ctx->pending_tail = NULL;
         Tcl_MutexUnlock(&ctx->cmd_mu);
-        while (plist) {
+        while (plist != NULL) {
             PendingCmd *next = plist->next;
             Tcl_Free(plist->cmd);
             Tcl_Free(plist);
@@ -1860,7 +1891,7 @@ static void InstDeleteProc(void *cdata) {
         Tcl_MutexUnlock(&ctx->mutex);
         return;
     }
-    if (ctx->destroying) {
+    if (ctx->destroying == 1) {
         return;
     }
     /* tell callbacks to stop enqueueing new work */
@@ -1874,7 +1905,7 @@ static void InstDeleteProc(void *cdata) {
     ctx->pending_head = NULL;
     ctx->pending_tail = NULL;
     Tcl_MutexUnlock(&ctx->cmd_mu);
-    while (plist) {
+    while (plist != NULL) {
         PendingCmd *next = plist->next;
         Tcl_Free(plist->cmd);
         Tcl_Free(plist);
@@ -1907,17 +1938,12 @@ static void InstDeleteProc(void *cdata) {
         ctx->bg_ended = 1;
         Tcl_MutexUnlock(&ctx->bg_mu);
     }
-    /* Snapshot after shutdown attempts */
-    Tcl_MutexLock(&ctx->bg_mu);
-    ended = ctx->bg_ended;
-    Tcl_MutexUnlock(&ctx->bg_mu);
-    running_now = (ctx->ngSpice_running ? ctx->ngSpice_running() : -1);
     /* Step 3: decide whether to call "quit" */
     int safe_to_quit = 1;
-    if (ctx->exited) {
+    if (ctx->exited == 1) {
         safe_to_quit = 0;
     }
-    if (abrupt_shutdown) {
+    if (abrupt_shutdown == 1) {
         safe_to_quit = 0;
     }
     if (safe_to_quit && ctx->ngSpice_Command && !ctx->quitting) {
@@ -1930,6 +1956,8 @@ static void InstDeleteProc(void *cdata) {
         Tcl_ConditionNotify(&ctx->exit_cv);
         Tcl_MutexUnlock(&ctx->exit_mu);
         ctx->skip_dlclose = 1;
+    } else {
+        /* No action required: all valid cases handled above (MISRA 15.7) */
     }
     /* Step 4: sync with ControlledExitCallback OR our fake exit */
     Tcl_MutexLock(&ctx->exit_mu);
@@ -1941,7 +1969,7 @@ static void InstDeleteProc(void *cdata) {
     Tcl_MutexLock(&ctx->mutex);
     Tcl_ConditionNotify(&ctx->cond);
     Tcl_MutexUnlock(&ctx->mutex);
-    if (g_heap_poisoned) {
+    if (g_heap_poisoned == 1) {
         ctx->destroying = 1;
         Tcl_MutexLock(&ctx->mutex);
         Tcl_ConditionNotify(&ctx->cond);
@@ -2094,13 +2122,15 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_WrongNumArgs(interp, 2, objv, "?-capture? string");
             code = TCL_ERROR;
             goto done;
+        } else {
+            /* No action required: all valid cases handled above (MISRA 15.7) */
         }
         const char *cmd = Tcl_GetString(objv[argi]);
         Tcl_MutexLock(&ctx->bg_mu);
         NgState st = ctx->state;
         Tcl_MutexUnlock(&ctx->bg_mu);
-        if (st == NGSTATE_DEAD || ctx->destroying) {
-            Tcl_SetResult(interp, "instance is shutting down", TCL_STATIC);
+        if ((st == NGSTATE_DEAD) || (ctx->destroying)) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("instance is shutting down", -1));
             code = TCL_ERROR;
             goto done;
         }
@@ -2125,7 +2155,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_MutexLock(&ctx->mutex);
             ctx->gen++;
             ctx->new_run_pending = 0;
-            if (ctx->init_snap) {
+            if (ctx->init_snap != NULL) {
                 for (int i = 0; i < ctx->init_snap->veccount; i++) {
                     Tcl_Free(ctx->init_snap->vecs[i].name);
                 }
@@ -2135,12 +2165,12 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             }
             DataBuf_Free(&ctx->prod);
             DataBuf_Init(&ctx->prod);
-            if (ctx->vectorData) {
+            if (ctx->vectorData != NULL) {
                 Tcl_DecrRefCount(ctx->vectorData);
             }
             ctx->vectorData = Tcl_NewDictObj();
             Tcl_IncrRefCount(ctx->vectorData);
-            if (ctx->vectorInit) {
+            if (ctx->vectorInit != NULL) {
                 Tcl_DecrRefCount(ctx->vectorInit);
             }
             ctx->vectorInit = Tcl_NewDictObj();
@@ -2151,11 +2181,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_MutexLock(&ctx->bg_mu);
             if (ctx->state == NGSTATE_BG_ACTIVE) {
                 ctx->state = NGSTATE_STOPPING_BG;
-            } else {
             }
             Tcl_MutexUnlock(&ctx->bg_mu);
         }
         if (!do_capture) {
+            /* cppcheck-suppress misra-c2012-11.8 - Ngspice certainly does not modify passed string*/
             int rc = ctx->ngSpice_Command((char *)cmd);
             Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
             code = TCL_OK;
@@ -2201,7 +2231,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
         Tcl_Size cirLinesListLen;
         char **circuit;
-        if (split_string) {
+        if (split_string == 1) {
             circuit = splitStringByNewline(Tcl_GetString(objv[3]), &cirLinesListLen);
         } else {
             Tcl_Obj **cirLinesElems;
@@ -2210,11 +2240,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 code = TCL_ERROR;
                 goto done;
             }
-            if (ctx->has_circuit) {
+            if (ctx->has_circuit == 1) {
                 ctx->ngSpice_Command("remcirc");
                 ctx->has_circuit = 0;
             }
-            circuit = Tcl_Alloc((cirLinesListLen + 1) * sizeof(char *));
+            circuit = Tcl_Alloc(((size_t)cirLinesListLen + (size_t)1) * sizeof(char *));
             for (Tcl_Size i = 0; i < cirLinesListLen; ++i) {
                 circuit[i] = Tcl_GetString(cirLinesElems[i]);
             }
@@ -2228,7 +2258,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "inputpath") == 0) {
-        char *resPath;
+        const char *resPath;
         if (objc == 3) {
             const char *opt = Tcl_GetString(objv[2]);
             if (strcmp(opt, "-current") == 0) {
@@ -2263,9 +2293,9 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_ERROR;
             goto done;
         }
-        if (i < objc && strcmp(Tcl_GetString(objv[i]), "-n") == 0) {
-            if (i + 1 >= objc || Tcl_GetWideIntFromObj(interp, objv[i + 1], (Tcl_WideInt *)&need) != TCL_OK ||
-                need < 1) {
+        if ((i < objc) && (strcmp(Tcl_GetString(objv[i]), "-n") == 0)) {
+            if (((i + 1) >= objc) || (Tcl_GetWideIntFromObj(interp, objv[i + 1], (Tcl_WideInt *)&need) != TCL_OK) ||
+                (need < (uint64_t)1)) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("expected positive integer after -n", -1));
                 code = TCL_ERROR;
                 goto done;
@@ -2293,9 +2323,9 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("count", -1), Tcl_NewWideIntObj((Tcl_WideInt)count));
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("need", -1), Tcl_NewWideIntObj((Tcl_WideInt)need));
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("status", -1),
-                       Tcl_NewStringObj(rc == NGSPICE_WAIT_OK        ? "ok"
-                                        : rc == NGSPICE_WAIT_TIMEOUT ? "timeout"
-                                                                     : "aborted",
+                       Tcl_NewStringObj((rc == NGSPICE_WAIT_OK)        ? "ok"
+                                        : (rc == NGSPICE_WAIT_TIMEOUT) ? "timeout"
+                                                                       : "aborted",
                                         -1));
         Tcl_SetObjResult(interp, res);
         code = TCL_OK;
@@ -2316,14 +2346,16 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
             code = TCL_ERROR;
             goto done;
+        } else {
+            /* No action required: all valid cases handled above (MISRA 15.7) */
         }
         if (!ctx->vectorData) {
-            Tcl_SetResult(interp, "no vector data", TCL_STATIC);
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("no vector data", -1));
             code = TCL_ERROR;
             goto done;
         }
         Tcl_MutexLock(&ctx->mutex);
-        if (do_clear) {
+        if (do_clear == 1) {
             Tcl_DecrRefCount(ctx->vectorData);
             ctx->vectorData = Tcl_NewDictObj();
             Tcl_IncrRefCount(ctx->vectorData);
@@ -2388,6 +2420,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             const char *vecname = Tcl_GetString(objv[3]);
             if (strcmp(opt, "-info") == 0) {
                 ctx->ngSpice_LockRealloc();
+                /* cppcheck-suppress misra-c2012-17.3 */
                 pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
                 if (vinfo == NULL) {
                     Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
@@ -2471,9 +2504,12 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 case SV_CHARGE:
                     Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("charge", -1));
                     break;
+                default:
+                    Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("unknown", -1));
+                    break;
                 };
                 Tcl_DictObjPut(interp, info, Tcl_NewStringObj("length", -1), Tcl_NewIntObj(vlength));
-                if (vinfo->v_flags & VF_COMPLEX) {
+                if ((vinfo->v_flags & (short)VF_COMPLEX) != 0) {
                     Tcl_DictObjPut(interp, info, Tcl_NewStringObj("ntype", -1), Tcl_NewStringObj("complex", -1));
                 } else {
                     Tcl_DictObjPut(interp, info, Tcl_NewStringObj("ntype", -1), Tcl_NewStringObj("real", -1));
@@ -2490,6 +2526,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         } else if (objc == 3) {
             const char *vecname = Tcl_GetString(objv[2]);
             ctx->ngSpice_LockRealloc();
+            /* cppcheck-suppress misra-c2012-17.3 */
             pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
             if (vinfo == NULL) {
                 Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
@@ -2500,16 +2537,16 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             }
             int vlength = vinfo->v_length;
             Tcl_Obj *dataObj = Tcl_NewListObj(0, NULL);
-            if (vinfo->v_flags & VF_COMPLEX) {
-                ngcomplex_t *cdata = vinfo->v_compdata;
+            if ((vinfo->v_flags & (short)VF_COMPLEX) != 0) {
+                const ngcomplex_t *cdataLoc = vinfo->v_compdata;
                 for (int i = 0; i < vlength; i++) {
                     Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
-                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdata[i].cx_real));
-                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdata[i].cx_imag));
+                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdataLoc[i].cx_real));
+                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdataLoc[i].cx_imag));
                     Tcl_ListObjAppendElement(interp, dataObj, pair);
                 }
             } else {
-                double *rdata = vinfo->v_realdata;
+                const double *rdata = vinfo->v_realdata;
                 for (int i = 0; i < vlength; i++) {
                     Tcl_ListObjAppendElement(interp, dataObj, Tcl_NewDoubleObj(rdata[i]));
                 }
@@ -2530,12 +2567,12 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_ERROR;
             goto done;
         }
-        if (ctx->destroying) {
+        if (ctx->destroying == 1) {
             code = TCL_OK;
             goto done;
         }
         bool isrunning = ctx->ngSpice_running();
-        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isrunning));
+        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isrunning ? 1 : 0));
         code = TCL_OK;
         goto done;
     }
@@ -2554,14 +2591,16 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
             code = TCL_ERROR;
             goto done;
+        } else {
+            /* No action required: all valid cases handled above (MISRA 15.7) */
         }
         if (!ctx->vectorInit) {
-            Tcl_SetResult(interp, "no init vector data", TCL_STATIC);
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("no init vector data", 1));
             code = TCL_ERROR;
             goto done;
         }
         Tcl_MutexLock(&ctx->mutex);
-        if (do_clear) {
+        if (do_clear == 1) {
             Tcl_DecrRefCount(ctx->vectorInit);
             ctx->vectorInit = Tcl_NewDictObj();
             Tcl_IncrRefCount(ctx->vectorInit);
@@ -2590,8 +2629,10 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
             code = TCL_ERROR;
             goto done;
+        } else {
+            /* No action required: all valid cases handled above (MISRA 15.7) */
         }
-        if (do_clear) {
+        if (do_clear == 1) {
             Tcl_MutexLock(&ctx->mutex);
             MsgQ_Clear(&ctx->msgq);
             Tcl_MutexUnlock(&ctx->mutex);
@@ -2624,9 +2665,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
             code = TCL_ERROR;
             goto done;
+        } else {
+            /* No action required: all valid cases handled above (MISRA 15.7) */
         }
         Tcl_MutexLock(&ctx->mutex);
-        if (do_clear) {
+        if (do_clear == 1) {
             memset(ctx->evt_counts, 0, sizeof(ctx->evt_counts));
             Tcl_MutexUnlock(&ctx->mutex);
             code = TCL_OK;
@@ -2671,30 +2714,77 @@ done:
     Tcl_Release((ClientData)ctx);
     return code;
 }
-//***  NgSpiceNewCmd function
+
+//***  NgResolveOrBail function
 /*
  *----------------------------------------------------------------------------------------------------------------------
  *
- * RESOLVE_OR_BAIL (macro) --
+ * NgResolveOrBail --
  *
- *      Helper macro used during NgSpiceNewCmd initialization to resolve a required symbol from the loaded ngspice
- *      shared library. If the symbol cannot be found, the macro immediately closes the library, frees the allocated
- *      NgSpiceContext, and returns TCL_ERROR from the enclosing function.
+ *      Performs dynamic symbol resolution for a single ngspice API entry point. This function looks up the symbol named
+ *      by 'symname' using PDl_Sym(), verifies that it was successfully resolved, and returns the resulting address.
+ *
+ *      If the symbol cannot be resolved, this function performs all required cleanup for the partially-constructed
+ *      NgSpiceContext: the shared library handle is closed and the context structure is freed. In this error case, the
+ *      function returns NULL so that the caller can terminate initialization cleanly.
  *
  * Parameters:
- *      field    - struct field in NgSpiceContext to store the resolved function pointer
- *      symname  - string name of the symbol to resolve
+ *      Tcl_Interp *interp    - input: interpreter used for error reporting by PDl_Sym()
+ *      NgSpiceContext *ctx   - input/output: active context whose library handle is used and which is freed on failure
+ *      const char *symname   - input: the name of the ngspice API function to resolve
  *
  * Results:
- *      - If successful, assigns the resolved function pointer to ctx->field.
- *      - If unsuccessful, performs cleanup and bails out of the caller with TCL_ERROR.
+ *      On success:
+ *          - Returns a non-NULL void * pointer to the resolved symbol
+ *
+ *      On failure:
+ *          - Returns NULL
+ *          - Closes the shared library associated with ctx->handle
+ *          - Frees the NgSpiceContext structure
  *
  * Side Effects:
- *      - On failure, releases the open library handle and frees the NgSpiceContext structure
- *      - Terminates execution of the calling function via return
+ *      - May deallocate 'ctx' and invalidate its contents if symbol lookup fails
+ *      - No changes are made to 'ctx' on success; the caller assigns the function pointer to the appropriate field
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
+static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
+    void *tmp;
+    NgSymEntry entries[] = {
+        {"ngSpice_Init", (void **)&ctx->ngSpice_Init},
+        {"ngSpice_Init_Sync", (void **)&ctx->ngSpice_Init_Sync},
+        {"ngSpice_Command", (void **)&ctx->ngSpice_Command},
+        {"ngGet_Vec_Info", (void **)&ctx->ngGet_Vec_Info},
+        {"ngCM_Input_Path", (void **)&ctx->ngCM_Input_Path},
+        {"ngGet_Evt_NodeInfo", (void **)&ctx->ngGet_Evt_NodeInfo},
+        {"ngSpice_AllEvtNodes", (void **)&ctx->ngSpice_AllEvtNodes},
+        {"ngSpice_Init_Evt", (void **)&ctx->ngSpice_Init_Evt},
+        {"ngSpice_Circ", (void **)&ctx->ngSpice_Circ},
+        {"ngSpice_CurPlot", (void **)&ctx->ngSpice_CurPlot},
+        {"ngSpice_AllPlots", (void **)&ctx->ngSpice_AllPlots},
+        {"ngSpice_AllVecs", (void **)&ctx->ngSpice_AllVecs},
+        {"ngSpice_running", (void **)&ctx->ngSpice_running},
+        {"ngSpice_SetBkpt", (void **)&ctx->ngSpice_SetBkpt},
+        {"ngSpice_nospinit", (void **)&ctx->ngSpice_nospinit},
+        {"ngSpice_nospiceinit", (void **)&ctx->ngSpice_nospiceinit},
+        {"ngSpice_LockRealloc", (void **)&ctx->ngSpice_LockRealloc},
+        {"ngSpice_UnlockRealloc", (void **)&ctx->ngSpice_UnlockRealloc},
+    };
+    size_t i;
+    for (i = 0U; i < ((sizeof entries) / (sizeof entries[0])); ++i) {
+        tmp = PDl_Sym(interp, ctx->handle, entries[i].name);
+        if (tmp == NULL) {
+            PDl_Close(ctx->handle);
+            Tcl_Free(ctx);
+            return TCL_ERROR;
+        }
+        /* cppcheck-suppress misra-c2012-11.6 */
+        *(entries[i].slot) = tmp;
+    }
+    return TCL_OK;
+}
+
+//***  NgSpiceNewCmd function
 /*
  *----------------------------------------------------------------------------------------------------------------------
  *
@@ -2735,16 +2825,7 @@ done:
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-#define RESOLVE_OR_BAIL(field, symname)                                                                                \
-    do {                                                                                                               \
-        ctx->field = (typeof(ctx->field))PDl_Sym(interp, ctx->handle, symname);                                        \
-        if (!(ctx->field)) {                                                                                           \
-            PDl_Close(ctx->handle);                                                                                    \
-            Tcl_Free(ctx);                                                                                             \
-            return TCL_ERROR;                                                                                          \
-        }                                                                                                              \
-    } while (0)
-
+/* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Tcl expected function signature */
 static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
     Tcl_Obj *libPathObj;
     int selector = 0;
@@ -2777,8 +2858,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         Tcl_WrongNumArgs(interp, 1, objv, "-nospinit|-nospiceinit|-noinit libpath");
         return TCL_ERROR;
     }
-    
-    NgSpiceContext *ctx = (NgSpiceContext *)Tcl_Alloc(sizeof *ctx);
+    NgSpiceContext *ctx = Tcl_Alloc(sizeof *ctx);
     memset(ctx, 0, sizeof *ctx);
     ctx->exited = 0;
     MsgQ_Init(&ctx->capq);
@@ -2793,24 +2873,9 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         Tcl_Free(ctx);
         return TCL_ERROR;
     }
-    RESOLVE_OR_BAIL(ngSpice_Init, "ngSpice_Init");
-    RESOLVE_OR_BAIL(ngSpice_Init_Sync, "ngSpice_Init_Sync");
-    RESOLVE_OR_BAIL(ngSpice_Command, "ngSpice_Command");
-    RESOLVE_OR_BAIL(ngGet_Vec_Info, "ngGet_Vec_Info");
-    RESOLVE_OR_BAIL(ngCM_Input_Path, "ngCM_Input_Path");
-    RESOLVE_OR_BAIL(ngGet_Evt_NodeInfo, "ngGet_Evt_NodeInfo");
-    RESOLVE_OR_BAIL(ngSpice_AllEvtNodes, "ngSpice_AllEvtNodes");
-    RESOLVE_OR_BAIL(ngSpice_Init_Evt, "ngSpice_Init_Evt");
-    RESOLVE_OR_BAIL(ngSpice_Circ, "ngSpice_Circ");
-    RESOLVE_OR_BAIL(ngSpice_CurPlot, "ngSpice_CurPlot");
-    RESOLVE_OR_BAIL(ngSpice_AllPlots, "ngSpice_AllPlots");
-    RESOLVE_OR_BAIL(ngSpice_AllVecs, "ngSpice_AllVecs");
-    RESOLVE_OR_BAIL(ngSpice_running, "ngSpice_running");
-    RESOLVE_OR_BAIL(ngSpice_SetBkpt, "ngSpice_SetBkpt");
-    RESOLVE_OR_BAIL(ngSpice_nospinit, "ngSpice_nospinit");
-    RESOLVE_OR_BAIL(ngSpice_nospiceinit, "ngSpice_nospiceinit");
-    RESOLVE_OR_BAIL(ngSpice_LockRealloc, "ngSpice_LockRealloc");
-    RESOLVE_OR_BAIL(ngSpice_UnlockRealloc, "ngSpice_UnlockRealloc");
+    if (NgResolveAll(interp, ctx) != TCL_OK) {
+        return TCL_ERROR;
+    }
     static unsigned long seq = 0;
     Tcl_Obj *name = Tcl_ObjPrintf("::ngspicetclbridge::s%lu", ++seq);
     Tcl_CreateObjCommand2(interp, Tcl_GetString(name), InstObjCmd, ctx, InstDeleteProc);
@@ -2831,11 +2896,13 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     } else if (selector == 3) {
         ctx->ngSpice_nospinit();
         ctx->ngSpice_nospiceinit();
+    } else {
+        /* No action required: all valid cases handled above (MISRA 15.7) */
     }
     Tcl_SetObjResult(interp, name);
     return TCL_OK;
 }
-#undef RESOLVE_OR_BAIL
+
 //***  Ngspicetclbridge_Init function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -2862,6 +2929,8 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
  *----------------------------------------------------------------------------------------------------------------------
  */
 DLLEXPORT int Ngspicetclbridge_Init(Tcl_Interp *interp) {
+    /* cppcheck-suppress misra-c2012-12.2 */
+    /* cppcheck-suppress misra-c2012-10.1 */
     if (Tcl_InitStubs(interp, "8.6-10.0", 0) == NULL) {
         return TCL_ERROR;
     }
