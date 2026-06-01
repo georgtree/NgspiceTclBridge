@@ -1,7 +1,7 @@
 '\"
 '\" '\" Copyright (c) George Yashin
 '\"
-.TH "Examples" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.TH "Examples" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Examples - Commands in namespace Examples
 .SH ::EXAMPLES
@@ -84,7 +84,7 @@ foreach n $ns {
     # read result vectors and prepare for plotting
     foreach x [$sim asyncvector anode] y [$sim asyncvector i(va)] {
         set xf [format "%\&.3f" $x]
-        set yf [format "%\&.3f" [= {-$y}]]
+        set yf [format "%\&.3f" [expr {-$y}]]
         lappend xydata [list $xf $yf]
     }
     lappend dataList $xydata

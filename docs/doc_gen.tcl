@@ -17,11 +17,11 @@ set title "Tcl NgspiceTclBridge package"
 
 set commonSphinx [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace -recurse false\
                     -includesource false -pagesplit namespace -autopunctuate true -compact false -includeprivate false\
-                    -product NgspiceTclBridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
+                    -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
                     -copyright "George Yashin" {*}$::argv]
 set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace -recurse false\
                          -pagesplit namespace -autopunctuate true -compact false -includeprivate false\
-                         -product NgspiceTclBridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
+                         -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
                          -copyright "George Yashin" {*}$::argv]
 
 set namespaces [list ::ngspicetclbridge "::Notes and internals" ::Troubleshooting ::Examples]
@@ -64,4 +64,4 @@ proc processContentsTutorial {fileContents} {
 
 set chartsMap [dict create !ticklechart_parametric_simulation! parametric_simulation.html]
 set path [file join $docDir .. examples html_charts]
-fileutil::updateInPlace [file join $docDir NgspiceTclBridge-Examples.html] processContentsTutorial
+fileutil::updateInPlace [file join $docDir ngspicetclbridge-Examples.html] processContentsTutorial

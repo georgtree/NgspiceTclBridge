@@ -1,7 +1,7 @@
 '\"
 '\" '\" Copyright (c) George Yashin
 '\"
-.TH "Troubleshooting" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
+.TH "Troubleshooting" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Troubleshooting - Commands in namespace Troubleshooting
 .SH ::TROUBLESHOOTING

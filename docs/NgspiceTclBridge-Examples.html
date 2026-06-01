@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>::Examples &#8212; NgspiceTclBridge  documentation</title>
+    <title>::Examples &#8212; ngspicetclbridge  documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
     
@@ -26,7 +26,7 @@
         <li class="right" >
           <a href="ngspicetclbridge-Troubleshooting.html" title="::Troubleshooting"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">NgspiceTclBridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">::Examples</a></li> 
       </ul>
     </div>  
@@ -89,7 +89,7 @@ read vectors with <a class="reference internal" href="ngspicetclbridge-ngspicetc
 <span class="w">    </span><span class="c"># read result vectors and prepare for plotting</span>
 <span class="w">    </span><span class="k">foreach</span><span class="w"> </span>x<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>anode<span class="k">]</span><span class="w"> </span>y<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>i<span class="k">(</span><span class="nv">va</span><span class="k">)]</span><span class="w"> </span><span class="k">{</span>
 <span class="w">        </span><span class="k">set</span><span class="w"> </span>xf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="nv">$x</span><span class="k">]</span>
-<span class="w">        </span><span class="k">set</span><span class="w"> </span>yf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="k">[</span><span class="o">=</span><span class="w"> </span><span class="k">{</span><span class="nv">-$y</span><span class="k">}]]</span>
+<span class="w">        </span><span class="k">set</span><span class="w"> </span>yf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="k">[expr</span><span class="w"> </span><span class="k">{</span><span class="nv">-$y</span><span class="k">}]]</span>
 <span class="w">        </span><span class="nb">lappend</span><span class="w"> </span>xydata<span class="w"> </span><span class="k">[</span><span class="nb">list</span><span class="w"> </span><span class="nv">$xf</span><span class="w"> </span><span class="nv">$yf</span><span class="k">]</span>
 <span class="w">    </span><span class="k">}</span>
 <span class="w">    </span><span class="nb">lappend</span><span class="w"> </span>dataList<span class="w"> </span><span class="nv">$xydata</span>
@@ -4473,7 +4473,7 @@ circuit reparsing.</p>
         <li class="right" >
           <a href="ngspicetclbridge-Troubleshooting.html" title="::Troubleshooting"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">NgspiceTclBridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">::Examples</a></li> 
       </ul>
     </div>
