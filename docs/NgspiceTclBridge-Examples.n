@@ -4,7 +4,7 @@
 .TH "Examples" 3tcl 0\&.1 "NgspiceTclBridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Examples - Commands in namespace Examples
-.SH EXAMPLES
+.SH ::EXAMPLES
 .PP
 Examples in this section describes examples from folder examples in root directory of NgspiceTclBridge\&.
 List of availible tutorials:
@@ -39,6 +39,7 @@ va anode 0 0
 .fi
 .RE
 .PP
+diode_iv_cir [Image: assets/img/diode_iv_cir\&.png]
 .PP
 Be carefull: for correct usage you have to provide \&.end statement at the the end of the netlist\&.
 .PP

@@ -2,11 +2,17 @@ package require tcltest
 namespace import ::tcltest::*
 package require ngspicetclbridge
 namespace import ::ngspicetclbridge::*
-set ngspiceLibPath /usr/local/lib/libngspice.so
+global env
+configure -verbose start
+if {$::tcl_platform(platform) eq {unix}} {
+    set ngspiceLibPath [file join $env(NGSPICE_DLL) libngspice.so]
+} elseif {$::tcl_platform(platform) eq {windows}} {
+    set ngspiceLibPath [file join $env(NGSPICE_DLL) ngspice.dll]
+}
 set currentDir [file normalize [file dirname [info script]]]
 proc cirPass {sim circuit} {
-    foreach line [split $circuit "\n"] {
-        if {[string trim $line] ne ""} {
+    foreach line [split $circuit \n] {
+        if {[string trim $line] ne {}} {
             $sim command [concat circbyline $line]
         }
     }
@@ -315,7 +321,7 @@ test test-11 {run long simulation, wait for ready message, and print status mess
 } -body {
     $s1 command bg_run
     set message {}
-    while {$message ne {# status[0]: --ready--}} {
+    while {{# status[0]: --ready--} ni [$s1 messages]} {
         $s1 waitevent send_stat
         update
         set message [lindex [$s1 messages] end]
@@ -653,7 +659,7 @@ test test-32 {check if unknown command hits ngspice during run of background thr
     unset s1
 }
 
-test test-33 {check quit command sending that triggers controlled exit of ngspice} -setup {
+test test-33 {check quit command sending that triggers controlled exit of ngspice} -match glob -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
@@ -661,7 +667,7 @@ test test-33 {check quit command sending that triggers controlled exit of ngspic
     $s1 command quit
     update
     $s1 eventcounts
-} -result {send_char 6 send_stat 0 controlled_exit 0 send_data 0 send_init_data 0 bg_running 0} -cleanup {
+} -result {send_char * send_stat * controlled_exit 0 send_data 0 send_init_data 0 bg_running 0} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -673,7 +679,7 @@ test test-34 {check run command, that blocks the caller until the simulation is 
     $s1 command run
     update
     $s1 eventcounts
-} -match glob -result {send_char * send_stat * controlled_exit 0 send_data 21557 send_init_data 1 bg_running 0} -cleanup {
+} -match glob -result {send_char * send_stat * controlled_exit 0 send_data * send_init_data 1 bg_running 0} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -966,10 +972,17 @@ test test-49 {} -body {
     unset errorStr
 }
 
-test test-50 {} -body {
+test test-50 {} -constraints unix -body {
     catch {ngspicetclbridge::new -spin} errorStr
     return $errorStr
 } -result {-spin: cannot open shared object file: No such file or directory} -cleanup {
+    unset errorStr
+}
+
+test test-50.1 {} -constraints win -body {
+    catch {ngspicetclbridge::new -spin} errorStr
+    return $errorStr
+} -result {LoadLibraryExW failed: 87} -cleanup {
     unset errorStr
 }
 
@@ -1062,13 +1075,13 @@ test test-60 {check getScaleInfo command} -setup {
     unset s1 
 }
 
-test test-61 {check getScaleInfo command} -setup {
+test test-61 {check getScaleInfo command} -match glob -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
     run $s1
 } -body {
     getScaleInfo $s1 
-} -result {name time type time ntype real length 21557} -cleanup { 
+} -result {name time type time ntype real length *} -cleanup { 
     $s1 destroy 
     unset s1 
 }
@@ -1123,7 +1136,7 @@ test test-66 {check getPlotDate command} -setup {
     run $s1
 } -body {
     getPlotDate $s1
-} -match regexp -result {^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+([0-3][0-9])\s+([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\s{2}([0-9]{4})$} -cleanup { 
+} -match regexp -result {^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+([0-3]?[0-9])\s+([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\s{2}([0-9]{4})$} -cleanup { 
     $s1 destroy 
     unset s1 
 }

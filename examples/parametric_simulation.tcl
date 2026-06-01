@@ -2,7 +2,12 @@ package require ngspicetclbridge
 namespace import ::ngspicetclbridge::*
 package require ticklecharts
 
-set ngspiceLibPath /usr/local/lib/libngspice.so
+global env
+if {$::tcl_platform(platform) eq {unix}} {
+    set ngspiceLibPath [file join $env(NGSPICE_DLL) libngspice.so]
+} elseif {$::tcl_platform(platform) eq {windows}} {
+    set ngspiceLibPath [file join $env(NGSPICE_DLL) ngspice.dll]
+}
 
 set circuit {Diode IV
 d1 anode 0 diomod area=1 lm=1e-6
@@ -27,7 +32,7 @@ foreach n $ns {
     # read result vectors and prepare for plotting
     foreach x [$sim asyncvector anode] y [$sim asyncvector i(va)] {
         set xf [format "%.3f" $x]
-        set yf [format "%.3f" [= {-$y}]]
+        set yf [format "%.3f" [expr {-$y}]]
         lappend xydata [list $xf $yf]
     }
     lappend dataList $xydata
@@ -45,4 +50,4 @@ foreach data $dataList n $ns {
 }
 set fbasename [file rootname [file tail [info script]]]
 
-$chart Render -outfile [file normalize [file join html_charts $fbasename.html]]
+$chart Render -outfile [file normalize [file join html_charts $fbasename.html]] -width 800px -height 500px

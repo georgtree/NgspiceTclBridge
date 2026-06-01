@@ -12,7 +12,7 @@ namespace eval ::ngspicetclbridge {
         # Returns: command name to work with Ngspice instance, references as `SIM` later
         #
         # Example:
-        #```
+        #```tcl
         # set sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
         #```
         # Synopsis: ?-nospinit|nospiceinit|noinit? libpath
@@ -30,7 +30,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: Ngspice result code, or dictionary with result code and the message
         #
         # Example:
-        #```
+        #```tcl
         # $sim command {circbyline v1 in 0 1}
         # $sim command bg_run
         #```
@@ -45,7 +45,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: Ngspice result code
         #
         # Example:
-        #```
+        #```tcl
         # set resDivCircuit {
         #     Resistor divider
         #     v1 in 0 1
@@ -92,24 +92,6 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: dictionary with information about event
         #
         #
-        #ruffopt includedformats html
-        # <div style="ruff_bd">
-        # <table class="ruff_deflist">
-        # <tbody>
-        # <tr><th>Event name</th><th>Ngspice callback function name</th><th>When it is called</th></tr>
-        # <tr><td><code>send_char</code></td><td>SendChar</td><td>Whenever Ngspice produces a line of text on stdout or
-        # stderr.</td></tr> <tr><td><code>send_stat</code></td><td>SendStat</td><td>When Ngspice’s simulation status
-        # changes (e.g., --ready--, tran 50.1%, convergence messages).</td></tr>
-        # <tr><td><code>controlled_exit</code></td><td>ControlledExit</td><td>When Ngspice exits, either due to an error
-        # or after a quit command from Tcl/Ngspice.</td></tr>
-        # <tr><td><code>send_data</code></td><td>SendData</td><td>During an analysis, whenever Ngspice sends a row of
-        # vector values (time step or sweep point) to the callback.</td></tr>
-        # <tr><td><code>send_init_data</code></td><td>SendInitData</td><td>At the start of a run, when Ngspice sends
-        # metadata for all vectors in the current plot (names, types, indexes, real/complex).</td></tr>
-        # <tr><td><code>bg_running</code></td><td>BGThreadRunning</td><td>When the Ngspice background thread changes
-        # state: <code>running=false</code> means it just started running, <code>running=true</code> means it has
-        # stopped.</td></tr> </tbody> </table> </div>
-        #
         #ruffopt includedformats nroff
         #```
         # ┌───────────────────┬──────────────────────────────┬───────────────────────────────────────────────────────┐
@@ -138,7 +120,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # └───────────────────┴──────────────────────────────┴───────────────────────────────────────────────────────┘
         #```
         #
-        #ruffopt includedformats markdown
+        #ruffopt excludedformats nroff
         # | Event name        | Ngspice callback function name | When it is called                                                                                                                 |
         # |:------------------|:-------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
         # | `send_char`       | `SendChar`                     | Whenever Ngspice produces a line of text on stdout or stderr.                                                                     |
@@ -149,34 +131,6 @@ namespace eval ::ngspicetclbridge::SIM {
         # | `bg_running`      | `BGThreadRunning`              | When the Ngspice background thread changes state: running=false means it just started running, running=true means it has stopped. |
         #
         #
-        #ruffopt includedformats html
-        # <div style="ruff_bd"> <table class="ruff_deflist"> <tbody> <tr><th>Time</th><th>Tcl Script
-        # Action</th><th>Ngspice Core Activity</th><th>Bridge Callback Fired</th><th>Tcl Event Name Seen</th></tr>
-        # <tr><td>t0</td><td><code>set s [..::new ..]</code></td><td>Library
-        # loaded</td><td><em>(none)</em></td><td><em>(none)</em></td></tr> <tr><td>t1</td><td>$s<code>init</code></td>
-        # <td>Initialization completed</td><td><em>(none)</em></td><td><em>(none)</em></td></tr>
-        # <tr><td>t2</td><td><code>cirPass …</code></td><td>Parses circuit
-        # line</td><td><code>send_char("...")</code></td><td><code>send_char</code></td></tr>
-        # <tr><td>t3</td><td><em>(more circbyline calls)</em></td><td>Parses circuit
-        # line</td><td><code>send_char("...")</code></td><td><code>send_char</code></td></tr>
-        # <tr><td>t4</td><td>$s<code>command bg_run</code></td><td>Start background
-        # simulation</td><td><code>bg_running(false)</code></td><td><code>bg_running</code></td></tr>
-        # <tr><td>t5</td><td><em>(analysis setup)</em></td><td>Build vector
-        # table</td><td><code>send_init_data()</code></td><td><code>send_init_data</code></td></tr>
-        # <tr><td>t6</td><td><em>(analysis running)</em></td><td>First data
-        # point</td><td><code>send_data(...)</code></td><td><code>send_data</code></td></tr>
-        # <tr><td>t7</td><td><em>(analysis running)</em></td><td>More
-        # points</td><td><code>send_data(...)</code></td><td><code>send_data</code></td></tr>
-        # <tr><td>t8</td><td><em>(analysis running)</em></td><td>Status
-        # change</td><td><code>send_stat("...")</code></td><td><code>send_stat</code></td></tr>
-        # <tr><td>t9</td><td><em>(analysis completed)</em></td><td>Simulation
-        # ready</td><td><code>send_stat("--ready--")</code></td><td><code>send_stat</code></td></tr>
-        # <tr><td>t10</td><td><em>(BG thread exits)</em></td><td>Background thread
-        # exits</td><td><code>bg_running(true)</code></td><td><code>bg_running</code></td></tr>
-        # <tr><td>t11</td><td>$s<code>command quit</code></td><td>ngspice
-        # quits</td><td><code>controlled_exit(...)</code></td><td><code>controlled_exit</code></td></tr>
-        # <tr><td>t12</td><td>$s<code>destroy</code></td><td>Teardown</td><td><em>(no further
-        # calls)</em></td><td><em>(command removed)</em></td></tr> </tbody> </table> </div>
         #
         #ruffopt includedformats nroff
         #```
@@ -211,7 +165,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # └─────┴─────────────────────────┴─────────────────────────────┴─────────────────────────┴─────────────────────┘
         #```
         #
-        #ruffopt includedformats markdown
+        #ruffopt excludedformats nroff
         # | Time | Tcl Script Action         | Ngspice Core Activity       | Bridge Callback Fired    | Tcl Event Name Seen |
         # |------|---------------------------|-----------------------------|--------------------------|---------------------|
         # | t0   | `set s [..::new ..]`      | Library loaded              | *(none)*                 | *(none)*            |
@@ -234,7 +188,7 @@ namespace eval ::ngspicetclbridge::SIM {
         #   - `status` \- `ok | timeout | aborted`
         #
         # Examples:
-        #```
+        #```tcl
         # $sim waitevent send_stat 1000
         # # -> {fired 1 count 1 status ok}
         # 
@@ -253,7 +207,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: dict with vectors values accumulated up to this point in internal structure
         #
         # Example:
-        #```
+        #```tcl
         # $sim vectors
         # # -> v(out) {0.0 0.1 0.2 ...} v(in) {...} v-sweep {...}
         #
@@ -270,7 +224,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: dict with initial vector metadata saved in internal structure
         #
         # Example:
-        #```
+        #```tcl
         # $sim initvectors
         # # -> out {number 1 real 1} in {number 2 real 1} v-sweep {number 3 real 1}
         #```
@@ -292,7 +246,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # does not exists.
         #
         # Example:
-        #```
+        #```tcl
         # $sim initvectors
         # $sim asyncvector out
         # # -> {0.0 0.066666... 0.133333... ...}
@@ -310,7 +264,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: list of messages
         #
         # Example:
-        #```
+        #```tcl
         # join [$sim messages] \n
         # # stdout ******
         # # stdout ** ngspice-44.x shared library
@@ -330,7 +284,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # Returns: returns a dict with keys as events names, and counts for each event as a value
         #
         # Example:
-        #```
+        #```tcl
         # $sim eventcounts
         # # -> send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N
         #```

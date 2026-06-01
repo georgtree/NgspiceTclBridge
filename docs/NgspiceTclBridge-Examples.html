@@ -1,95 +1,119 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<title>Tcl NgspiceTclBridge package</title>
-<link rel='stylesheet' type='text/css' href='assets/ruff-min.css' />
-<script type='text/javascript' src='assets/ruff-min.js'></script>
-</head>
-<body>
-<div class='ruff-layout'>
-<header class='ruff-layout-header ruff-hd'>
-<a style='text-decoration:none;' href='index.html'>Tcl NgspiceTclBridge package (v0.1)</a>
+<!DOCTYPE html>
 
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-            <div id="ruffButtonBar">
-            <button id="ruffNavMove" onclick="ruffMoveNavPane()"></button>
-            <button id="ruffToggleTheme" onclick="ruffNextTheme()"></button>
-            </div>
-        </header><main class='ruff-layout-main ruff-bd'><h1 class='ruff'><a name='Examples'></a>Examples<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h1>
-<div style='clear:both;'></div>
-<p class='ruff'>Examples in this section describes examples from folder <code>examples</code> in root directory of NgspiceTclBridge. List of availible tutorials:</p>
-<ul class='ruff'>
-<li><a href="index-Examples.html#::Examples-Parametric simulation" title="Parametric simulation" >Parametric simulation</a> - &quot;examples/parametric_simulation.tcl&quot; file</li>
+    <title>::Examples &#8212; NgspiceTclBridge  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="::Troubleshooting" href="ngspicetclbridge-Troubleshooting.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-Troubleshooting.html" title="::Troubleshooting"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">NgspiceTclBridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">::Examples</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="examples">
+<span id="r-examples"></span><span id="r-3a3aexamples"></span><h1>::Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
+<p>Examples in this section describes examples from folder <code class="docutils literal notranslate"><span class="pre">examples</span></code> in root directory of NgspiceTclBridge.
+List of availible tutorials:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#r-3a3aexamplesqzparametric20simulation"><span class="std std-ref">Parametric simulation</span></a> - “examples/parametric_simulation.tcl” file</p></li>
 </ul>
-<h2 class='ruff'><a name='::Examples-Parametric simulation'></a>Parametric simulation<span class='ruff-uplink'><a href='#top'>Top</a>, <a href='index.html'>Main</a>, <a href='index-docindex.html#'>Index</a></span></h2>
-<div style='clear:both;'></div>
-<p class='ruff'>In this example we alter diode model parameter <code>n</code> (emission coefficient) and observe how diode IV curve is changed from original.</p>
-<p class='ruff'>First step is to provide path to Ngspice library. In Linux case it is usually saved under <code>/usr/local/lib</code>, for Windows it depends on the installation prefix:</p>
+<section id="parametric-simulation">
+<span id="r-examples-parametric-simulation"></span><span id="r-3a3aexamplesqzparametric20simulation"></span><h2>Parametric simulation<a class="headerlink" href="#parametric-simulation" title="Link to this heading">¶</a></h2>
+<p>In this example we alter diode model parameter <code class="docutils literal notranslate"><span class="pre">n</span></code> (emission coefficient) and observe how diode IV curve is
+changed from original.</p>
+<p>First step is to provide path to Ngspice library. In Linux case it is usually saved under <code class="docutils literal notranslate"><span class="pre">/usr/local/lib</span></code>, for
+Windows it depends on the installation prefix:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>ngspiceLibPath<span class="w"> </span><span class="o">/</span>usr<span class="o">/</span>local<span class="o">/</span>lib<span class="o">/</span>libngspice.so
+</pre></div>
+</div>
+<p>The circuit we simulate is defined by string:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>circuit<span class="w"> </span><span class="k">{</span><span class="nv">Diode</span><span class="w"> </span>IV
+<span class="nv">d1</span><span class="w"> </span>anode<span class="w"> </span><span class="mi">0</span><span class="w"> </span>diomod<span class="w"> </span>area<span class="o">=</span><span class="mi">1</span><span class="w"> </span>lm<span class="o">=</span><span class="mi">1</span>e-6
+<span class="nv">va</span><span class="w"> </span>anode<span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span>
+<span class="nv">.model</span><span class="w"> </span>diomod<span class="w"> </span>d<span class="k">(</span><span class="nv">is</span><span class="o">=</span><span class="mi">1</span>e-12<span class="w"> </span>n<span class="o">=</span><span class="mf">1.2</span><span class="w"> </span>rs<span class="o">=</span><span class="mf">0.01</span><span class="w"> </span>cj0<span class="o">=</span><span class="mi">1</span>e-9<span class="w"> </span>trs<span class="o">=</span><span class="mf">0.001</span><span class="w"> </span>xti<span class="o">=</span><span class="mi">5</span><span class="w"> </span>ikf<span class="o">=</span><span class="mi">100</span><span class="k">)</span>
+<span class="nv">.dc</span><span class="w"> </span>va<span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mf">0.01</span>
+<span class="nv">.temp</span><span class="w"> </span><span class="mi">25</span>
+<span class="nv">.end</span><span class="k">}</span>
+</pre></div>
+</div>
+<p><img alt="diode_iv_cir" src="assets/img/diode_iv_cir.png" /></p>
+<p>Be carefull: for correct usage you have to provide <code class="docutils literal notranslate"><span class="pre">.end</span></code> statement at the the end of the netlist.</p>
+<p>Load ngspice library and initialize command for library control by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3anew"><span class="std std-ref">::ngspicetclbridge::new</span></a> command:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="nv">$ngspiceLibPath</span><span class="k">]</span>
+</pre></div>
+</div>
+<p>Load circuit into simulation with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3asim20circuit"><span class="std std-ref">::ngspicetclbridge::SIM circuit</span></a> command:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="o">-</span>string<span class="w"> </span><span class="nv">$circuit</span>
+</pre></div>
+</div>
+<p>By default subcommand <code class="docutils literal notranslate"><span class="pre">circuit</span></code> accepts list of lines where each line contains one line of netlist, but switch
+<code class="docutils literal notranslate"><span class="pre">-string</span></code> allows to pass circuit as a string with lines being delimited by newline symbol.</p>
+<p>Add list of <code class="docutils literal notranslate"><span class="pre">n</span></code> parameter values we want to simulate:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>ns<span class="w"> </span><span class="k">{</span><span class="nv">0.8</span><span class="w"> </span><span class="mf">0.9</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.1</span><span class="w"> </span><span class="mf">1.2</span><span class="k">}</span>
+</pre></div>
+</div>
+<p>Then we run loop for each value of <code class="docutils literal notranslate"><span class="pre">n</span></code>, send <code class="docutils literal notranslate"><span class="pre">altermod</span></code> Ngspice command by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3asim20command"><span class="std std-ref">::ngspicetclbridge::SIM command</span></a>,
+run simulation by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3arun"><span class="std std-ref">::ngspicetclbridge::run</span></a> command (procedure waits for the end of simulation), then
+read vectors with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3asim20asyncvector"><span class="std std-ref">::ngspicetclbridge::SIM asyncvector</span></a> command and prepare data for plotting:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>n<span class="w"> </span><span class="nv">$ns</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="c"># change model parameter</span>
+<span class="w">    </span><span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">&quot;altermod diomod n </span><span class="o">=</span><span class="s2"> $n&quot;</span>
+<span class="w">    </span><span class="c"># run simulation and wait for the end</span>
+<span class="w">    </span><span class="nv">run</span><span class="w"> </span><span class="nv">$sim</span>
+<span class="w">    </span><span class="c"># read result vectors and prepare for plotting</span>
+<span class="w">    </span><span class="k">foreach</span><span class="w"> </span>x<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>anode<span class="k">]</span><span class="w"> </span>y<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>i<span class="k">(</span><span class="nv">va</span><span class="k">)]</span><span class="w"> </span><span class="k">{</span>
+<span class="w">        </span><span class="k">set</span><span class="w"> </span>xf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="nv">$x</span><span class="k">]</span>
+<span class="w">        </span><span class="k">set</span><span class="w"> </span>yf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="k">[</span><span class="o">=</span><span class="w"> </span><span class="k">{</span><span class="nv">-$y</span><span class="k">}]]</span>
+<span class="w">        </span><span class="nb">lappend</span><span class="w"> </span>xydata<span class="w"> </span><span class="k">[</span><span class="nb">list</span><span class="w"> </span><span class="nv">$xf</span><span class="w"> </span><span class="nv">$yf</span><span class="k">]</span>
+<span class="w">    </span><span class="k">}</span>
+<span class="w">    </span><span class="nb">lappend</span><span class="w"> </span>dataList<span class="w"> </span><span class="nv">$xydata</span>
+<span class="w">    </span><span class="k">unset</span><span class="w"> </span>xydata
+<span class="k">}</span>
+</pre></div>
+</div>
+<p>Subcommand <code class="docutils literal notranslate"><span class="pre">command</span></code> send the string to Ngspice as is. In this case we send <code class="docutils literal notranslate"><span class="pre">altermod</span></code> command (see Ngspice
+manual 13.5.4) that allows to alter parameter of particular model without resetting the circuit or
+circuit reparsing.</p>
+<p>The we use <code class="docutils literal notranslate"><span class="pre">ticklecharts</span></code> package to plot resulted curves:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>chart<span class="w"> </span><span class="k">[</span><span class="nv">ticklecharts</span><span class="o">::</span>chart<span class="w"> </span>new<span class="k">]</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">Xaxis</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="s2">&quot;v(anode), V&quot;</span><span class="w"> </span><span class="o">-</span>minorTick<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span><span class="w">  </span><span class="o">-</span>type<span class="w"> </span><span class="s2">&quot;value&quot;</span><span class="w"> </span><span class="o">-</span>splitLine<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">Yaxis</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="s2">&quot;Idiode, A&quot;</span><span class="w"> </span><span class="o">-</span>minorTick<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span><span class="w">  </span><span class="o">-</span>type<span class="w"> </span><span class="s2">&quot;value&quot;</span><span class="w"> </span><span class="o">-</span>splitLine<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">SetOptions</span><span class="w"> </span><span class="o">-</span>title<span class="w"> </span><span class="k">{}</span><span class="w"> </span><span class="o">-</span>tooltip<span class="w"> </span><span class="k">{</span><span class="nv">trigger</span><span class="w"> </span><span class="s2">&quot;axis&quot;</span><span class="k">}</span><span class="w"> </span><span class="o">-</span>animation<span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="w"> </span><span class="o">-</span>legend<span class="w"> </span><span class="k">{}</span><span class="w"> </span><span class="o">-</span>toolbox<span class="w"> </span><span class="k">{</span><span class="nv">feature</span><span class="w"> </span><span class="k">{</span><span class="nv">dataZoom</span><span class="w"> </span><span class="k">{</span><span class="nv">yAxisIndex</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="k">}}}</span><span class="w">  </span><span class="o">-</span>grid<span class="w"> </span><span class="k">{</span><span class="nv">left</span><span class="w"> </span><span class="s2">&quot;5%&quot;</span><span class="w"> </span>right<span class="w"> </span><span class="s2">&quot;15%&quot;</span><span class="k">}</span>
+<span class="k">foreach</span><span class="w"> </span>data<span class="w"> </span><span class="nv">$dataList</span><span class="w"> </span>n<span class="w"> </span><span class="nv">$ns</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="nv">$chart</span><span class="w"> </span><span class="nv">Add</span><span class="w"> </span><span class="s2">&quot;lineSeries&quot;</span><span class="w"> </span><span class="o">-</span>data<span class="w"> </span><span class="nv">$data</span><span class="w"> </span><span class="o">-</span>showAllSymbol<span class="w"> </span><span class="s2">&quot;nothing&quot;</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="s2">&quot;n</span><span class="o">=</span><span class="s2">${n}&quot;</span><span class="w"> </span><span class="o">-</span>symbolSize<span class="w"> </span><span class="s2">&quot;2&quot;</span>
+<span class="k">}</span>
+<span class="k">set</span><span class="w"> </span>fbasename<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>rootname<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>tail<span class="w"> </span><span class="k">[</span><span class="nb">info</span><span class="w"> </span>script<span class="k">]]]</span>
 
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> ngspiceLibPath /usr/local/lib/libngspice.so
-</pre>
-
-</figure><p class='ruff'>The circuit we simulate is defined by string:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> circuit {Diode IV
-d1 anode 0 diomod area=1 lm=1e-6
-va anode 0 0
-.model diomod d(is=1e-12 n=1.2 rs=0.01 cj0=1e-9 trs=0.001 xti=5 ikf=100)
-.dc va 0 2 0.01
-.temp 25
-.end}
-</pre>
-
-</figure><p class='ruff'><img src="assets/img/diode_iv_cir.png" alt="drawing" width="400"/></p>
-<p class='ruff'>Be carefull: for correct usage you have to provide <code>.end</code> statement at the the end of the netlist.</p>
-<p class='ruff'>Load ngspice library and initialize command for library control by <a href="index-ngspicetclbridge.html#::ngspicetclbridge::new" title="::ngspicetclbridge::new" class='ruff_cmd'>::ngspicetclbridge::new</a> command:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> sim [ngspicetclbridge::new <font color=#4A181B>$ngspiceLibPath</font>]
-</pre>
-
-</figure><p class='ruff'>Load circuit into simulation with <a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM circuit" title="::ngspicetclbridge::SIM circuit" class='ruff_cmd'>::ngspicetclbridge::SIM circuit</a> command:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><font color=#4A181B>$sim</font> circuit <font color=#463e11>-string</font> <font color=#4A181B>$circuit</font>
-</pre>
-
-</figure><p class='ruff'>By default subcommand <code>circuit</code> accepts list of lines where each line contains one line of netlist, but switch <code><font color=#463e11>-string</font></code> allows to pass circuit as a string with lines being delimited by newline symbol.</p>
-<p class='ruff'>Add list of <code>n</code> parameter values we want to simulate:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> ns {0.8 0.9 1.0 1.1 1.2}
-</pre>
-
-</figure><p class='ruff'>Then we run loop for each value of <code>n</code>, send <code>altermod</code> Ngspice command by <a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM command" title="::ngspicetclbridge::SIM command" class='ruff_cmd'>::ngspicetclbridge::SIM command</a>, run simulation by <a href="index-ngspicetclbridge.html#::ngspicetclbridge::run" title="::ngspicetclbridge::run" class='ruff_cmd'>::ngspicetclbridge::run</a> command (procedure waits for the end of simulation), then read vectors with <a href="index-ngspicetclbridge.html#::ngspicetclbridge::SIM asyncvector" title="::ngspicetclbridge::SIM asyncvector" class='ruff_cmd'>::ngspicetclbridge::SIM asyncvector</a> command and prepare data for plotting:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>foreach</font></b> n <font color=#4A181B>$ns</font> {
-    <i><font color=#4b5d50># change model parameter</font></i>
-    <font color=#4A181B>$sim</font> command <font color=#035103>&quot;altermod diomod n = <font color=#4A181B>$</font>n&quot;</font>
-    <i><font color=#4b5d50># run simulation and wait for the end</font></i>
-    run <font color=#4A181B>$sim</font>
-    <i><font color=#4b5d50># read result vectors and prepare for plotting</font></i>
-    <b><font color=#923B23>foreach</font></b> x [<font color=#4A181B>$sim</font> asyncvector anode] y [<font color=#4A181B>$sim</font> asyncvector i(va)] {
-        <b><font color=#923B23>set</font></b> xf [<b><font color=#923B23>format</font></b> <font color=#035103>&quot;%.3f&quot;</font> <font color=#4A181B>$x</font>]
-        <b><font color=#923B23>set</font></b> yf [<b><font color=#923B23>format</font></b> <font color=#035103>&quot;%.3f&quot;</font> [= {-<font color=#4A181B>$y</font>}]]
-        <b><font color=#923B23>lappend</font></b> xydata [<b><font color=#923B23>list</font></b> <font color=#4A181B>$xf</font> <font color=#4A181B>$yf</font>]
-    }
-    <b><font color=#923B23>lappend</font></b> dataList <font color=#4A181B>$xydata</font>
-    <b><font color=#923B23>unset</font></b> xydata
-}
-</pre>
-
-</figure><p class='ruff'>Subcommand <code>command</code> send the string to Ngspice as is. In this case we send <code>altermod</code> command (see Ngspice manual 13.5.4) that allows to alter parameter of particular model without resetting the circuit or circuit reparsing.</p>
-<p class='ruff'>The we use <code>ticklecharts</code> package to plot resulted curves:</p>
-
-<figure  class='ruff-snippet ruff-figure'><pre class='ruff'><b><font color=#923B23>set</font></b> chart [ticklecharts::chart new]
-<font color=#4A181B>$chart</font> Xaxis <font color=#463e11>-name</font> <font color=#035103>&quot;v(anode), V&quot;</font> <font color=#463e11>-minorTick</font> {show <font color=#035103>&quot;True&quot;</font>}  <font color=#463e11>-type</font> <font color=#035103>&quot;value&quot;</font> <font color=#463e11>-splitLine</font> {show <font color=#035103>&quot;True&quot;</font>}
-<font color=#4A181B>$chart</font> Yaxis <font color=#463e11>-name</font> <font color=#035103>&quot;Idiode, A&quot;</font> <font color=#463e11>-minorTick</font> {show <font color=#035103>&quot;True&quot;</font>}  <font color=#463e11>-type</font> <font color=#035103>&quot;value&quot;</font> <font color=#463e11>-splitLine</font> {show <font color=#035103>&quot;True&quot;</font>}
-<font color=#4A181B>$chart</font> SetOptions <font color=#463e11>-title</font> {} <font color=#463e11>-tooltip</font> {trigger <font color=#035103>&quot;axis&quot;</font>} <font color=#463e11>-animation</font> <font color=#035103>&quot;False&quot;</font> <font color=#463e11>-legend</font> {} <font color=#463e11>-toolbox</font> {feature {dataZoom {yAxisIndex <font color=#035103>&quot;none&quot;</font>}}}  <font color=#463e11>-grid</font> {left <font color=#035103>&quot;5%&quot;</font> right <font color=#035103>&quot;15%&quot;</font>}
-<b><font color=#923B23>foreach</font></b> data <font color=#4A181B>$dataList</font> n <font color=#4A181B>$ns</font> {
-    <font color=#4A181B>$chart</font> Add <font color=#035103>&quot;lineSeries&quot;</font> <font color=#463e11>-data</font> <font color=#4A181B>$data</font> <font color=#463e11>-showAllSymbol</font> <font color=#035103>&quot;nothing&quot;</font> <font color=#463e11>-name</font> <font color=#035103>&quot;n=<font color=#4A181B>${</font>n<font color=#4A181B>}</font>&quot;</font> <font color=#463e11>-symbolSize</font> <font color=#035103>&quot;2&quot;</font>
-}
-<b><font color=#923B23>set</font></b> fbasename [<b><font color=#923B23>file</font></b> rootname [<b><font color=#923B23>file</font></b> tail [<b><font color=#923B23>info</font></b> script]]]
-
-<font color=#4A181B>$chart</font> Render <font color=#463e11>-outfile</font> [<b><font color=#923B23>file</font></b> normalize [<b><font color=#923B23>file</font></b> join html_charts <font color=#4A181B>$fbasename</font>.html]]
-</pre>
-
-</figure><p class='ruff'><!DOCTYPE html>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">Render</span><span class="w"> </span><span class="o">-</span>outfile<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>normalize<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>join<span class="w"> </span>html_charts<span class="w"> </span><span class="nv">$fbasename.html</span><span class="k">]]</span>
+</pre></div>
+</div>
+<p><!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8">
@@ -97,10 +121,10 @@ va anode 0 0
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   </head>
   <body>
-    <div id="id_7607d5412a9e48b998045db6044a6490" class="chart-container" style="width:900px; height:500px;"></div>
+    <div id="id_c285612bc6d64a49be114ab1b37fd562" class="chart-container" style="width:800px; height:500px;"></div>
     <script>
-      var chart_7607d5412a9e48b998045db6044a6490 = echarts.init(document.getElementById("id_7607d5412a9e48b998045db6044a6490"), null, {renderer: "canvas"});
-      var option_7607d5412a9e48b998045db6044a6490 = {
+      var chart_c285612bc6d64a49be114ab1b37fd562 = echarts.init(document.getElementById("id_c285612bc6d64a49be114ab1b37fd562"), null, {renderer: "canvas"});
+      var option_c285612bc6d64a49be114ab1b37fd562 = {
   "xAxis": [{
       "show": true,
       "type": "value",
@@ -502,7 +526,7 @@ va anode 0 0
         ],
         [
           0.570,
-          0.531
+          0.532
         ],
         [
           0.580,
@@ -558,111 +582,111 @@ va anode 0 0
         ],
         [
           0.710,
-          8.424
+          8.416
         ],
         [
           0.720,
-          9.214
+          9.207
         ],
         [
           0.730,
-          10.017
+          10.011
         ],
         [
           0.740,
-          10.833
+          10.827
         ],
         [
           0.750,
-          11.658
+          11.654
         ],
         [
           0.760,
-          12.493
+          12.489
         ],
         [
           0.770,
-          13.337
+          13.333
         ],
         [
           0.780,
-          14.188
+          14.185
         ],
         [
           0.790,
-          15.047
+          15.043
         ],
         [
           0.800,
-          15.911
+          15.908
         ],
         [
           0.810,
-          16.782
+          16.779
         ],
         [
           0.820,
-          17.658
+          17.655
         ],
         [
           0.830,
-          18.539
+          18.536
         ],
         [
           0.840,
-          19.424
+          19.422
         ],
         [
           0.850,
-          20.314
+          20.312
         ],
         [
           0.860,
-          21.208
+          21.206
         ],
         [
           0.870,
-          22.105
+          22.103
         ],
         [
           0.880,
-          23.006
+          23.004
         ],
         [
           0.890,
-          23.910
+          23.908
         ],
         [
           0.900,
-          24.817
+          24.815
         ],
         [
           0.910,
-          25.726
+          25.725
         ],
         [
           0.920,
-          26.639
+          26.638
         ],
         [
           0.930,
-          27.554
+          27.553
         ],
         [
           0.940,
-          28.471
+          28.470
         ],
         [
           0.950,
-          29.391
+          29.390
         ],
         [
           0.960,
-          30.312
+          30.311
         ],
         [
           0.970,
-          31.236
+          31.235
         ],
         [
           0.980,
@@ -670,39 +694,39 @@ va anode 0 0
         ],
         [
           0.990,
-          33.089
+          33.088
         ],
         [
           1.000,
-          34.018
+          34.017
         ],
         [
           1.010,
-          34.949
+          34.948
         ],
         [
           1.020,
-          35.881
+          35.880
         ],
         [
           1.030,
-          36.815
+          36.814
         ],
         [
           1.040,
-          37.750
+          37.749
         ],
         [
           1.050,
-          38.687
+          38.686
         ],
         [
           1.060,
-          39.625
+          39.624
         ],
         [
           1.070,
-          40.564
+          40.563
         ],
         [
           1.080,
@@ -710,7 +734,7 @@ va anode 0 0
         ],
         [
           1.090,
-          42.446
+          42.445
         ],
         [
           1.100,
@@ -726,11 +750,11 @@ va anode 0 0
         ],
         [
           1.130,
-          46.223
+          46.222
         ],
         [
           1.140,
-          47.170
+          47.169
         ],
         [
           1.150,
@@ -738,7 +762,7 @@ va anode 0 0
         ],
         [
           1.160,
-          49.066
+          49.065
         ],
         [
           1.170,
@@ -750,7 +774,7 @@ va anode 0 0
         ],
         [
           1.190,
-          51.917
+          51.916
         ],
         [
           1.200,
@@ -774,11 +798,11 @@ va anode 0 0
         ],
         [
           1.250,
-          57.639
+          57.638
         ],
         [
           1.260,
-          58.595
+          58.594
         ],
         [
           1.270,
@@ -786,7 +810,7 @@ va anode 0 0
         ],
         [
           1.280,
-          60.509
+          60.508
         ],
         [
           1.290,
@@ -802,11 +826,11 @@ va anode 0 0
         ],
         [
           1.320,
-          64.344
+          64.343
         ],
         [
           1.330,
-          65.304
+          65.303
         ],
         [
           1.340,
@@ -826,7 +850,7 @@ va anode 0 0
         ],
         [
           1.380,
-          70.112
+          70.111
         ],
         [
           1.390,
@@ -898,7 +922,7 @@ va anode 0 0
         ],
         [
           1.560,
-          87.507
+          87.506
         ],
         [
           1.570,
@@ -910,7 +934,7 @@ va anode 0 0
         ],
         [
           1.590,
-          90.417
+          90.416
         ],
         [
           1.600,
@@ -942,7 +966,7 @@ va anode 0 0
         ],
         [
           1.670,
-          98.189
+          98.188
         ],
         [
           1.680,
@@ -974,7 +998,7 @@ va anode 0 0
         ],
         [
           1.750,
-          105.977
+          105.976
         ],
         [
           1.760,
@@ -1054,7 +1078,7 @@ va anode 0 0
         ],
         [
           1.950,
-          125.504
+          125.503
         ],
         [
           1.960,
@@ -1066,7 +1090,7 @@ va anode 0 0
         ],
         [
           1.980,
-          128.439
+          128.438
         ],
         [
           1.990,
@@ -1364,7 +1388,7 @@ va anode 0 0
         ],
         [
           0.660,
-          1.015
+          1.016
         ],
         [
           0.670,
@@ -1372,7 +1396,7 @@ va anode 0 0
         ],
         [
           0.680,
-          1.723
+          1.724
         ],
         [
           0.690,
@@ -1408,7 +1432,7 @@ va anode 0 0
         ],
         [
           0.770,
-          7.136
+          7.137
         ],
         [
           0.780,
@@ -1416,159 +1440,159 @@ va anode 0 0
         ],
         [
           0.790,
-          8.637
+          8.629
         ],
         [
           0.800,
-          9.411
+          9.404
         ],
         [
           0.810,
-          10.198
+          10.192
         ],
         [
           0.820,
-          10.997
+          10.992
         ],
         [
           0.830,
-          11.807
+          11.802
         ],
         [
           0.840,
-          12.627
+          12.622
         ],
         [
           0.850,
-          13.455
+          13.451
         ],
         [
           0.860,
-          14.292
+          14.288
         ],
         [
           0.870,
-          15.136
+          15.132
         ],
         [
           0.880,
-          15.987
+          15.984
         ],
         [
           0.890,
-          16.844
+          16.841
         ],
         [
           0.900,
-          17.706
+          17.704
         ],
         [
           0.910,
-          18.574
+          18.572
         ],
         [
           0.920,
-          19.447
+          19.445
         ],
         [
           0.930,
-          20.325
+          20.323
         ],
         [
           0.940,
-          21.207
+          21.205
         ],
         [
           0.950,
-          22.092
+          22.090
         ],
         [
           0.960,
-          22.982
+          22.980
         ],
         [
           0.970,
-          23.875
+          23.873
         ],
         [
           0.980,
-          24.771
+          24.769
         ],
         [
           0.990,
-          25.670
+          25.669
         ],
         [
           1.000,
-          26.572
+          26.571
         ],
         [
           1.010,
-          27.477
+          27.476
         ],
         [
           1.020,
-          28.385
+          28.383
         ],
         [
           1.030,
-          29.295
+          29.293
         ],
         [
           1.040,
-          30.207
+          30.206
         ],
         [
           1.050,
-          31.121
+          31.120
         ],
         [
           1.060,
-          32.038
+          32.037
         ],
         [
           1.070,
-          32.956
+          32.955
         ],
         [
           1.080,
-          33.877
+          33.876
         ],
         [
           1.090,
-          34.799
+          34.798
         ],
         [
           1.100,
-          35.723
+          35.722
         ],
         [
           1.110,
-          36.649
+          36.648
         ],
         [
           1.120,
-          37.576
+          37.575
         ],
         [
           1.130,
-          38.505
+          38.504
         ],
         [
           1.140,
-          39.435
+          39.434
         ],
         [
           1.150,
-          40.367
+          40.366
         ],
         [
           1.160,
-          41.300
+          41.299
         ],
         [
           1.170,
-          42.234
+          42.233
         ],
         [
           1.180,
@@ -1576,35 +1600,35 @@ va anode 0 0
         ],
         [
           1.190,
-          44.106
+          44.105
         ],
         [
           1.200,
-          45.044
+          45.043
         ],
         [
           1.210,
-          45.983
+          45.982
         ],
         [
           1.220,
-          46.923
+          46.922
         ],
         [
           1.230,
-          47.864
+          47.863
         ],
         [
           1.240,
-          48.806
+          48.805
         ],
         [
           1.250,
-          49.749
+          49.748
         ],
         [
           1.260,
-          50.693
+          50.692
         ],
         [
           1.270,
@@ -1616,7 +1640,7 @@ va anode 0 0
         ],
         [
           1.290,
-          53.530
+          53.529
         ],
         [
           1.300,
@@ -1632,7 +1656,7 @@ va anode 0 0
         ],
         [
           1.330,
-          57.324
+          57.323
         ],
         [
           1.340,
@@ -1668,7 +1692,7 @@ va anode 0 0
         ],
         [
           1.420,
-          65.901
+          65.900
         ],
         [
           1.430,
@@ -1680,7 +1704,7 @@ va anode 0 0
         ],
         [
           1.450,
-          68.771
+          68.770
         ],
         [
           1.460,
@@ -1720,7 +1744,7 @@ va anode 0 0
         ],
         [
           1.550,
-          78.369
+          78.368
         ],
         [
           1.560,
@@ -1728,11 +1752,11 @@ va anode 0 0
         ],
         [
           1.570,
-          80.294
+          80.293
         ],
         [
           1.580,
-          81.257
+          81.256
         ],
         [
           1.590,
@@ -1748,11 +1772,11 @@ va anode 0 0
         ],
         [
           1.620,
-          85.113
+          85.112
         ],
         [
           1.630,
-          86.078
+          86.077
         ],
         [
           1.640,
@@ -1768,7 +1792,7 @@ va anode 0 0
         ],
         [
           1.670,
-          89.941
+          89.940
         ],
         [
           1.680,
@@ -1816,11 +1840,11 @@ va anode 0 0
         ],
         [
           1.790,
-          101.560
+          101.559
         ],
         [
           1.800,
-          102.530
+          102.529
         ],
         [
           1.810,
@@ -1840,7 +1864,7 @@ va anode 0 0
         ],
         [
           1.850,
-          107.384
+          107.383
         ],
         [
           1.860,
@@ -2246,7 +2270,7 @@ va anode 0 0
         ],
         [
           0.800,
-          4.068
+          4.069
         ],
         [
           0.810,
@@ -2274,143 +2298,143 @@ va anode 0 0
         ],
         [
           0.870,
-          8.841
+          8.832
         ],
         [
           0.880,
-          9.599
+          9.592
         ],
         [
           0.890,
-          10.371
+          10.365
         ],
         [
           0.900,
-          11.155
+          11.149
         ],
         [
           0.910,
-          11.950
+          11.945
         ],
         [
           0.920,
-          12.755
+          12.750
         ],
         [
           0.930,
-          13.569
+          13.565
         ],
         [
           0.940,
-          14.392
+          14.388
         ],
         [
           0.950,
-          15.222
+          15.219
         ],
         [
           0.960,
-          16.060
+          16.056
         ],
         [
           0.970,
-          16.903
+          16.900
         ],
         [
           0.980,
-          17.753
+          17.751
         ],
         [
           0.990,
-          18.609
+          18.606
         ],
         [
           1.000,
-          19.470
+          19.467
         ],
         [
           1.010,
-          20.335
+          20.333
         ],
         [
           1.020,
-          21.206
+          21.203
         ],
         [
           1.030,
-          22.080
+          22.078
         ],
         [
           1.040,
-          22.958
+          22.957
         ],
         [
           1.050,
-          23.841
+          23.839
         ],
         [
           1.060,
-          24.726
+          24.724
         ],
         [
           1.070,
-          25.615
+          25.614
         ],
         [
           1.080,
-          26.507
+          26.506
         ],
         [
           1.090,
-          27.402
+          27.401
         ],
         [
           1.100,
-          28.300
+          28.299
         ],
         [
           1.110,
-          29.201
+          29.199
         ],
         [
           1.120,
-          30.104
+          30.102
         ],
         [
           1.130,
-          31.009
+          31.008
         ],
         [
           1.140,
-          31.917
+          31.916
         ],
         [
           1.150,
-          32.826
+          32.825
         ],
         [
           1.160,
-          33.738
+          33.737
         ],
         [
           1.170,
-          34.652
+          34.651
         ],
         [
           1.180,
-          35.568
+          35.567
         ],
         [
           1.190,
-          36.486
+          36.485
         ],
         [
           1.200,
-          37.405
+          37.404
         ],
         [
           1.210,
-          38.326
+          38.325
         ],
         [
           1.220,
@@ -2418,15 +2442,15 @@ va anode 0 0
         ],
         [
           1.230,
-          40.173
+          40.172
         ],
         [
           1.240,
-          41.098
+          41.097
         ],
         [
           1.250,
-          42.025
+          42.024
         ],
         [
           1.260,
@@ -2434,15 +2458,15 @@ va anode 0 0
         ],
         [
           1.270,
-          43.883
+          43.882
         ],
         [
           1.280,
-          44.814
+          44.813
         ],
         [
           1.290,
-          45.746
+          45.745
         ],
         [
           1.300,
@@ -2450,7 +2474,7 @@ va anode 0 0
         ],
         [
           1.310,
-          47.614
+          47.613
         ],
         [
           1.320,
@@ -2458,7 +2482,7 @@ va anode 0 0
         ],
         [
           1.330,
-          49.486
+          49.485
         ],
         [
           1.340,
@@ -2466,7 +2490,7 @@ va anode 0 0
         ],
         [
           1.350,
-          51.362
+          51.361
         ],
         [
           1.360,
@@ -2474,7 +2498,7 @@ va anode 0 0
         ],
         [
           1.370,
-          53.242
+          53.241
         ],
         [
           1.380,
@@ -2482,15 +2506,15 @@ va anode 0 0
         ],
         [
           1.390,
-          55.126
+          55.125
         ],
         [
           1.400,
-          56.069
+          56.068
         ],
         [
           1.410,
-          57.013
+          57.012
         ],
         [
           1.420,
@@ -2498,7 +2522,7 @@ va anode 0 0
         ],
         [
           1.430,
-          58.903
+          58.902
         ],
         [
           1.440,
@@ -2510,7 +2534,7 @@ va anode 0 0
         ],
         [
           1.460,
-          61.744
+          61.743
         ],
         [
           1.470,
@@ -2522,7 +2546,7 @@ va anode 0 0
         ],
         [
           1.490,
-          64.591
+          64.590
         ],
         [
           1.500,
@@ -2534,11 +2558,11 @@ va anode 0 0
         ],
         [
           1.520,
-          67.444
+          67.443
         ],
         [
           1.530,
-          68.396
+          68.395
         ],
         [
           1.540,
@@ -2546,11 +2570,11 @@ va anode 0 0
         ],
         [
           1.550,
-          70.302
+          70.301
         ],
         [
           1.560,
-          71.256
+          71.255
         ],
         [
           1.570,
@@ -2570,11 +2594,11 @@ va anode 0 0
         ],
         [
           1.610,
-          76.033
+          76.032
         ],
         [
           1.620,
-          76.990
+          76.989
         ],
         [
           1.630,
@@ -2598,7 +2622,7 @@ va anode 0 0
         ],
         [
           1.680,
-          82.741
+          82.740
         ],
         [
           1.690,
@@ -2610,7 +2634,7 @@ va anode 0 0
         ],
         [
           1.710,
-          85.622
+          85.621
         ],
         [
           1.720,
@@ -2626,7 +2650,7 @@ va anode 0 0
         ],
         [
           1.750,
-          89.469
+          89.468
         ],
         [
           1.760,
@@ -2638,7 +2662,7 @@ va anode 0 0
         ],
         [
           1.780,
-          92.358
+          92.357
         ],
         [
           1.790,
@@ -2650,7 +2674,7 @@ va anode 0 0
         ],
         [
           1.810,
-          95.250
+          95.249
         ],
         [
           1.820,
@@ -2662,7 +2686,7 @@ va anode 0 0
         ],
         [
           1.840,
-          98.145
+          98.144
         ],
         [
           1.850,
@@ -2722,7 +2746,7 @@ va anode 0 0
         ],
         [
           1.990,
-          112.658
+          112.657
         ],
         [
           2.000,
@@ -3132,147 +3156,147 @@ va anode 0 0
         ],
         [
           0.950,
-          9.035
+          9.027
         ],
         [
           0.960,
-          9.779
+          9.772
         ],
         [
           0.970,
-          10.537
+          10.530
         ],
         [
           0.980,
-          11.306
+          11.301
         ],
         [
           0.990,
-          12.087
+          12.082
         ],
         [
           1.000,
-          12.879
+          12.874
         ],
         [
           1.010,
-          13.679
+          13.675
         ],
         [
           1.020,
-          14.488
+          14.484
         ],
         [
           1.030,
-          15.306
+          15.302
         ],
         [
           1.040,
-          16.130
+          16.127
         ],
         [
           1.050,
-          16.961
+          16.958
         ],
         [
           1.060,
-          17.799
+          17.796
         ],
         [
           1.070,
-          18.643
+          18.640
         ],
         [
           1.080,
-          19.492
+          19.489
         ],
         [
           1.090,
-          20.346
+          20.343
         ],
         [
           1.100,
-          21.205
+          21.202
         ],
         [
           1.110,
-          22.068
+          22.066
         ],
         [
           1.120,
-          22.936
+          22.934
         ],
         [
           1.130,
-          23.807
+          23.805
         ],
         [
           1.140,
-          24.682
+          24.681
         ],
         [
           1.150,
-          25.561
+          25.560
         ],
         [
           1.160,
-          26.444
+          26.442
         ],
         [
           1.170,
-          27.329
+          27.327
         ],
         [
           1.180,
-          28.217
+          28.216
         ],
         [
           1.190,
-          29.108
+          29.107
         ],
         [
           1.200,
-          30.002
+          30.001
         ],
         [
           1.210,
-          30.899
+          30.897
         ],
         [
           1.220,
-          31.798
+          31.796
         ],
         [
           1.230,
-          32.699
+          32.698
         ],
         [
           1.240,
-          33.602
+          33.601
         ],
         [
           1.250,
-          34.508
+          34.507
         ],
         [
           1.260,
-          35.416
+          35.415
         ],
         [
           1.270,
-          36.325
+          36.324
         ],
         [
           1.280,
-          37.237
+          37.236
         ],
         [
           1.290,
-          38.150
+          38.149
         ],
         [
           1.300,
-          39.065
+          39.064
         ],
         [
           1.310,
@@ -3280,7 +3304,7 @@ va anode 0 0
         ],
         [
           1.320,
-          40.900
+          40.899
         ],
         [
           1.330,
@@ -3288,7 +3312,7 @@ va anode 0 0
         ],
         [
           1.340,
-          42.741
+          42.740
         ],
         [
           1.350,
@@ -3300,7 +3324,7 @@ va anode 0 0
         ],
         [
           1.370,
-          45.513
+          45.512
         ],
         [
           1.380,
@@ -3308,7 +3332,7 @@ va anode 0 0
         ],
         [
           1.390,
-          47.367
+          47.366
         ],
         [
           1.400,
@@ -3320,11 +3344,11 @@ va anode 0 0
         ],
         [
           1.420,
-          50.158
+          50.157
         ],
         [
           1.430,
-          51.090
+          51.089
         ],
         [
           1.440,
@@ -3332,7 +3356,7 @@ va anode 0 0
         ],
         [
           1.450,
-          52.958
+          52.957
         ],
         [
           1.460,
@@ -3340,11 +3364,11 @@ va anode 0 0
         ],
         [
           1.470,
-          54.830
+          54.829
         ],
         [
           1.480,
-          55.767
+          55.766
         ],
         [
           1.490,
@@ -3356,11 +3380,11 @@ va anode 0 0
         ],
         [
           1.510,
-          58.584
+          58.583
         ],
         [
           1.520,
-          59.525
+          59.524
         ],
         [
           1.530,
@@ -3380,7 +3404,7 @@ va anode 0 0
         ],
         [
           1.570,
-          64.240
+          64.239
         ],
         [
           1.580,
@@ -3396,7 +3420,7 @@ va anode 0 0
         ],
         [
           1.610,
-          68.025
+          68.024
         ],
         [
           1.620,
@@ -3412,7 +3436,7 @@ va anode 0 0
         ],
         [
           1.650,
-          71.820
+          71.819
         ],
         [
           1.660,
@@ -3420,7 +3444,7 @@ va anode 0 0
         ],
         [
           1.670,
-          73.721
+          73.720
         ],
         [
           1.680,
@@ -3440,7 +3464,7 @@ va anode 0 0
         ],
         [
           1.720,
-          78.483
+          78.482
         ],
         [
           1.730,
@@ -3452,7 +3476,7 @@ va anode 0 0
         ],
         [
           1.750,
-          81.346
+          81.345
         ],
         [
           1.760,
@@ -3468,11 +3492,11 @@ va anode 0 0
         ],
         [
           1.790,
-          85.170
+          85.169
         ],
         [
           1.800,
-          86.127
+          86.126
         ],
         [
           1.810,
@@ -3496,7 +3520,7 @@ va anode 0 0
         ],
         [
           1.860,
-          91.878
+          91.877
         ],
         [
           1.870,
@@ -3504,7 +3528,7 @@ va anode 0 0
         ],
         [
           1.880,
-          93.798
+          93.797
         ],
         [
           1.890,
@@ -3532,11 +3556,11 @@ va anode 0 0
         ],
         [
           1.950,
-          100.529
+          100.528
         ],
         [
           1.960,
-          101.492
+          101.491
         ],
         [
           1.970,
@@ -3934,7 +3958,7 @@ va anode 0 0
         ],
         [
           0.890,
-          1.456
+          1.457
         ],
         [
           0.900,
@@ -3990,147 +4014,147 @@ va anode 0 0
         ],
         [
           1.030,
-          9.222
+          9.214
         ],
         [
           1.040,
-          9.952
+          9.945
         ],
         [
           1.050,
-          10.696
+          10.690
         ],
         [
           1.060,
-          11.452
+          11.447
         ],
         [
           1.070,
-          12.220
+          12.215
         ],
         [
           1.080,
-          12.998
+          12.993
         ],
         [
           1.090,
-          13.785
+          13.781
         ],
         [
           1.100,
-          14.582
+          14.578
         ],
         [
           1.110,
-          15.386
+          15.383
         ],
         [
           1.120,
-          16.199
+          16.195
         ],
         [
           1.130,
-          17.018
+          17.014
         ],
         [
           1.140,
-          17.843
+          17.840
         ],
         [
           1.150,
-          18.675
+          18.672
         ],
         [
           1.160,
-          19.513
+          19.510
         ],
         [
           1.170,
-          20.356
+          20.353
         ],
         [
           1.180,
-          21.204
+          21.201
         ],
         [
           1.190,
-          22.056
+          22.054
         ],
         [
           1.200,
-          22.913
+          22.911
         ],
         [
           1.210,
-          23.775
+          23.773
         ],
         [
           1.220,
-          24.640
+          24.638
         ],
         [
           1.230,
-          25.509
+          25.507
         ],
         [
           1.240,
-          26.381
+          26.380
         ],
         [
           1.250,
-          27.257
+          27.255
         ],
         [
           1.260,
-          28.136
+          28.135
         ],
         [
           1.270,
-          29.018
+          29.017
         ],
         [
           1.280,
-          29.903
+          29.902
         ],
         [
           1.290,
-          30.791
+          30.789
         ],
         [
           1.300,
-          31.681
+          31.680
         ],
         [
           1.310,
-          32.574
+          32.572
         ],
         [
           1.320,
-          33.469
+          33.468
         ],
         [
           1.330,
-          34.366
+          34.365
         ],
         [
           1.340,
-          35.266
+          35.265
         ],
         [
           1.350,
-          36.167
+          36.166
         ],
         [
           1.360,
-          37.071
+          37.070
         ],
         [
           1.370,
-          37.977
+          37.976
         ],
         [
           1.380,
-          38.884
+          38.883
         ],
         [
           1.390,
@@ -4138,35 +4162,35 @@ va anode 0 0
         ],
         [
           1.400,
-          40.704
+          40.703
         ],
         [
           1.410,
-          41.617
+          41.616
         ],
         [
           1.420,
-          42.531
+          42.530
         ],
         [
           1.430,
-          43.447
+          43.446
         ],
         [
           1.440,
-          44.364
+          44.363
         ],
         [
           1.450,
-          45.283
+          45.282
         ],
         [
           1.460,
-          46.203
+          46.202
         ],
         [
           1.470,
-          47.124
+          47.123
         ],
         [
           1.480,
@@ -4186,7 +4210,7 @@ va anode 0 0
         ],
         [
           1.520,
-          51.749
+          51.748
         ],
         [
           1.530,
@@ -4194,7 +4218,7 @@ va anode 0 0
         ],
         [
           1.540,
-          53.607
+          53.606
         ],
         [
           1.550,
@@ -4202,7 +4226,7 @@ va anode 0 0
         ],
         [
           1.560,
-          55.469
+          55.468
         ],
         [
           1.570,
@@ -4214,7 +4238,7 @@ va anode 0 0
         ],
         [
           1.590,
-          58.269
+          58.268
         ],
         [
           1.600,
@@ -4230,7 +4254,7 @@ va anode 0 0
         ],
         [
           1.630,
-          62.015
+          62.014
         ],
         [
           1.640,
@@ -4238,15 +4262,15 @@ va anode 0 0
         ],
         [
           1.650,
-          63.893
+          63.892
         ],
         [
           1.660,
-          64.833
+          64.832
         ],
         [
           1.670,
-          65.774
+          65.773
         ],
         [
           1.680,
@@ -4274,11 +4298,11 @@ va anode 0 0
         ],
         [
           1.740,
-          72.379
+          72.378
         ],
         [
           1.750,
-          73.325
+          73.324
         ],
         [
           1.760,
@@ -4286,11 +4310,11 @@ va anode 0 0
         ],
         [
           1.770,
-          75.219
+          75.218
         ],
         [
           1.780,
-          76.167
+          76.166
         ],
         [
           1.790,
@@ -4302,11 +4326,11 @@ va anode 0 0
         ],
         [
           1.810,
-          79.014
+          79.013
         ],
         [
           1.820,
-          79.964
+          79.963
         ],
         [
           1.830,
@@ -4334,11 +4358,11 @@ va anode 0 0
         ],
         [
           1.890,
-          86.628
+          86.627
         ],
         [
           1.900,
-          87.582
+          87.581
         ],
         [
           1.910,
@@ -4346,7 +4370,7 @@ va anode 0 0
         ],
         [
           1.920,
-          89.491
+          89.490
         ],
         [
           1.930,
@@ -4362,7 +4386,7 @@ va anode 0 0
         ],
         [
           1.960,
-          93.314
+          93.313
         ],
         [
           1.970,
@@ -4370,7 +4394,7 @@ va anode 0 0
         ],
         [
           1.980,
-          95.228
+          95.227
         ],
         [
           1.990,
@@ -4387,17 +4411,75 @@ va anode 0 0
     }
   ]
 };
-      chart_7607d5412a9e48b998045db6044a6490.setOption(option_7607d5412a9e48b998045db6044a6490);
+      chart_c285612bc6d64a49be114ab1b37fd562.setOption(option_c285612bc6d64a49be114ab1b37fd562);
     </script>
   </body>
 </html>
 </p>
-</main><nav class='ruff-nav'><ul ><li class='ruff-toc1'><a style='padding-top:2px;' href='index.html'>Start page</a></li>
-<li class='ruff-toc1'><a href='index-docindex.html' accesskey='i'>Index</a></li>
-<hr>
-<li class='ruff-toc1'><a href='index-ngspicetclbridge.html'>ngspicetclbridge</a></li>
-<li class='ruff-toc1'><a href='index-Notes-and-internals.html'>Notes and internals</a></li>
-<li class='ruff-toc1'><a href='index-Troubleshooting.html'>Troubleshooting</a></li>
-<li class='ruff-toc1'><a class='ruff-highlight' href='index-Examples.html'>Examples</a></li>
-<hr><li class='ruff-toc2'><a href='#::Examples-Parametric simulation'>Parametric simulation</a></li></ul></nav><footer class='ruff-layout-footer ruff-ft'><div style='float: right;'>Document generated by <a href='https://ruff.magicsplat.com'>Ruff!</a></div><div>&copy; George Yashin</div></footer>
-</div></body></html>
+<hr class="docutils" />
+<p class="centered">
+<strong>Copyright (c) George Yashin</strong></p></section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">::Examples</a><ul>
+<li><a class="reference internal" href="#parametric-simulation">Parametric simulation</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="ngspicetclbridge-Troubleshooting.html"
+                          title="previous chapter">::Troubleshooting</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/ngspicetclbridge-Examples.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-Troubleshooting.html" title="::Troubleshooting"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">NgspiceTclBridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">::Examples</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright George Yashin.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

@@ -37,7 +37,7 @@ For package uninstall run `sudo make uninstall`.
 
 ## Documentation
 
-Documentation could be found [here](https://georgtree.github.io//).
+Documentation could be found [here](https://georgtree.github.io/NgspiceTclBridge/).
 
 ## Notes
 

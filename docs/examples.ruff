@@ -25,8 +25,8 @@ namespace eval Examples {
         .temp 25
         .end}
         ```
-
-        <img src="assets/img/diode_iv_cir.png" alt="drawing" width="400"/>
+        
+        ![diode_iv_cir](assets/img/diode_iv_cir.png)
 
         Be carefull: for correct usage you have to provide `.end` statement at the the end of the netlist.
 
@@ -60,7 +60,7 @@ namespace eval Examples {
             # read result vectors and prepare for plotting
             foreach x [$sim asyncvector anode] y [$sim asyncvector i(va)] {
                 set xf [format "%.3f" $x]
-                set yf [format "%.3f" [= {-$y}]]
+                set yf [format "%.3f" [expr {-$y}]]
                 lappend xydata [list $xf $yf]
             }
             lappend dataList $xydata

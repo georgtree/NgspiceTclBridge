@@ -302,10 +302,10 @@ Deletes the instance command\&. In details:
 Gets or reset the cumulative event counters for this simulator instance\&.
 .TP
 \fIinitvectors\fP
-Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.  dict with initial vector metadata saved in internal structure\&.
+Returns held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&. dict with initial vector metadata saved in internal structure\&.
 .TP
 \fIinputpath\fP
-Returns current path for XSPICE code models if -current switch is provided, or set current path to value provided\&.  current path\&.
+Returns current path for XSPICE code models if -current switch is provided, or set current path to value provided\&. current path\&.
 .TP
 \fIisrunning\fP
 Calls asynchronously to check if background thread is running\&.
@@ -314,10 +314,10 @@ Calls asynchronously to check if background thread is running\&.
 Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines\&.
 .TP
 \fIplot\fP
-Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot\&.  current plot, or list of all plots, or list of all vectors\&.
+Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot\&. current plot, or list of all plots, or list of all vectors\&.
 .TP
 \fIvectors\fP
-Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.  dict with vectors values accumulated up to this point in internal structure\&.
+Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&. dict with vectors values accumulated up to this point in internal structure\&.
 .TP
 \fIwaitevent\fP
 Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided)\&.

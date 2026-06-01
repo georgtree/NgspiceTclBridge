@@ -1,9 +1,14 @@
 *.o
 *.a
 *.so
+*.dll
 Makefile
 config.status
 config.log
 pkgIndex.tcl
 configure~
 *.pdf
+/docs/_sources
+/docs/sphinx
+/docs/.doctrees
+/docs/*.bak

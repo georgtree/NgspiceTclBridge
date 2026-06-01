@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>NgspiceTclBridge - drive ngspice (shared library) from Tcl &#8212; NgspiceTclBridge  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="::ngspicetclbridge" href="ngspicetclbridge-ngspicetclbridge.html" />
+    <link rel="prev" title="&lt;no title&gt;" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-ngspicetclbridge.html" title="::ngspicetclbridge"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="&lt;no title&gt;"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">NgspiceTclBridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="ngspicetclbridge-drive-ngspice-shared-library-from-tcl">
+<span id="r-ngspicetclbridge-drive-ngspice-shared-library-from-tcl"></span><span id="r-ngspicetclbridge202d20drive20ngspice2028shared20library2920from20tcl"></span><h1>NgspiceTclBridge - drive ngspice (shared library) from Tcl<a class="headerlink" href="#ngspicetclbridge-drive-ngspice-shared-library-from-tcl" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">ngspicetclbridge</span></code> is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small,
+thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving
+data/messages/events back into Tcl.</p>
+<p>It targets Tcl 9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.</p>
+<section id="what-it-gives-you-at-a-glance">
+<span id="r-what-it-gives-you-at-a-glance"></span><span id="r-what20it20gives20you2028at20a20glance29"></span><h2>What it gives you (at a glance)<a class="headerlink" href="#what-it-gives-you-at-a-glance" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Create one or more ngspice instances inside Tcl.</p></li>
+<li><p>Issue ngspice commands (e.g. bg_run, circbyline …).</p></li>
+<li><p>Wait for events (send_stat, send_data, etc.) with optional timeouts.</p></li>
+<li><p>Collect messages from ngspice stdout/stderr.</p></li>
+<li><p>Fetch vector metadata and values (both asynchronously collected and on-demand).</p></li>
+</ul>
+<p>All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread.</p>
+</section>
+<section id="building-requirements">
+<span id="r-building-requirements"></span><span id="r-building202620requirements"></span><h2>Building &amp; requirements<a class="headerlink" href="#building-requirements" title="Link to this heading">¶</a></h2>
+<p>Requirements:</p>
+<ul class="simple">
+<li><p>ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice interface (sharedspice.h).</p></li>
+<li><p>Tcl headers/libs (9.0).</p></li>
+</ul>
+<p>To install, run following commands:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/georgtree/NgspiceTclBridge.git</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">./configure</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">make</span> <span class="pre">install</span></code></p></li>
+</ul>
+<p>During installation manpages are also installed.</p>
+<p>For test package in place run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>.</p>
+<p>For package uninstall run <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">make</span> <span class="pre">uninstall</span></code>.</p>
+</section>
+<section id="documentation">
+<span id="r-documentation"></span><h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
+<p>Documentation could be found <a class="reference external" href="https://georgtree.github.io/NgspiceTclBridge/">here</a>.</p>
+</section>
+<section id="notes">
+<span id="r-notes"></span><h2>Notes<a class="headerlink" href="#notes" title="Link to this heading">¶</a></h2>
+<p>The commands that are subcommand to the simulator command, like <code class="docutils literal notranslate"><span class="pre">$s1</span> <span class="pre">command</span> <span class="pre">bg_run</span></code> are considered low level
+and communicate/interact directly with the simulator. On the other side, commands that accept simulator as a
+parameter are considered as “helper” commands, built on top of low-level commands.</p>
+</section>
+<section id="warnings">
+<span id="r-warnings"></span><h2>Warnings<a class="headerlink" href="#warnings" title="Link to this heading">¶</a></h2>
+<p>This library should be considere semi-stable now. It works well for <strong>single</strong> loading of shared library per
+process, without unloading and loading again. It also works with multiple unloadings (destroying) and loadings of
+the same library, but I’ve encountered a few possible memory corruption cases. I am trying my best to eliminate
+them, but I am not in full control of Ngspice shared library behaviour.</p>
+<p>One of the instances I’ve encountered is the running two circuit in sequence, with pattern load circuit-&gt;run-&gt;load
+circuit-&gt;run, and then try destroying the instance. This could lead to segmentation violation, unless the command
+<code class="docutils literal notranslate"><span class="pre">remcirc</span></code> for unloading previous circuit is issued before loading new circuit. It is done automatically now if you
+previously loaded the circuit with <code class="docutils literal notranslate"><span class="pre">circuit</span></code> command. But in case you want to load circuit with command
+<code class="docutils literal notranslate"><span class="pre">circbyline</span></code>, you need to issue <code class="docutils literal notranslate"><span class="pre">remcirc</span></code> command yourself.</p>
+</section>
+<section id="quick-start-synchronous-operation">
+<span id="r-quick-start-synchronous-operation"></span><span id="r-quick20start2028synchronous20operation29"></span><h2>Quick start (synchronous operation)<a class="headerlink" href="#quick-start-synchronous-operation" title="Link to this heading">¶</a></h2>
+<p>Package loading and initialization:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>package require ngspicetclbridge
+
+# Path to your ngspice shared library
+set ngspiceLibPath /path/to/libngspice.so
+
+# Create a new instance bound to a Tcl command
+set sim [ngspicetclbridge::new $ngspiceLibPath]
+</pre></div>
+</div>
+<p>Pass resistor divider circuit to Ngspice, and start the run (in background thread), and wait for completion:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$sim circuit [split $resDivCircuit \n]
+run $sim
+</pre></div>
+</div>
+<p>Get vector data dictionary saved in internal buffer:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$sim vectors
+</pre></div>
+</div>
+<p>Destroy instance of simulator (removes instance command, frees internal storages and simulator context)</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$sim destroy
+</pre></div>
+</div>
+<p>If you want to continue work with current simulator instance, you need to clear internal messages storage
+with next commands:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$s1 messages -clear
+</pre></div>
+</div>
+<p>Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data.</p>
+<hr class="docutils" />
+<p class="centered">
+<strong>Copyright (c) George Yashin</strong></p></section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
+<li><a class="reference internal" href="#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
+<li><a class="reference internal" href="#building-requirements">Building &amp; requirements</a></li>
+<li><a class="reference internal" href="#documentation">Documentation</a></li>
+<li><a class="reference internal" href="#notes">Notes</a></li>
+<li><a class="reference internal" href="#warnings">Warnings</a></li>
+<li><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="index.html"
+                          title="previous chapter">&lt;no title&gt;</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="ngspicetclbridge-ngspicetclbridge.html"
+                          title="next chapter">::ngspicetclbridge</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/ngspicetclbridge.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-ngspicetclbridge.html" title="::ngspicetclbridge"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="&lt;no title&gt;"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">NgspiceTclBridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright George Yashin.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>
