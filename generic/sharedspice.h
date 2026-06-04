@@ -124,7 +124,7 @@ are of type bool if sharedspice.h is used externally.
 */
 
 #ifndef NGSPICE_PACKAGE_VERSION
-#define NGSPICE_PACKAGE_VERSION "45.2"
+#define NGSPICE_PACKAGE_VERSION "46"
 #endif
 /* we have NG_BOOL instead of BOOL */
 #ifndef HAS_NG_BOOL
@@ -162,7 +162,7 @@ extern "C" {
 struct ngcomplex {
     double cx_real;
     double cx_imag;
-};
+} ;
 
 typedef struct ngcomplex ngcomplex_t;
 #endif
@@ -496,6 +496,19 @@ int ngSpice_nospinit(void);
 /* Set variable no_spiceinit, if reading '.spiceinit' is not wanted. */
 IMPEXP
 int ngSpice_nospiceinit(void);
+
+/* Locking and unlocking the realloc of output vectors during simulation. May be set
+during reading output vectors in the primary thread, while the simulation in the
+background thread is moving on. */
+IMPEXP
+int ngSpice_LockRealloc(void);
+
+IMPEXP
+int ngSpice_UnlockRealloc(void);
+
+/* Reset ngspice as far as possible. */
+IMPEXP
+int ngSpice_Reset(void);
 
 #ifdef __cplusplus
 }

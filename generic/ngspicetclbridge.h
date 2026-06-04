@@ -12,10 +12,6 @@
 #include "sharedspice.h"
 #include "portable_dl.h"
 
-int ngSpice_LockRealloc(void);
-int ngSpice_UnlockRealloc(void);
-int ngSpice_Reset(void);
-
 enum CallbacksIds { SEND_CHAR, SEND_STAT, CONTROLLED_EXIT, SEND_DATA, SEND_INIT_DATA, BG_THREAD_RUNNING, NUM_EVTS };
 typedef enum { NGSPICE_WAIT_OK, NGSPICE_WAIT_TIMEOUT, NGSPICE_WAIT_ABORTED } wait_rc;
 /* Dvec flags from dvec.h of ngspice source files */
