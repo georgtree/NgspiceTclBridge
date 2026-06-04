@@ -4,7 +4,7 @@
 .TH "Troubleshooting" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Troubleshooting - Commands in namespace Troubleshooting
-.SH ::TROUBLESHOOTING
+.SH TROUBLESHOOTING
 .TP
 \(bu
 waitevent \fBalways times out\fP: make sure you actually started the background run ($sim command bg_run) and you allow the Tcl event loop to process events (update) between waits when appropriate\&.

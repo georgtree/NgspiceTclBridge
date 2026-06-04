@@ -4,7 +4,7 @@
 .TH "Examples" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Examples - Commands in namespace Examples
-.SH ::EXAMPLES
+.SH EXAMPLES
 .PP
 Examples in this section describes examples from folder examples in root directory of NgspiceTclBridge\&.
 List of availible tutorials:
@@ -17,11 +17,17 @@ In this example we alter diode model parameter n (emission coefficient) and obse
 changed from original\&.
 .PP
 First step is to provide path to Ngspice library\&. In Linux case it is usually saved under /usr/local/lib, for
-Windows it depends on the installation prefix:
+Windows it depends on the installation prefix\&. Here we use the environmental variable NGSPICE_DLL to get the
+location:
 .PP
 .RS 4n
 .nf
-set ngspiceLibPath /usr/local/lib/libngspice\&.so
+global env
+if {$::tcl_platform(platform) eq {unix}} {
+    set ngspiceLibPath [file join $env(NGSPICE_DLL) libngspice\&.so]
+} elseif {$::tcl_platform(platform) eq {windows}} {
+    set ngspiceLibPath [file join $env(NGSPICE_DLL) ngspice\&.dll]
+}
 .fi
 .RE
 .PP
@@ -83,8 +89,8 @@ foreach n $ns {
     run $sim
     # read result vectors and prepare for plotting
     foreach x [$sim asyncvector anode] y [$sim asyncvector i(va)] {
-        set xf [format "%\&.3f" $x]
-        set yf [format "%\&.3f" [expr {-$y}]]
+        set xf [format %\&.3f $x]
+        set yf [format %\&.3f [expr {-$y}]]
         lappend xydata [list $xf $yf]
     }
     lappend dataList $xydata
@@ -102,15 +108,15 @@ The we use ticklecharts package to plot resulted curves:
 .RS 4n
 .nf
 set chart [ticklecharts::chart new]
-$chart Xaxis -name "v(anode), V" -minorTick {show "True"}  -type "value" -splitLine {show "True"}
-$chart Yaxis -name "Idiode, A" -minorTick {show "True"}  -type "value" -splitLine {show "True"}
-$chart SetOptions -title {} -tooltip {trigger "axis"} -animation "False" -legend {} -toolbox {feature {dataZoom {yAxisIndex "none"}}}  -grid {left "5%" right "15%"}
+$chart Xaxis -name {v(anode), V} -minorTick {show True}  -type value -splitLine {show True}
+$chart Yaxis -name {Idiode, A} -minorTick {show True}  -type value -splitLine {show True}
+$chart SetOptions -title {} -tooltip {trigger axis} -animation False -legend {} -toolbox {feature {dataZoom {yAxisIndex none}}}  -grid {left 5% right 15%}
 foreach data $dataList n $ns {
-    $chart Add "lineSeries" -data $data -showAllSymbol "nothing" -name "n=${n}" -symbolSize "2"
+    $chart Add lineSeries -data $data -showAllSymbol nothing -name n=$n -symbolSize 2
 }
 set fbasename [file rootname [file tail [info script]]]
 
-$chart Render -outfile [file normalize [file join html_charts $fbasename\&.html]]
+$chart Render -outfile [file normalize [file join html_charts $fbasename\&.html]] -width 800px -height 500px
 .fi
 .RE
 .PP

@@ -1,4 +1,7 @@
 namespace eval {Notes and internals} {
+    variable _ruff_ns_opts {
+        -heading {Notes and internals}
+    }
     variable _ruff_preamble {
 
         This part is mostly for me (and other contributors) to quick recall many implementation details and decisions.

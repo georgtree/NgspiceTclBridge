@@ -1,4 +1,7 @@
 namespace eval Troubleshooting {
+    variable _ruff_ns_opts {
+        -heading {Troubleshooting}
+    }
     variable _ruff_preamble {
 
         - `waitevent` **always times out**: make sure you actually started the background run (`$sim command bg_run`)

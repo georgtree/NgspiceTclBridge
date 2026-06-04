@@ -31,8 +31,8 @@ foreach n $ns {
     run $sim
     # read result vectors and prepare for plotting
     foreach x [$sim asyncvector anode] y [$sim asyncvector i(va)] {
-        set xf [format "%.3f" $x]
-        set yf [format "%.3f" [expr {-$y}]]
+        set xf [format %.3f $x]
+        set yf [format %.3f [expr {-$y}]]
         lappend xydata [list $xf $yf]
     }
     lappend dataList $xydata
@@ -41,12 +41,12 @@ foreach n $ns {
 
 # plot results with ticklecharts
 set chart [ticklecharts::chart new]
-$chart Xaxis -name "v(anode), V" -minorTick {show "True"}  -type "value" -splitLine {show "True"}
-$chart Yaxis -name "Idiode, A" -minorTick {show "True"}  -type "value" -splitLine {show "True"}
-$chart SetOptions -title {} -tooltip {trigger "axis"} -animation "False" -legend {}\
-        -toolbox {feature {dataZoom {yAxisIndex "none"}}}  -grid {left "5%" right "15%"}
+$chart Xaxis -name {v(anode), V} -minorTick {show True}  -type value -splitLine {show True}
+$chart Yaxis -name {Idiode, A} -minorTick {show True}  -type value -splitLine {show True}
+$chart SetOptions -title {} -tooltip {trigger axis} -animation False -legend {}\
+        -toolbox {feature {dataZoom {yAxisIndex none}}}  -grid {left 5% right 15%}
 foreach data $dataList n $ns {
-    $chart Add "lineSeries" -data $data -showAllSymbol "nothing" -name "n=${n}" -symbolSize "2"
+    $chart Add lineSeries -data $data -showAllSymbol nothing -name n=$n -symbolSize 2
 }
 set fbasename [file rootname [file tail [info script]]]
 

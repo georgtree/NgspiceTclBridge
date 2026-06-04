@@ -4,7 +4,7 @@
 .TH "Notes and internals" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Notes and internals - Commands in namespace Notes and internals
-.SH "::NOTES AND INTERNALS"
+.SH "NOTES AND INTERNALS"
 .PP
 This part is mostly for me (and other contributors) to quick recall many implementation details and decisions\&.
 All information provided here could be found in source code comments, but in more spreaded form\&.

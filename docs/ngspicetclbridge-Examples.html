@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>::Examples &#8212; ngspicetclbridge  documentation</title>
+    <title>Examples &#8212; ngspicetclbridge  documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
     
@@ -15,7 +15,8 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="::Troubleshooting" href="ngspicetclbridge-Troubleshooting.html" /> 
+    <link rel="next" title="Troubleshooting" href="ngspicetclbridge-Troubleshooting.html" />
+    <link rel="prev" title="NgspiceTclBridge - drive ngspice (shared library) from Tcl" href="ngspicetclbridge.html" /> 
   </head><body>
     <div class="related" role="navigation" aria-label="Related">
       <h3>Navigation</h3>
@@ -24,10 +25,13 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="ngspicetclbridge-Troubleshooting.html" title="::Troubleshooting"
+          <a href="ngspicetclbridge-Troubleshooting.html" title="Troubleshooting"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ngspicetclbridge.html" title="NgspiceTclBridge - drive ngspice (shared library) from Tcl"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">::Examples</a></li> 
+        <li class="nav-item nav-item-this"><a href="">Examples</a></li> 
       </ul>
     </div>  
 
@@ -37,7 +41,7 @@
           <div class="body" role="main">
             
   <section id="examples">
-<span id="r-examples"></span><span id="r-3a3aexamples"></span><h1>::Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
+<span id="r-examples"></span><span id="r-3a3aexamples"></span><h1>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
 <p>Examples in this section describes examples from folder <code class="docutils literal notranslate"><span class="pre">examples</span></code> in root directory of NgspiceTclBridge.
 List of availible tutorials:</p>
 <ul class="simple">
@@ -48,8 +52,14 @@ List of availible tutorials:</p>
 <p>In this example we alter diode model parameter <code class="docutils literal notranslate"><span class="pre">n</span></code> (emission coefficient) and observe how diode IV curve is
 changed from original.</p>
 <p>First step is to provide path to Ngspice library. In Linux case it is usually saved under <code class="docutils literal notranslate"><span class="pre">/usr/local/lib</span></code>, for
-Windows it depends on the installation prefix:</p>
-<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>ngspiceLibPath<span class="w"> </span><span class="o">/</span>usr<span class="o">/</span>local<span class="o">/</span>lib<span class="o">/</span>libngspice.so
+Windows it depends on the installation prefix. Here we use the environmental variable <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to get the
+location:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">global</span><span class="w"> </span>env
+<span class="k">if</span><span class="w"> </span><span class="k">{</span><span class="nv">$::tcl_platform</span><span class="k">(</span><span class="nb">platform</span><span class="k">)</span><span class="w"> </span><span class="nv">eq</span><span class="w"> </span><span class="k">{</span><span class="nv">unix</span><span class="k">}}</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">set</span><span class="w"> </span>ngspiceLibPath<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>join<span class="w"> </span><span class="nv">$env</span><span class="k">(</span><span class="nv">NGSPICE_DLL</span><span class="k">)</span><span class="w"> </span>libngspice.so<span class="k">]</span>
+<span class="k">}</span><span class="w"> </span><span class="k">elseif</span><span class="w"> </span><span class="k">{</span><span class="nv">$::tcl_platform</span><span class="k">(</span><span class="nb">platform</span><span class="k">)</span><span class="w"> </span><span class="nv">eq</span><span class="w"> </span><span class="k">{</span><span class="nv">windows</span><span class="k">}}</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">set</span><span class="w"> </span>ngspiceLibPath<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>join<span class="w"> </span><span class="nv">$env</span><span class="k">(</span><span class="nv">NGSPICE_DLL</span><span class="k">)</span><span class="w"> </span>ngspice.dll<span class="k">]</span>
+<span class="k">}</span>
 </pre></div>
 </div>
 <p>The circuit we simulate is defined by string:</p>
@@ -88,8 +98,8 @@ read vectors with <a class="reference internal" href="ngspicetclbridge-ngspicetc
 <span class="w">    </span><span class="nv">run</span><span class="w"> </span><span class="nv">$sim</span>
 <span class="w">    </span><span class="c"># read result vectors and prepare for plotting</span>
 <span class="w">    </span><span class="k">foreach</span><span class="w"> </span>x<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>anode<span class="k">]</span><span class="w"> </span>y<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>i<span class="k">(</span><span class="nv">va</span><span class="k">)]</span><span class="w"> </span><span class="k">{</span>
-<span class="w">        </span><span class="k">set</span><span class="w"> </span>xf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="nv">$x</span><span class="k">]</span>
-<span class="w">        </span><span class="k">set</span><span class="w"> </span>yf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="s2">&quot;%.3f&quot;</span><span class="w"> </span><span class="k">[expr</span><span class="w"> </span><span class="k">{</span><span class="nv">-$y</span><span class="k">}]]</span>
+<span class="w">        </span><span class="k">set</span><span class="w"> </span>xf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="o">%</span>.3f<span class="w"> </span><span class="nv">$x</span><span class="k">]</span>
+<span class="w">        </span><span class="k">set</span><span class="w"> </span>yf<span class="w"> </span><span class="k">[</span><span class="nb">format</span><span class="w"> </span><span class="o">%</span>.3f<span class="w"> </span><span class="k">[expr</span><span class="w"> </span><span class="k">{</span><span class="nv">-$y</span><span class="k">}]]</span>
 <span class="w">        </span><span class="nb">lappend</span><span class="w"> </span>xydata<span class="w"> </span><span class="k">[</span><span class="nb">list</span><span class="w"> </span><span class="nv">$xf</span><span class="w"> </span><span class="nv">$yf</span><span class="k">]</span>
 <span class="w">    </span><span class="k">}</span>
 <span class="w">    </span><span class="nb">lappend</span><span class="w"> </span>dataList<span class="w"> </span><span class="nv">$xydata</span>
@@ -102,15 +112,15 @@ manual 13.5.4) that allows to alter parameter of particular model without resett
 circuit reparsing.</p>
 <p>The we use <code class="docutils literal notranslate"><span class="pre">ticklecharts</span></code> package to plot resulted curves:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>chart<span class="w"> </span><span class="k">[</span><span class="nv">ticklecharts</span><span class="o">::</span>chart<span class="w"> </span>new<span class="k">]</span>
-<span class="nv">$chart</span><span class="w"> </span><span class="nv">Xaxis</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="s2">&quot;v(anode), V&quot;</span><span class="w"> </span><span class="o">-</span>minorTick<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span><span class="w">  </span><span class="o">-</span>type<span class="w"> </span><span class="s2">&quot;value&quot;</span><span class="w"> </span><span class="o">-</span>splitLine<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span>
-<span class="nv">$chart</span><span class="w"> </span><span class="nv">Yaxis</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="s2">&quot;Idiode, A&quot;</span><span class="w"> </span><span class="o">-</span>minorTick<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span><span class="w">  </span><span class="o">-</span>type<span class="w"> </span><span class="s2">&quot;value&quot;</span><span class="w"> </span><span class="o">-</span>splitLine<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="k">}</span>
-<span class="nv">$chart</span><span class="w"> </span><span class="nv">SetOptions</span><span class="w"> </span><span class="o">-</span>title<span class="w"> </span><span class="k">{}</span><span class="w"> </span><span class="o">-</span>tooltip<span class="w"> </span><span class="k">{</span><span class="nv">trigger</span><span class="w"> </span><span class="s2">&quot;axis&quot;</span><span class="k">}</span><span class="w"> </span><span class="o">-</span>animation<span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="w"> </span><span class="o">-</span>legend<span class="w"> </span><span class="k">{}</span><span class="w"> </span><span class="o">-</span>toolbox<span class="w"> </span><span class="k">{</span><span class="nv">feature</span><span class="w"> </span><span class="k">{</span><span class="nv">dataZoom</span><span class="w"> </span><span class="k">{</span><span class="nv">yAxisIndex</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="k">}}}</span><span class="w">  </span><span class="o">-</span>grid<span class="w"> </span><span class="k">{</span><span class="nv">left</span><span class="w"> </span><span class="s2">&quot;5%&quot;</span><span class="w"> </span>right<span class="w"> </span><span class="s2">&quot;15%&quot;</span><span class="k">}</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">Xaxis</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="k">{</span><span class="nv">v</span><span class="k">(</span><span class="nv">anode</span><span class="k">)</span>,<span class="w"> </span>V<span class="k">}</span><span class="w"> </span><span class="o">-</span>minorTick<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span>True<span class="k">}</span><span class="w">  </span><span class="o">-</span>type<span class="w"> </span>value<span class="w"> </span><span class="o">-</span>splitLine<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span>True<span class="k">}</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">Yaxis</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="k">{</span><span class="nv">Idiode</span>,<span class="w"> </span>A<span class="k">}</span><span class="w"> </span><span class="o">-</span>minorTick<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span>True<span class="k">}</span><span class="w">  </span><span class="o">-</span>type<span class="w"> </span>value<span class="w"> </span><span class="o">-</span>splitLine<span class="w"> </span><span class="k">{</span><span class="nv">show</span><span class="w"> </span>True<span class="k">}</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">SetOptions</span><span class="w"> </span><span class="o">-</span>title<span class="w"> </span><span class="k">{}</span><span class="w"> </span><span class="o">-</span>tooltip<span class="w"> </span><span class="k">{</span><span class="nv">trigger</span><span class="w"> </span>axis<span class="k">}</span><span class="w"> </span><span class="o">-</span>animation<span class="w"> </span>False<span class="w"> </span><span class="o">-</span>legend<span class="w"> </span><span class="k">{}</span><span class="w"> </span><span class="o">-</span>toolbox<span class="w"> </span><span class="k">{</span><span class="nv">feature</span><span class="w"> </span><span class="k">{</span><span class="nv">dataZoom</span><span class="w"> </span><span class="k">{</span><span class="nv">yAxisIndex</span><span class="w"> </span>none<span class="k">}}}</span><span class="w">  </span><span class="o">-</span>grid<span class="w"> </span><span class="k">{</span><span class="nv">left</span><span class="w"> </span><span class="mi">5</span><span class="o">%</span><span class="w"> </span>right<span class="w"> </span><span class="mi">15</span><span class="o">%</span><span class="k">}</span>
 <span class="k">foreach</span><span class="w"> </span>data<span class="w"> </span><span class="nv">$dataList</span><span class="w"> </span>n<span class="w"> </span><span class="nv">$ns</span><span class="w"> </span><span class="k">{</span>
-<span class="w">    </span><span class="nv">$chart</span><span class="w"> </span><span class="nv">Add</span><span class="w"> </span><span class="s2">&quot;lineSeries&quot;</span><span class="w"> </span><span class="o">-</span>data<span class="w"> </span><span class="nv">$data</span><span class="w"> </span><span class="o">-</span>showAllSymbol<span class="w"> </span><span class="s2">&quot;nothing&quot;</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="s2">&quot;n</span><span class="o">=</span><span class="s2">${n}&quot;</span><span class="w"> </span><span class="o">-</span>symbolSize<span class="w"> </span><span class="s2">&quot;2&quot;</span>
+<span class="w">    </span><span class="nv">$chart</span><span class="w"> </span><span class="nv">Add</span><span class="w"> </span>lineSeries<span class="w"> </span><span class="o">-</span>data<span class="w"> </span><span class="nv">$data</span><span class="w"> </span><span class="o">-</span>showAllSymbol<span class="w"> </span>nothing<span class="w"> </span><span class="o">-</span>name<span class="w"> </span>n<span class="o">=</span><span class="nv">$n</span><span class="w"> </span><span class="o">-</span>symbolSize<span class="w"> </span><span class="mi">2</span>
 <span class="k">}</span>
 <span class="k">set</span><span class="w"> </span>fbasename<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>rootname<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>tail<span class="w"> </span><span class="k">[</span><span class="nb">info</span><span class="w"> </span>script<span class="k">]]]</span>
 
-<span class="nv">$chart</span><span class="w"> </span><span class="nv">Render</span><span class="w"> </span><span class="o">-</span>outfile<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>normalize<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>join<span class="w"> </span>html_charts<span class="w"> </span><span class="nv">$fbasename.html</span><span class="k">]]</span>
+<span class="nv">$chart</span><span class="w"> </span><span class="nv">Render</span><span class="w"> </span><span class="o">-</span>outfile<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>normalize<span class="w"> </span><span class="k">[</span><span class="nb">file</span><span class="w"> </span>join<span class="w"> </span>html_charts<span class="w"> </span><span class="nv">$fbasename.html</span><span class="k">]]</span><span class="w"> </span><span class="o">-</span>width<span class="w"> </span><span class="mi">800</span>px<span class="w"> </span><span class="o">-</span>height<span class="w"> </span><span class="mi">500</span>px
 </pre></div>
 </div>
 <p><!DOCTYPE html>
@@ -121,10 +131,10 @@ circuit reparsing.</p>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   </head>
   <body>
-    <div id="id_c285612bc6d64a49be114ab1b37fd562" class="chart-container" style="width:800px; height:500px;"></div>
+    <div id="id_6d8b62b9ec4c4534a06106b8a9e6ae8c" class="chart-container" style="width:800px; height:500px;"></div>
     <script>
-      var chart_c285612bc6d64a49be114ab1b37fd562 = echarts.init(document.getElementById("id_c285612bc6d64a49be114ab1b37fd562"), null, {renderer: "canvas"});
-      var option_c285612bc6d64a49be114ab1b37fd562 = {
+      var chart_6d8b62b9ec4c4534a06106b8a9e6ae8c = echarts.init(document.getElementById("id_6d8b62b9ec4c4534a06106b8a9e6ae8c"), null, {renderer: "canvas"});
+      var option_6d8b62b9ec4c4534a06106b8a9e6ae8c = {
   "xAxis": [{
       "show": true,
       "type": "value",
@@ -4411,7 +4421,7 @@ circuit reparsing.</p>
     }
   ]
 };
-      chart_c285612bc6d64a49be114ab1b37fd562.setOption(option_c285612bc6d64a49be114ab1b37fd562);
+      chart_6d8b62b9ec4c4534a06106b8a9e6ae8c.setOption(option_6d8b62b9ec4c4534a06106b8a9e6ae8c);
     </script>
   </body>
 </html>
@@ -4431,7 +4441,7 @@ circuit reparsing.</p>
   <div>
     <h3><a href="index.html">Table of Contents</a></h3>
     <ul>
-<li><a class="reference internal" href="#">::Examples</a><ul>
+<li><a class="reference internal" href="#">Examples</a><ul>
 <li><a class="reference internal" href="#parametric-simulation">Parametric simulation</a></li>
 </ul>
 </li>
@@ -4440,8 +4450,13 @@ circuit reparsing.</p>
   </div>
   <div>
     <h4>Previous topic</h4>
+    <p class="topless"><a href="ngspicetclbridge.html"
+                          title="previous chapter">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
     <p class="topless"><a href="ngspicetclbridge-Troubleshooting.html"
-                          title="previous chapter">::Troubleshooting</a></p>
+                          title="next chapter">Troubleshooting</a></p>
   </div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
@@ -4471,10 +4486,13 @@ circuit reparsing.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="ngspicetclbridge-Troubleshooting.html" title="::Troubleshooting"
+          <a href="ngspicetclbridge-Troubleshooting.html" title="Troubleshooting"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ngspicetclbridge.html" title="NgspiceTclBridge - drive ngspice (shared library) from Tcl"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">::Examples</a></li> 
+        <li class="nav-item nav-item-this"><a href="">Examples</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">

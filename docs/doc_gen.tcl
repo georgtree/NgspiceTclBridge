@@ -24,9 +24,10 @@ set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -
                          -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
                          -copyright "George Yashin" {*}$::argv]
 
-set namespaces [list ::ngspicetclbridge "::Notes and internals" ::Troubleshooting ::Examples]
+set namespaces [list ::Examples ::Troubleshooting ::ngspicetclbridge {::Notes and internals}]
 
-ruff::document $namespaces -format sphinx -outdir [file join $docDir sphinx] {*}$commonSphinx
+ruff::document $namespaces -format sphinx -outfile ngspicetclbridge.rst -outdir [file join $docDir sphinx]\
+        {*}$commonSphinx
 ruff::document $namespaces -format nroff -outdir $docDir -outfile ngspicetclbridge.n {*}$commonNroff
 
 ::fileutil::appendToFile [file join $docDir sphinx conf.py] {html_theme = "classic"
