@@ -35,7 +35,9 @@ namespace eval Examples {
         .end}
         ```
         
+        #ruffopt excludedformats {nroff}
         ![diode_iv_cir](assets/img/diode_iv_cir.png)
+        #ruffopt excludedformats {}
 
         Be carefull: for correct usage you have to provide `.end` statement at the the end of the netlist.
 
@@ -96,6 +98,8 @@ namespace eval Examples {
         $chart Render -outfile [file normalize [file join html_charts $fbasename.html]] -width 800px -height 500px
         ```
 
+        #ruffopt excludedformats {nroff}
         !ticklechart_parametric_simulation!
+        #ruffopt excludedformats {}
     }
 }

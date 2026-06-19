@@ -796,3 +796,17 @@ Timeout in miliseconds, optional\&.
 .PP
 dictionary with information about event
 
+
+.SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+ngspicetclbridge-ngspicetclbridge(n)

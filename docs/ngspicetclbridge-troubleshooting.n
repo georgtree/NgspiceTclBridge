@@ -18,3 +18,17 @@ waitevent \fBalways times out\fP: make sure you actually started the background 
 \(bu
 \fBMultiple runs\fP: clear old event data between runs if you want pristine event counters and messages buffer: $sim messages -clear and  $sim eventcounts -clear\&. Data buffer and saved vectors resetted after run of the new simulation to prevent data mixing\&.
 
+
+.SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+ngspicetclbridge-ngspicetclbridge(n)

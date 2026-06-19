@@ -991,3 +991,17 @@ Isolation of platform differences behind three simple functions\&.
 This allows ngspicetclbridge to load any compatible ngspice shared library at runtime, regardless of platform
 or path encoding, ensuring consistent behavior and portability across Tcl environments\&.
 
+
+.SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+ngspicetclbridge-ngspicetclbridge(n)

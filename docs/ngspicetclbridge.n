@@ -127,3 +127,17 @@ $s1 messages -clear
 .PP
 Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data\&.
 
+
+.SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+ngspicetclbridge-ngspicetclbridge(n)

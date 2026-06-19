@@ -45,8 +45,6 @@ va anode 0 0
 .fi
 .RE
 .PP
-diode_iv_cir [Image: assets/img/diode_iv_cir\&.png]
-.PP
 Be carefull: for correct usage you have to provide \&.end statement at the the end of the netlist\&.
 .PP
 Load ngspice library and initialize command for library control by \fI::ngspicetclbridge::new\fP command:
@@ -119,6 +117,18 @@ set fbasename [file rootname [file tail [info script]]]
 $chart Render -outfile [file normalize [file join html_charts $fbasename\&.html]] -width 800px -height 500px
 .fi
 .RE
-.PP
-!ticklechart_parametric_simulation!
 
+
+.SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+ngspicetclbridge-ngspicetclbridge(n)

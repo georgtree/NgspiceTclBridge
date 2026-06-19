@@ -1,5 +1,4 @@
 package require ruff
-#source /home/georgtree/tcl/ruff/src/ruff.tcl
 package require fileutil
 
 set docDir [file dirname [file normalize [info script]]]
@@ -66,3 +65,51 @@ proc processContentsTutorial {fileContents} {
 set chartsMap [dict create !ticklechart_parametric_simulation! parametric_simulation.html]
 set path [file join $docDir .. examples html_charts]
 fileutil::updateInPlace [file join $docDir ngspicetclbridge-Examples.html] processContentsTutorial
+
+# nroff pages names processing
+foreach file [glob -directory $docDir *.n] {
+    set old $file
+    set tmp [file join $docDir __temp_rename__.n]
+    set new [file join $docDir [string tolower [file tail $file]]]
+    file rename $old $tmp
+    file rename $tmp $new
+}
+set specialPages [list ngspicetclbridge-examples ngspicetclbridge-troubleshooting ngspicetclbridge-notes-and-internals]
+foreach namespacePath $namespaces {
+    set tails [list]
+    while {$namespacePath ne {}} {
+        set tail [string tolower [namespace tail $namespacePath]]
+        regsub -all {\s+} [string trim $tail] {-} tail
+        set namespacePath [namespace qualifiers $namespacePath]
+        lappend tails $tail
+    }
+    lappend tails [string tolower ngspicetclbridge]
+    set manFileName [join [lreverse $tails] -]
+    if {$manFileName ni $specialPages} {
+        lappend manFilesLinks "${manFileName}(n)"
+    }
+}
+
+set linksString ".SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+[join $manFilesLinks \n.br\n]"
+
+proc addLinks2man {fileContents} {
+    global linksString
+    append fileContents "\n$linksString"
+    return $fileContents
+}
+
+foreach file [glob -directory $docDir *.n] {
+    fileutil::updateInPlace $file addLinks2man
+}
