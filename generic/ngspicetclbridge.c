@@ -2086,27 +2086,33 @@ static int OutputOption(Tcl_Interp *interp, const char *option, Tcl_Obj *value, 
     return TCL_ERROR;
 }
 
+static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option);
+
 //***  AsyncVector function
 /*
  *----------------------------------------------------------------------------------------------------------------------
  * AsyncVector -- Return a list or an independent, caller-owned RBC snapshot of a simulator vector.
  * Copy the numeric storage while ngspice's realloc lock is held, then release the lock before creating Tcl/RBC output.
+ * An optional namespace override is resolved against the caller and created without changing the handle default.
  * Results: TCL_OK with the historical list representation or the fully qualified RBC name; TCL_ERROR on failure.
  *----------------------------------------------------------------------------------------------------------------------
  */
 static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]) {
     Tcl_Interp *interp = ctx->interp;
     int output = ctx->outputVectors, replace = ctx->replaceVectors;
-    Tcl_Obj *source = NULL, *destination = NULL;
+    Tcl_Obj *source = NULL, *destination = NULL, *namespaceOption = NULL;
     for (Tcl_Size i = 2; i < objc; i++) {
         const char *opt = Tcl_GetString(objv[i]);
-        if (strcmp(opt, "-output") == 0 || strcmp(opt, "-ifexists") == 0 || strcmp(opt, "-name") == 0) {
+        if (strcmp(opt, "-output") == 0 || strcmp(opt, "-ifexists") == 0 || strcmp(opt, "-name") == 0 ||
+            strcmp(opt, "-namespace") == 0) {
             if (++i == objc) {
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing value for %s", opt));
                 return TCL_ERROR;
             }
             if (strcmp(opt, "-name") == 0) {
                 destination = objv[i];
+            } else if (strcmp(opt, "-namespace") == 0) {
+                namespaceOption = objv[i];
             } else if (OutputOption(interp, opt, objv[i], &output, &replace) != TCL_OK) {
                 return TCL_ERROR;
             }
@@ -2117,8 +2123,9 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
             return TCL_ERROR;
         }
     }
-    if (!source || (destination && !output)) {
-        Tcl_WrongNumArgs(interp, 2, objv, "name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?");
+    if (!source || ((destination || namespaceOption) && !output)) {
+        Tcl_WrongNumArgs(interp, 2, objv,
+                         "name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?");
         return TCL_ERROR;
     }
     const char *rawName = Tcl_GetString(source);
@@ -2164,14 +2171,24 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
         Tcl_SetObjResult(interp, list);
         return TCL_OK;
     }
-    /* An explicit handle namespace also applies to snapshots and relative -name values. */
+    /* A per-call namespace overrides the handle default without changing future snapshots or live bindings. */
+    Tcl_Obj *nsName = namespaceOption ? ResolveOutputNamespace(interp, namespaceOption) : NULL;
+    if (namespaceOption && !nsName) {
+        Tcl_Free(samples);
+        return TCL_ERROR;
+    }
     const char *ns =
-        ctx->explicitNamespace ? Tcl_GetString(ctx->vectorNamespace) : Tcl_GetCurrentNamespace(interp)->fullName;
+        nsName ? Tcl_GetString(nsName)
+               : (ctx->explicitNamespace ? Tcl_GetString(ctx->vectorNamespace)
+                                         : Tcl_GetCurrentNamespace(interp)->fullName);
     Tcl_Obj *name;
     if (destination) {
         const char *text = Tcl_GetString(destination);
         if (!*text) {
             Tcl_Free(samples);
+            if (nsName) {
+                Tcl_DecrRefCount(nsName);
+            }
             Tcl_SetObjResult(interp, Tcl_NewStringObj("empty destination vector name", -1));
             return TCL_ERROR;
         }
@@ -2181,6 +2198,9 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
         name = BridgeRbcName(ns, rawName);
     }
     Tcl_IncrRefCount(name);
+    if (nsName) {
+        Tcl_DecrRefCount(nsName);
+    }
     ctx->outputBusy = 1;
     int code = BridgeRbcSnapshot(ctx, name, complex, count, samples, replace);
     ctx->outputBusy = 0;
@@ -2256,7 +2276,7 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
  *      - "plot -vecs <plot>": returns list of vector names in that plot (ngSpice_AllVecs()).
  *      - Errors if options don't match.
  *
- *   asyncvector name ?-output list|vector? ?-ifexists error|replace? ?-name destination?
+ *   asyncvector name ?-output list|vector? ?-ifexists error|replace? ?-name destination? ?-namespace name?
  *   asyncvector -info name
  *      - asyncvector <name>:
  *            * Queries ngGet_Vec_Info(<name>), returns list of data samples.

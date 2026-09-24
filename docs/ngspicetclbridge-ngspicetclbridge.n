@@ -17,7 +17,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBnew\fP \fI?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace? ?-namespace name?\fP
 .br
-\fBreadVecsAsync\fP \fI?-info? sim\fP
+\fBreadVecsAsync\fP \fI?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? sim\fP
 .br
 \fBrun\fP \fIsim\fP
 .br
@@ -25,7 +25,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM abort\fP
 .br
-\fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?\fP
+\fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?\fP
 .br
 \fBSIM asyncvector\fP \fI-info name\fP
 .br
@@ -247,23 +247,38 @@ command name to work with Ngspice instance, references as SIM later
 \fBreadVecsAsync\fR (::ngspicetclbridge)
 .RE
 .PP
-Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a
-key, and data as a value\&. If -info switch is provided, command returns information about each availiable
-vector\&.
+Reads all available vectors of the current plot as independent snapshots\&. Returns a dictionary with
+raw vector names as keys and lists or fully qualified RBC vector names as values\&.
 .RS 4n
-\fBreadVecsAsync\fP \fI?-info? sim\fP
+\fBreadVecsAsync\fP \fI?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? sim\fP
 .br
 .RE
 .PP
 \fBParameters\fR
 .RS 4n
 .TP
+-ifexists
+Error or replace; overrides the simulator collision policy\&.
+.TP
 -info
-If provided, metainfo about vectors is returned instead of the data\&.
+Return vector metadata instead of data; cannot be combined with output options\&.
+.TP
+-namespace
+Destination namespace for vector snapshots; created if missing, relative to the caller\&.
+.TP
+-output
+List or vector; overrides the simulator default\&.
 .TP
 sim
 Simulator handler that is returned by ngspicetclbridge::new
 .RE
+.PP
+\fBDescription\fR
+.PP
+Without overrides, the handle defaults apply\&. Without an explicit namespace, snapshots use the caller's
+namespace\&. Complex data creates complex RBC vectors\&. Snapshots survive simulator destruction\&.
+Each vector is copied separately; this is not an atomic snapshot of a running simulation\&. If a later
+vector fails, previously created or replaced snapshots remain available in the destination namespace\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -368,7 +383,7 @@ simulation has produced any data (not necessarily the complete vector)\&. By add
 metadata is provided, i\&.e\&. type of the vector (current, voltage, time, etc), type of the numbers (complex or
 real), and length of the vector\&.
 .RS 4n
-\fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?\fP
+\fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?\fP
 .br
 \fBSIM asyncvector\fP \fI-info name\fP
 .br
@@ -386,6 +401,9 @@ If this switch is provided, commands return dictionary with vector metadata\&.
 -name
 Explicit destination vector command name (vector output only)
 .TP
+-namespace
+Per-call destination namespace (vector output only); created if missing, including parents\&.
+.TP
 -output
 List or vector; overrides the handle default for this snapshot only\&.
 .RE
@@ -394,7 +412,9 @@ List or vector; overrides the handle default for this snapshot only\&.
 .PP
 Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction\&.
 With an explicit handle -namespace, snapshots and relative -name destinations use that namespace\&.
-Otherwise they use the calling namespace\&. A fully qualified -name overrides either default\&.
+Otherwise they use the calling namespace\&. A per-call -namespace overrides the handle namespace and resolves
+relative to the caller\&. It does not change the handle defaults or live bindings\&. Empty names are rejected\&.
+A fully qualified -name overrides the selected namespace\&.
 The destination namespace selected by an absolute -name must already exist\&.
 A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace\&.
 Existing same-type snapshot vectors are updated in place with replace; other commands are rejected\&.

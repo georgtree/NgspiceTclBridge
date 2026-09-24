@@ -176,19 +176,32 @@ Unrelated commands and vectors maintained by another simulator cannot be replace
 </section>
 <section id="readvecsasync">
 <span id="r-symbolqz3a3angspicetclbridge3a3areadvecsasync"></span><span id="index-13"></span><span id="index-12"></span><h3><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code><a class="headerlink" href="#readvecsasync" title="Link to this heading">¶</a></h3>
-<p>Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a
-key, and data as a value. If <code class="docutils literal notranslate"><span class="pre">-info</span></code> switch is provided, command returns information about each availiable
-vector.</p>
-<pre class="literal-block"><strong>readVecsAsync</strong> <em>?-info? sim</em></pre>
+<p>Reads all available vectors of the current plot as independent snapshots. Returns a dictionary with
+raw vector names as keys and lists or fully qualified RBC vector names as values.</p>
+<pre class="literal-block"><strong>readVecsAsync</strong> <em>?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? sim</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-info</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>If provided, metainfo about vectors is returned instead of the data.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-ifexists</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Error or replace; overrides the simulator collision policy.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Simulator handler that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-info</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Return vector metadata instead of data; cannot be combined with output options.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Destination namespace for vector snapshots; created if missing, relative to the caller.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>List or vector; overrides the simulator default.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Simulator handler that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
 </dd>
 </dl>
+<p class="rubric">Description</p>
+<p>Without overrides, the handle defaults apply. Without an explicit namespace, snapshots use the caller’s
+namespace. Complex data creates complex RBC vectors. Snapshots survive simulator destruction.
+Each vector is copied separately; this is not an atomic snapshot of a running simulation. If a later
+vector fails, previously created or replaced snapshots remain available in the destination namespace.</p>
 <p class="rubric">Return value</p>
 <p>dictionary</p>
 </section>
@@ -254,7 +267,7 @@ the instance.</p>
 simulation has produced any data (not necessarily the complete vector). By addding <code class="docutils literal notranslate"><span class="pre">-info</span></code> switch, vector
 metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or
 real), and length of the vector.</p>
-<pre class="literal-block"><strong>SIM asyncvector</strong> <em>name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?</em>
+<pre class="literal-block"><strong>SIM asyncvector</strong> <em>name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?</em>
 <strong>SIM asyncvector</strong> <em>-info name</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
@@ -267,14 +280,19 @@ real), and length of the vector.</p>
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-name</span></code><span class="colon">:</span></dt>
 <dd class="field-odd"><p>Explicit destination vector command name (vector output only)</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>List or vector; overrides the handle default for this snapshot only.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Per-call destination namespace (vector output only); created if missing, including parents.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>List or vector; overrides the handle default for this snapshot only.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
 <p>Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
 With an explicit handle -namespace, snapshots and relative -name destinations use that namespace.
-Otherwise they use the calling namespace. A fully qualified -name overrides either default.
+Otherwise they use the calling namespace. A per-call -namespace overrides the handle namespace and resolves
+relative to the caller. It does not change the handle defaults or live bindings. Empty names are rejected.
+A fully qualified -name overrides the selected namespace.
 The destination namespace selected by an absolute -name must already exist.
 A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
 Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.

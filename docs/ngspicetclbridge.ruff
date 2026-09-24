@@ -269,10 +269,13 @@ namespace eval ::ngspicetclbridge::SIM {
         #  -output - list or vector; overrides the handle default for this snapshot only
         #  -ifexists - error or replace; overrides the handle collision policy
         #  -name - explicit destination vector command name (vector output only)
+        #  -namespace - per-call destination namespace (vector output only); created if missing, including parents
         #  -info - if this switch is provided, commands return dictionary with vector metadata
         # Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
         # With an explicit handle -namespace, snapshots and relative -name destinations use that namespace.
-        # Otherwise they use the calling namespace. A fully qualified -name overrides either default.
+        # Otherwise they use the calling namespace. A per-call -namespace overrides the handle namespace and resolves
+        # relative to the caller. It does not change the handle defaults or live bindings. Empty names are rejected.
+        # A fully qualified -name overrides the selected namespace.
         # The destination namespace selected by an absolute -name must already exist.
         # A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
         # Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.
@@ -293,7 +296,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # # -> {{0.01 0.00} {0.02 0.00} ...}   ;# if complex
         #```
         #
-        # Synopsis: name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?
+        # Synopsis: name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?
         # Synopsis: -info name
     }
 

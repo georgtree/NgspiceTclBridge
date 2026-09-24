@@ -294,4 +294,85 @@ test rbc-namespace-7 {empty namespace is rejected} -body {
     ::ngspicetclbridge::new $mockLibrary -namespace {}
 } -returnCodes error -result {-namespace must not be empty}
 
+# Exercise the public Tcl helper as well as the C snapshot command.
+source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
+
+test rbc-readall-1 {list snapshots and metadata preserve their dictionary representations} -body {
+    set s [newSim]
+    begin $s
+    set data [::ngspicetclbridge::readVecsAsync $s]
+    set metadata [::ngspicetclbridge::readVecsAsync -info $s]
+    list [dict get $data v(out)] [dict get $data v(1)] \
+        [dict get $metadata v(1) ntype] [dict get $metadata time length]
+} -cleanup {clean $s} -result {{0.0 2.0 4.0} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}} complex 3}
+
+test rbc-readall-2 {vector override inherits handle namespace; snapshots survive handle destruction} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set data [::ngspicetclbridge::readVecsAsync -output vector $s]
+    $s destroy
+    list [dict get $data time] [dict get $data v(1)] \
+        [[dict get $data v(out)] range 0 end] [[dict get $data v(1)] range 0 end]
+} -cleanup {clean $s} -result {::live::time ::live::v(1) {0.0 2.0 4.0} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}}}
+
+test rbc-readall-3 {namespace override isolates snapshots from live vectors and list override works} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    set data [::ngspicetclbridge::readVecsAsync -namespace ::snap::nested $s]
+    set lists [::ngspicetclbridge::readVecsAsync -output list $s]
+    set protected [catch {::ngspicetclbridge::readVecsAsync -ifexists replace $s}]
+    list [dict get $data time] [dict get [$s vectors] time] [dict get $lists v(out)] $protected
+} -cleanup {clean $s} -result {::snap::nested::time ::live::time {0.0 2.0 4.0} 1}
+
+test rbc-readall-4 {relative namespace and simulator command resolve in the helper caller} -constraints rbc -body {
+    namespace eval ::snap {
+        interp alias {} localSim {} [newSim]
+        begin localSim
+        set data [::ngspicetclbridge::readVecsAsync -output vector -namespace child::waves localSim]
+    }
+    dict get $::snap::data time
+} -cleanup {clean [interp alias {} ::snap::localSim]} -result ::snap::child::waves::time
+
+test rbc-readall-5 {omitted namespace uses helper caller, not package namespace} -constraints rbc -body {
+    set s [::ngspicetclbridge::new $mockLibrary]
+    begin $s
+    set data [namespace eval ::snap [list ::ngspicetclbridge::readVecsAsync -output vector $s]]
+    dict get $data time
+} -cleanup {clean $s} -result ::snap::time
+
+test rbc-readall-6 {per-call replacement updates snapshots in place; handle defaults stay unchanged} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set data [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap $s]
+    set collision [catch {::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap $s}]
+    $s command mock_point
+    set again [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap -ifexists replace $s]
+    set default [::ngspicetclbridge::readVecsAsync $s]
+    list $collision [expr {$data eq $again}] [::snap::time length] [llength [dict get $default time]]
+} -cleanup {clean $s} -result {1 1 4 4}
+
+test rbc-readall-7 {metadata rejects output options without creating namespaces} -body {
+    set s [newSim]
+    set code [catch {::ngspicetclbridge::readVecsAsync -info -namespace ::snap::unused $s} message]
+    list $code $message [namespace exists ::snap::unused]
+} -cleanup {clean $s} -result {1 {-info cannot be combined with -output, -namespace or -ifexists} 0}
+
+test rbc-readall-8 {empty namespace and invalid output options are rejected} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set empty [catch {::ngspicetclbridge::readVecsAsync -output vector -namespace {} $s} message]
+    set invalid [catch {::ngspicetclbridge::readVecsAsync -output wrong $s}]
+    set listNamespace [catch {::ngspicetclbridge::readVecsAsync -output list -namespace ::snap::unused $s}]
+    list $empty $message $invalid $listNamespace [namespace exists ::snap::unused]
+} -cleanup {clean $s} -result {1 {-namespace must not be empty} 1 1 0}
+
+test rbc-readall-9 {direct asyncvector namespace override anchors relative names; absolute names win} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set relative [namespace eval ::snap [list $s asyncvector v(out) -output vector -namespace child -name saved]]
+    set absolute [$s asyncvector v(1) -output vector -namespace ::snap::child -name ::snap::complex]
+    set inherited [$s asyncvector time -output vector]
+    list $relative $absolute $inherited [$absolute range 0 end]
+} -cleanup {clean $s} -result {::snap::child::saved ::snap::complex ::live::time {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}}}
+
 finishTests

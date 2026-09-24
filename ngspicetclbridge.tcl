@@ -15,25 +15,45 @@ namespace eval ::ngspicetclbridge {
         return
     }
     proc readVecsAsync {args} {
-        # Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a
-        # key, and data as a value. If `-info` switch is provided, command returns information about each availiable
-        # vector.
-        #  -info - if provided, metainfo about vectors is returned instead of the data.
+        # Reads all available vectors of the current plot as independent snapshots. Returns a dictionary with
+        # raw vector names as keys and lists or fully qualified RBC vector names as values.
+        #  -info - return vector metadata instead of data; cannot be combined with output options
+        #  -output - list or vector; overrides the simulator default
+        #  -namespace - destination namespace for vector snapshots; created if missing, relative to the caller
+        #  -ifexists - error or replace; overrides the simulator collision policy
         #  sim - simulator handler that is returned by `ngspicetclbridge::new`
+        # Without overrides, the handle defaults apply. Without an explicit namespace, snapshots use the caller's
+        # namespace. Complex data creates complex RBC vectors. Snapshots survive simulator destruction.
+        # Each vector is copied separately; this is not an atomic snapshot of a running simulation. If a later
+        # vector fails, previously created or replaced snapshots remain available in the destination namespace.
         #
         # Returns: dictionary
-        # Synopsis: ?-info? sim
-        argparse {
+        # Synopsis: ?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? sim
+        argparse -exact {
             -info
+            {-output= -enum {list vector}}
+            -namespace=
+            {-ifexists= -enum {error replace}}
             sim
         }
-        set vecNames [$sim plot -vecs [$sim plot]]
+        set options {}
+        foreach option {output namespace ifexists} {
+            if {[info exists $option]} {
+                lappend options -$option [set $option]
+            }
+        }
+        if {[info exists info] && [llength $options]} {
+            error {-info cannot be combined with -output, -namespace or -ifexists}
+        }
+        # Execute in the caller's frame so relative simulator commands and namespace defaults resolve there.
+        set plot [uplevel 1 [list $sim plot]]
+        set vecNames [uplevel 1 [list $sim plot -vecs $plot]]
         set result [dict create]
         foreach vecName $vecNames {
             if {[info exists info]} {
-                dict append result $vecName [$sim asyncvector -info $vecName]
+                dict set result $vecName [uplevel 1 [list $sim asyncvector -info $vecName]]
             } else {
-                dict append result $vecName [$sim asyncvector $vecName]
+                dict set result $vecName [uplevel 1 [list $sim asyncvector $vecName {*}$options]]
             }
         }
         return $result

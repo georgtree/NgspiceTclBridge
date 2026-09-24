@@ -179,14 +179,32 @@ fully qualified destination. An ordinary Tcl `rename` does not update the RBC re
 modify, resize, replace or delete live vectors while they are attached. Output errors are reported once through
 Tcl's background error handler and remain available from `SIM vectors`; a new plot retries initialization.
 
-`asyncvector` accepts `-output list|vector`, `-ifexists error|replace`, and `-name destination` overrides. Snapshots never
+`asyncvector` accepts `-output list|vector`, `-ifexists error|replace`, `-name destination`, and `-namespace name` overrides.
+The per-call namespace is for vector output, resolves relative to the caller, and is created with missing parents.
+It does not change the handle defaults or live bindings. A fully qualified `-name` takes precedence. Snapshots never
 become live bindings and cannot overwrite an attached live vector. Snapshot data is copied under ngspice's realloc lock;
 RBC operations happen after unlocking. `asyncvector -info name` is unchanged.
+
+`readVecsAsync` returns all current-plot snapshots as a dictionary from raw signal names to lists or RBC vector names.
+It inherits the handle's output, namespace, and collision defaults and accepts `-output`, `-namespace`, and `-ifexists`
+overrides. With no explicit namespace, it uses the helper's caller namespace. Complex signals produce complex vectors;
+snapshots remain caller-owned. Use a separate destination when the simulator already maintains live vectors:
+
+```tcl
+set snapshots [ngspicetclbridge::readVecsAsync -output vector -namespace ::snapshots $sim]
+set snapshots [ngspicetclbridge::readVecsAsync -output vector -namespace ::snapshots -ifexists replace $sim]
+set lists [ngspicetclbridge::readVecsAsync -output list $sim]
+set metadata [ngspicetclbridge::readVecsAsync -info $sim]
+```
+
+`-info` cannot be combined with output options. Each vector is copied separately, so reading a running simulation is
+not an atomic snapshot across signals. If a later read fails, earlier snapshots remain created or updated.
 
 Signal names with balanced parentheses, including `v(1)`, are preserved literally. Unsafe names, namespace separators,
 and the reserved `_raw_` prefix are encoded using the same `_raw_` plus uppercase UTF-8 hex convention as tclsimrawreader.
 New vectors have no mapped array variable. `SIM vectors` returns the exact raw-name-to-command mapping.
 
+The headless `test-rbc` checks also load the public Tcl helpers and require `argparse` on `TCLLIBPATH`.
 Optional checks use a deterministic shared-ngspice fixture, including a worker thread; they do not need a circuit solver:
 
 ```sh
