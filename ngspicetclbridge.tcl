@@ -15,8 +15,9 @@ namespace eval ::ngspicetclbridge {
         return
     }
     proc readVecsAsync {args} {
-        # Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key,
-        # and data as a value. If `-info` switch is provided, command returns information about each availiable vector.
+        # Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a
+        # key, and data as a value. If `-info` switch is provided, command returns information about each availiable
+        # vector.
         #  -info - if provided, metainfo about vectors is returned instead of the data.
         #  sim - simulator handler that is returned by `ngspicetclbridge::new`
         #

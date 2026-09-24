@@ -18,7 +18,7 @@
 PKG_SOURCES = @PKG_SOURCES@
 PKG_OBJECTS = @PKG_OBJECTS@
 DOC_HTML_FILES = @DOC_HTML_FILES@
-DIST_TEST_FILES = @DIST_TEST_FILES@
+DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c
 
 PKG_STUB_SOURCES = @PKG_STUB_SOURCES@
 PKG_STUB_OBJECTS = @PKG_STUB_OBJECTS@
@@ -138,10 +138,19 @@ shell: binaries libraries
 #========================================================================
 # Test recipes
 #========================================================================
-test: binaries libraries
+test: binaries libraries test-memory
 	$(TCLSH) `@CYGPATH@ $(srcdir)/test/all.tcl` $(TESTFLAGS) \
 	    -load "package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
 		[list load `@CYGPATH@ $(PKG_LIB_FILE)` [string totitle $(PACKAGE_NAME)]]"
+
+# Standalone ownership regression: no ngspice library, argparse or extexpr required.
+MEMORY_TEST = bridge-memory-test$(EXEEXT)
+$(MEMORY_TEST): $(srcdir)/test/memory.c $(srcdir)/generic/ngspicetclbridge.c \
+        $(srcdir)/generic/ngspicetclbridge.h $(srcdir)/generic/sharedspice.h $(srcdir)/generic/portable_dl.h
+	$(COMPILE) $(LDFLAGS) -o $@ $(srcdir)/test/memory.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
+
+test-memory: $(MEMORY_TEST)
+	$(PKG_ENV) ./$(MEMORY_TEST)
 
 #========================================================================
 # Package installing recipes
@@ -287,6 +296,7 @@ dist: dist-clean
 # Cleaning of building files
 #========================================================================
 clean:
+	-rm -f $(MEMORY_TEST)
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
@@ -368,7 +378,7 @@ uninstall:
 #========================================================================
 # Flag PHONY recipes
 #========================================================================
-.PHONY: all binaries clean depend distclean doc install libraries test
+.PHONY: all binaries clean depend distclean doc install libraries test test-memory
 .PHONY: gdb gdb-test valgrind valgrindshell
 
 .NOEXPORT:

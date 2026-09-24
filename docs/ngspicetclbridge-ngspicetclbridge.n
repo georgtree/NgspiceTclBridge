@@ -225,8 +225,9 @@ command name to work with Ngspice instance, references as SIM later
 \fBreadVecsAsync\fR (::ngspicetclbridge)
 .RE
 .PP
-Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a key,
-and data as a value\&. If -info switch is provided, command returns information about each availiable vector\&.
+Reads all availible vectors of the current plot asynchronously and return dictionary with vector name as a
+key, and data as a value\&. If -info switch is provided, command returns information about each availiable
+vector\&.
 .RS 4n
 \fBreadVecsAsync\fP \fI?-info? sim\fP
 .br

@@ -41,7 +41,7 @@
           <div class="body" role="main">
             
   <section id="examples">
-<span id="r-examples"></span><span id="r-3a3aexamples"></span><h1>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
+<span id="r-examples"></span><span id="r-namespaceqz3a3aexamples"></span><h1>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
 <p>Examples in this section describes examples from folder <code class="docutils literal notranslate"><span class="pre">examples</span></code> in root directory of NgspiceTclBridge.
 List of availible tutorials:</p>
 <ul class="simple">
@@ -74,11 +74,11 @@ location:</p>
 </div>
 <p><img alt="diode_iv_cir" src="assets/img/diode_iv_cir.png" /></p>
 <p>Be carefull: for correct usage you have to provide <code class="docutils literal notranslate"><span class="pre">.end</span></code> statement at the the end of the netlist.</p>
-<p>Load ngspice library and initialize command for library control by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3anew"><span class="std std-ref">::ngspicetclbridge::new</span></a> command:</p>
+<p>Load ngspice library and initialize command for library control by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-symbolqz3a3angspicetclbridge3a3anew"><span class="std std-ref">::ngspicetclbridge::new</span></a> command:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="nv">$ngspiceLibPath</span><span class="k">]</span>
 </pre></div>
 </div>
-<p>Load circuit into simulation with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3asim20circuit"><span class="std std-ref">::ngspicetclbridge::SIM circuit</span></a> command:</p>
+<p>Load circuit into simulation with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-symbolqz3a3angspicetclbridge3a3asim20circuit"><span class="std std-ref">::ngspicetclbridge::SIM circuit</span></a> command:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="o">-</span>string<span class="w"> </span><span class="nv">$circuit</span>
 </pre></div>
 </div>
@@ -88,9 +88,9 @@ location:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>ns<span class="w"> </span><span class="k">{</span><span class="nv">0.8</span><span class="w"> </span><span class="mf">0.9</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="mf">1.1</span><span class="w"> </span><span class="mf">1.2</span><span class="k">}</span>
 </pre></div>
 </div>
-<p>Then we run loop for each value of <code class="docutils literal notranslate"><span class="pre">n</span></code>, send <code class="docutils literal notranslate"><span class="pre">altermod</span></code> Ngspice command by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3asim20command"><span class="std std-ref">::ngspicetclbridge::SIM command</span></a>,
-run simulation by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3arun"><span class="std std-ref">::ngspicetclbridge::run</span></a> command (procedure waits for the end of simulation), then
-read vectors with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-3a3angspicetclbridge3a3asim20asyncvector"><span class="std std-ref">::ngspicetclbridge::SIM asyncvector</span></a> command and prepare data for plotting:</p>
+<p>Then we run loop for each value of <code class="docutils literal notranslate"><span class="pre">n</span></code>, send <code class="docutils literal notranslate"><span class="pre">altermod</span></code> Ngspice command by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-symbolqz3a3angspicetclbridge3a3asim20command"><span class="std std-ref">::ngspicetclbridge::SIM command</span></a>,
+run simulation by <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-symbolqz3a3angspicetclbridge3a3arun"><span class="std std-ref">::ngspicetclbridge::run</span></a> command (procedure waits for the end of simulation), then
+read vectors with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-symbolqz3a3angspicetclbridge3a3asim20asyncvector"><span class="std std-ref">::ngspicetclbridge::SIM asyncvector</span></a> command and prepare data for plotting:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>n<span class="w"> </span><span class="nv">$ns</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="c"># change model parameter</span>
 <span class="w">    </span><span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">&quot;altermod diomod n </span><span class="o">=</span><span class="s2"> $n&quot;</span>

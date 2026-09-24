@@ -127,3 +127,20 @@ Vector storage is resetted after run new simulation, so no need to explicitly fr
 - **Multiple runs**: clear old event data between runs if you want pristine event counters and messages buffer:
   `$sim messages -clear` and  `$sim eventcounts -clear`. Data buffer and saved vectors resetted after run of
   the new simulation to prevent data mixing.
+
+## Checking callback memory ownership
+
+`make test-memory` runs a standalone C regression against the bridge's actual `SEND_DATA` event handler.
+It requires Tcl headers and its link library, but does not load ngspice or require argparse/extexpr.
+The same check runs before the existing suite with `make test`. For an existing build directory, regenerate
+its Makefile with `./config.status` after applying this change.
+
+The test performs 64 repeated real/complex data cycles, retaining snapshots while additional samples arrive.
+It verifies sample values, snapshot independence, and that temporary string/list objects are either released
+or owned after each batch. This checks object ownership rather than RSS, which can remain elevated because
+allocators retain freed memory for reuse.
+
+The callback now releases temporary dictionary keys and complex-sample containers after insertion. Existing
+keys do not adopt newly allocated equal key objects; complex list append retains the elements rather than
+their temporary container. Both otherwise remain leaked even after clearing the bridge's vector dictionary.
+The fix preserves the existing command interface and sample representation.

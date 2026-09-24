@@ -461,6 +461,7 @@ static void FreeInitSnap(InitSnap *snap) {
  *
  *      Append a list of values to an existing list stored at a given key in a Tcl dictionary.  
  *      If the key does not exist, a new list is created and inserted.
+ *      The key and valuesList container are borrowed; callers must release temporary objects they create.
  *
  * Parameters:
  *      Tcl_Interp *interp         - input: target interpreter
@@ -793,14 +794,20 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             DataRow *dr = &take.rows[r];
             for (int i = 0; i < dr->veccount; i++) {
                 Tcl_Obj *key = Tcl_NewStringObj(dr->vecs[i].name, -1);
+                /* Existing dictionary entries do not retain a newly allocated equal key. */
+                Tcl_IncrRefCount(key);
                 if (dr->vecs[i].is_complex == 1) {
                     Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
                     Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].creal));
                     Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].cimag));
+                    /* DictLappend retains the elements, not their temporary container. */
+                    Tcl_IncrRefCount(pair);
                     DictLappend(interp, ctx->vectorData, key, pair);
+                    Tcl_DecrRefCount(pair);
                 } else {
                     DictLappendElem(interp, ctx->vectorData, key, Tcl_NewDoubleObj(dr->vecs[i].creal));
                 }
+                Tcl_DecrRefCount(key);
             }
             FreeDataRow(dr);
         }
