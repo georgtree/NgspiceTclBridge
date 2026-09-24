@@ -248,3 +248,28 @@ and source tree to uninstall the corresponding installation, and use the same pa
 
 `DOC_INSTALL_DIR` can override the complete HTML destination. As in rbc-tk9, its default already includes `DESTDIR`;
 when overriding it explicitly, include the staging root yourself if needed.
+
+## Installation archives
+
+`make dist` follows rbc-tk9: it builds the package, stages `make install` under the build directory, and creates
+`dist/$(PACKAGE_NAME)$(PACKAGE_VERSION).tar.gz`. `make dist-zip` creates the same payload as a ZIP file as well.
+`make dist-clean` removes this package's staging directory and both archives.
+
+```sh
+make -j4 dist
+make dist-zip
+```
+
+These are platform-specific installation archives, not source distributions. Their contents are relative to the
+configured installation prefix: normally `lib/`, `include/`, and `share/`, without an enclosing package directory.
+Extract or merge the archive contents into the desired prefix. The payload uses the same install targets as normal
+installation, including the built library, Tcl runtime files, public headers, manpages, HTML resources and license.
+Tests, build files and examples that are not installed by `make install` are not included.
+
+Configured installation directories must be below `prefix`; `dist` reports an error if one is outside it.
+When using `--with-tcl` and a custom prefix, set `--exec-prefix` to the same prefix if TEA would otherwise inherit
+Tcl's execution prefix, for example `sh ./configure --prefix=/opt/mypackages --exec-prefix=/opt/mypackages`. Custom
+subdirectories inside that prefix are preserved. `DESTDIR` is not included in archive paths. The staging install does
+not write to the configured system prefix. `DIST_ROOT` and `DIST_NAME` may be overridden to choose the archive output
+directory and name; `DIST_NAME` must be a single directory name. Run `dist-clean` separately, not alongside `dist`
+or `dist-zip` in the same parallel make invocation.
