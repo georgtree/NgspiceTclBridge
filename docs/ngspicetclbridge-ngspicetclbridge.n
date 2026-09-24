@@ -1,7 +1,7 @@
 '\"
 '\" '\" Copyright (c) George Yashin
 '\"
-.TH "ngspicetclbridge" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
+.TH "ngspicetclbridge" 3tcl 0\&.5 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 ngspicetclbridge - Commands in namespace ngspicetclbridge
 .SH SYNOPSIS

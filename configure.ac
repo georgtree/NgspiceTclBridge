@@ -4,7 +4,7 @@ dnl	generate the file "configure", which is run during Tcl installation
 dnl	to configure the system for the local environment.
 
 
-AC_INIT([ngspicetclbridge],[0.1])
+AC_INIT([ngspicetclbridge],[0.5])
 TEA_INIT()
 AC_CONFIG_AUX_DIR(tclconfig)
 TEA_PATH_TCLCONFIG

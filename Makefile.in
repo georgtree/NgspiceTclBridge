@@ -65,7 +65,7 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_LIBRARY = @INSTALL_LIBRARY@
-DOC_INSTALL_DIR = $(DESTDIR)/usr/local/share/$(PACKAGE_NAME)$(PACKAGE_VERSION)/doc
+DOC_INSTALL_DIR = $(DESTDIR)$(pkgdatadir)/doc
 
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
@@ -181,21 +181,26 @@ install-binaries: binaries install-lib-binaries install-bin-binaries
 install-libraries: libraries
 	@$(INSTALL_DATA_DIR) "$(DESTDIR)$(includedir)"
 	@echo "Installing header files in $(DESTDIR)$(includedir)"
-	@list='$(PKG_HEADERS)'; for i in $$list; do \
-	    echo "Installing $(srcdir)/$$i" ; \
-	    $(INSTALL_DATA) $(srcdir)/$$i "$(DESTDIR)$(includedir)" ; \
-	done;
+	@set -e; list='$(PKG_HEADERS)'; for i in $$list; do \
+	    echo "Installing $(srcdir)/$$i"; \
+	    $(INSTALL_DATA) "$(srcdir)/$$i" "$(DESTDIR)$(includedir)"; \
+	done
+	@set -e; list='$(PKG_STUB_SOURCES)'; for i in $$list; do \
+	    echo "Installing $(srcdir)/$$i"; \
+	    $(INSTALL_DATA) "$(srcdir)/$$i" "$(DESTDIR)$(includedir)"; \
+	done
 
 install-doc:
 	@$(INSTALL_DATA_DIR) "$(DESTDIR)$(mandir)/mann"
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
-	@list='$(srcdir)/docs/*.n'; for i in $$list; do \
+	@set -e; for i in "$(srcdir)"/docs/*.n; do \
+	    test -f "$$i" || continue; \
 	    echo "Installing $$i"; \
-	    $(INSTALL_DATA) $$i "$(DESTDIR)$(mandir)/mann" ; \
+	    $(INSTALL_DATA) "$$i" "$(DESTDIR)$(mandir)/mann"; \
 	done
 	@$(INSTALL_DATA_DIR) "$(DOC_INSTALL_DIR)"
 	@echo "Installing html documentation in $(DOC_INSTALL_DIR)"
-	@list='$(DOC_HTML_FILES)'; for p in $$list; do \
+	@set -e; list='$(DOC_HTML_FILES)'; for p in $$list; do \
 	  if test -f "$(srcdir)/docs/$$p"; then \
 	    d=`dirname "$$p"`; \
 	    if test "x$$d" != "x."; then \
@@ -205,6 +210,16 @@ install-doc:
 	    $(INSTALL_DATA) "$(srcdir)/docs/$$p" "$(DOC_INSTALL_DIR)/$$p"; \
 	  fi; \
 	done
+	@set -e; for directory in images _images; do \
+	  if test -d "$(srcdir)/docs/$$directory"; then \
+	    (cd "$(srcdir)/docs" && find "$$directory" -type f -print) | \
+	    while IFS= read -r file; do \
+	      $(INSTALL_DATA_DIR) "$(DOC_INSTALL_DIR)/`dirname "$$file"`"; \
+	      $(INSTALL_DATA) "$(srcdir)/docs/$$file" "$(DOC_INSTALL_DIR)/$$file"; \
+	    done; \
+	  fi; \
+	done
+	@$(INSTALL_DATA) "$(srcdir)/LICENSE" "$(DOC_INSTALL_DIR)/LICENSE"
 
 #========================================================================
 # Debugging recipes
@@ -299,7 +314,7 @@ dist: dist-clean
 	done
 	@$(INSTALL_DATA_DIR) "$(DIST_DIR)/docs"
 	@echo "Copying html documentation to $(DIST_DIR)/docs"
-	@list='$(DOC_HTML_FILES)'; for p in $$list; do \
+	@set -e; list='$(DOC_HTML_FILES)'; for p in $$list; do \
 	  if test -f "$(srcdir)/docs/$$p"; then \
 	    d=`dirname "$$p"`; \
 	    if test "x$$d" != "x."; then \
@@ -334,25 +349,25 @@ distclean: clean
 #========================================================================
 install-lib-binaries: binaries
 	@$(INSTALL_DATA_DIR) "$(DESTDIR)$(pkglibdir)"
-	@list='$(lib_BINARIES)'; for p in $$list; do \
-	  if test -f $$p; then \
+	@set -e; list='$(lib_BINARIES)'; for p in $$list; do \
+	  if test -f "$$p"; then \
 	    echo " $(INSTALL_LIBRARY) $$p $(DESTDIR)$(pkglibdir)/$$p"; \
-	    $(INSTALL_LIBRARY) $$p "$(DESTDIR)$(pkglibdir)/$$p"; \
-	    ext=`echo $$p|sed -e "s/.*\.//"`; \
+	    $(INSTALL_LIBRARY) "$$p" "$(DESTDIR)$(pkglibdir)/$$p"; \
+	    ext=`echo "$$p" | sed -e "s/.*\.//"`; \
 	    if test "x$$ext" = "xdll"; then \
-		lib=`basename $$p|sed -e 's/.[^.]*$$//'`.lib; \
-		if test -f $$lib; then \
+		lib=`basename "$$p" | sed -e 's/.[^.]*$$//'`.lib; \
+		if test -f "$$lib"; then \
 		    echo " $(INSTALL_DATA) $$lib $(DESTDIR)$(pkglibdir)/$$lib"; \
-		    $(INSTALL_DATA) $$lib "$(DESTDIR)$(pkglibdir)/$$lib"; \
+		    $(INSTALL_DATA) "$$lib" "$(DESTDIR)$(pkglibdir)/$$lib"; \
 		fi; \
 	    fi; \
 	  fi; \
 	done
-	@list='$(PKG_TCL_SOURCES)'; for p in $$list; do \
-	  if test -f $(srcdir)/$$p; then \
-	    destp=`basename $$p`; \
+	@set -e; list='$(PKG_TCL_SOURCES)'; for p in $$list; do \
+	  if test -f "$(srcdir)/$$p"; then \
+	    destp=`basename "$$p"`; \
 	    echo " Install $$destp $(DESTDIR)$(pkglibdir)/$$destp"; \
-	    $(INSTALL_DATA) $(srcdir)/$$p "$(DESTDIR)$(pkglibdir)/$$destp"; \
+	    $(INSTALL_DATA) "$(srcdir)/$$p" "$(DESTDIR)$(pkglibdir)/$$destp"; \
 	  fi; \
 	done
 	@if test "x$(SHARED_BUILD)" = "x1"; then \
@@ -360,15 +375,12 @@ install-lib-binaries: binaries
 	    $(INSTALL_DATA) pkgIndex.tcl "$(DESTDIR)$(pkglibdir)"; \
 	fi
 
-#========================================================================
-# Install binary executables
-#========================================================================
 install-bin-binaries: binaries
 	@$(INSTALL_DATA_DIR) "$(DESTDIR)$(bindir)"
-	@list='$(bin_BINARIES)'; for p in $$list; do \
-	  if test -f $$p; then \
+	@set -e; list='$(bin_BINARIES)'; for p in $$list; do \
+	  if test -f "$$p"; then \
 	    echo " $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/$$p"; \
-	    $(INSTALL_PROGRAM) $$p "$(DESTDIR)$(bindir)/$$p"; \
+	    $(INSTALL_PROGRAM) "$$p" "$(DESTDIR)$(bindir)/$$p"; \
 	  fi; \
 	done
 
@@ -379,25 +391,50 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 #========================================================================
 # Uninstall recipes
 #========================================================================
+# Remove the package-owned directory and only named files from shared paths.
 uninstall-binaries:
-	list='$(lib_BINARIES)'; for p in $$list; do \
-	  rm -f "$(DESTDIR)$(pkglibdir)/$$p"; \
-	done
-	list='$(PKG_TCL_SOURCES)'; for p in $$list; do \
-	  p=`basename $$p`; \
-	  rm -f "$(DESTDIR)$(pkglibdir)/$$p"; \
-	done
-	list='$(bin_BINARIES)'; for p in $$list; do \
+	rm -rf "$(DESTDIR)$(pkglibdir)"
+	@set -e; list='$(bin_BINARIES)'; for p in $$list; do \
 	  rm -f "$(DESTDIR)$(bindir)/$$p"; \
 	done
 
-uninstall:
-	rm -rf "$(DESTDIR)$(pkglibdir)"
+uninstall-libraries:
+	@set -e; list='$(PKG_HEADERS) $(PKG_STUB_SOURCES)'; for p in $$list; do \
+	  name=`basename "$$p"`; \
+	  rm -f "$(DESTDIR)$(includedir)/$$name"; \
+	done
+
+uninstall-doc:
+	@set -e; for p in "$(srcdir)"/docs/*.n; do \
+	  test -f "$$p" || continue; \
+	  name=`basename "$$p"`; \
+	  rm -f "$(DESTDIR)$(mandir)/mann/$$name"; \
+	done
+	@set -e; list='$(DOC_HTML_FILES) LICENSE'; for p in $$list; do \
+	  rm -f "$(DOC_INSTALL_DIR)/$$p"; \
+	done
+	@set -e; for directory in images _images; do \
+	  if test -d "$(srcdir)/docs/$$directory"; then \
+	    (cd "$(srcdir)/docs" && find "$$directory" -type f -print) | \
+	    while IFS= read -r file; do \
+	      rm -f "$(DOC_INSTALL_DIR)/$$file"; \
+	    done; \
+	  fi; \
+	done
+	@# Remove empty documentation directories, leaving unrelated files intact.
+	@if test -d "$(DOC_INSTALL_DIR)"; then \
+	  find "$(DOC_INSTALL_DIR)" -depth -type d -exec rmdir {} \; 2>/dev/null || :; \
+	fi
+
+uninstall: uninstall-binaries uninstall-libraries uninstall-doc
 
 #========================================================================
 # Flag PHONY recipes
 #========================================================================
 .PHONY: all binaries clean depend distclean doc install libraries test test-memory
 .PHONY: gdb gdb-test valgrind valgrindshell
+
+.PHONY: install-binaries install-lib-binaries install-bin-binaries install-libraries install-doc \
+	uninstall uninstall-binaries uninstall-libraries uninstall-doc
 
 .NOEXPORT:

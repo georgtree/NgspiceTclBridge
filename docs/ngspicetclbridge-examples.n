@@ -1,7 +1,7 @@
 '\"
 '\" '\" Copyright (c) George Yashin
 '\"
-.TH "Examples" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
+.TH "Examples" 3tcl 0\&.5 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Examples - Commands in namespace Examples
 .SH EXAMPLES

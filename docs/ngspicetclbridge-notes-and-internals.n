@@ -1,7 +1,7 @@
 '\"
 '\" '\" Copyright (c) George Yashin
 '\"
-.TH "Notes and internals" 3tcl 0\&.1 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
+.TH "Notes and internals" 3tcl 0\&.5 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
 .SH NAME
 Notes and internals - Commands in namespace Notes and internals
 .SH "NOTES AND INTERNALS"
