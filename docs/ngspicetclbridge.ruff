@@ -10,7 +10,10 @@ namespace eval ::ngspicetclbridge {
         #  -noinit - inhibit both spinit and spiceinit
         #  -output - list (default) or vector; controls live storage and the default asyncvector result
         #  -ifexists - error (default) or replace for initial vector destinations
-        #  -namespace - existing namespace for live vectors; defaults to the calling namespace
+        #  -namespace - destination for live vectors and snapshots; created at handle construction if missing
+        # Relative namespaces resolve against the creation caller, and the qualified name is retained. Missing parents
+        # are created too. Empty names are rejected. The namespace is never deleted when the handle is destroyed.
+        # Without this option, live vectors use the creation namespace and snapshots use their calling namespace.
         #  libpath -  absolute full path to dynamic library
         # Vector output requires an RBC-enabled build and rbc::vector with literal-name support.
         # Use a dedicated namespace: the signal time otherwise collides with Tcl's global time command.
@@ -268,7 +271,9 @@ namespace eval ::ngspicetclbridge::SIM {
         #  -name - explicit destination vector command name (vector output only)
         #  -info - if this switch is provided, commands return dictionary with vector metadata
         # Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
-        # By default its name is the raw signal name in the calling namespace; -name selects another destination.
+        # With an explicit handle -namespace, snapshots and relative -name destinations use that namespace.
+        # Otherwise they use the calling namespace. A fully qualified -name overrides either default.
+        # The destination namespace selected by an absolute -name must already exist.
         # A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
         # Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.
         # Balanced parentheses, including numeric forms such as v(1), remain literal. Names unsafe for RBC or

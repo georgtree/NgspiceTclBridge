@@ -139,7 +139,7 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <dd class="field-odd"><p>Error (default) or replace for initial vector destinations.</p>
 </dd>
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Existing namespace for live vectors; defaults to the calling namespace.</p>
+<dd class="field-even"><p>Destination for live vectors and snapshots; created at handle construction if missing.</p>
 </dd>
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-noinit</span></code><span class="colon">:</span></dt>
 <dd class="field-odd"><p>Inhibit both spinit and spiceinit.</p>
@@ -153,11 +153,16 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
 <dd class="field-even"><p>List (default) or vector; controls live storage and the default asyncvector result.</p>
 </dd>
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">libpath</span></code><span class="colon">:</span></dt>
+</dl>
+<p class="rubric">Description</p>
+<p>Relative namespaces resolve against the creation caller, and the qualified name is retained. Missing parents
+are created too. Empty names are rejected. The namespace is never deleted when the handle is destroyed.
+Without this option, live vectors use the creation namespace and snapshots use their calling namespace.</p>
+<dl class="field-list simple">
+<dt class="field-odd">libpath<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Absolute full path to dynamic library.</p>
 </dd>
 </dl>
-<p class="rubric">Description</p>
 <p>Vector output requires an RBC-enabled build and rbc::vector with literal-name support.
 Use a dedicated namespace: the signal time otherwise collides with Tcl’s global time command.
 Existing same-type vectors can be adopted with replace; their commands and graph clients are retained.
@@ -230,7 +235,7 @@ ensemble.</p>
 </dd>
 <dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20plot"><span class="std std-ref">plot</span></a></dt><dd><p>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot. current plot, or list of all plots, or list of all vectors.</p>
 </dd>
-<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20vectors"><span class="std std-ref">vectors</span></a></dt><dd><p>Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is the historical dictionary of lists (complex values are interleaved real/imaginary doubles). In vector mode, the result maps raw signal names to fully qualified live RBC vector commands. Real signals use real RBC vectors; complex signals use complex RBC vectors. Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not guarantee that queued vector updates have been processed. In vector mode, -clear empties vectors without destroying them and discards samples already queued. Later samples continue appending. It does not clear ngspice’s own snapshot data. The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming. Asynchronous output failures are reported once through Tcl’s background error handler and retained as errors from vectors. Incoming samples are discarded until a new plot initializes output. dict with vectors values accumulated up to this point in internal structure.</p>
+<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20vectors"><span class="std std-ref">vectors</span></a></dt><dd><p>Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is the historical dictionary of lists (complex values are interleaved real/imaginary doubles). In vector mode, the result maps raw signal names to fully qualified live RBC vector commands. Real signals use real RBC vectors; complex signals use complex RBC vectors. Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not guarantee that queued vector updates have been processed. In vector mode, -clear empties vectors without destroying them and discards samples already queued. Later samples continue appending. It does not clear ngspice’s own snapshot data. The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents as read-only: deleting, resizing or replacing them invalidates continued streaming. Use rbc::vector rename oldName newName to rename a live destination while retaining the same C vector. The dictionary keeps the original ngspice signal key and reports the new fully qualified vector name. Clear and later runs reuse that destination, and ownership is unchanged. Ordinary Tcl rename is unsupported because it leaves RBC’s registry under the old name. Query the bridge after the RBC rename has returned. Asynchronous output failures are reported once through Tcl’s background error handler and retained as errors from vectors. Incoming samples are discarded until a new plot initializes output. dict with vectors values accumulated up to this point in internal structure.</p>
 </dd>
 <dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20waitevent"><span class="std std-ref">waitevent</span></a></dt><dd><p>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided).</p>
 </dd>
@@ -268,7 +273,9 @@ real), and length of the vector.</p>
 </dl>
 <p class="rubric">Description</p>
 <p>Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
-By default its name is the raw signal name in the calling namespace; -name selects another destination.
+With an explicit handle -namespace, snapshots and relative -name destinations use that namespace.
+Otherwise they use the calling namespace. A fully qualified -name overrides either default.
+The destination namespace selected by an absolute -name must already exist.
 A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
 Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.
 Balanced parentheses, including numeric forms such as v(1), remain literal. Names unsafe for RBC or
@@ -487,7 +494,11 @@ guarantee that queued vector updates have been processed.
 In vector mode, -clear empties vectors without destroying them and discards samples already queued.
 Later samples continue appending. It does not clear ngspice’s own snapshot data.
 The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
-as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming.
+as read-only: deleting, resizing or replacing them invalidates continued streaming.
+Use rbc::vector rename oldName newName to rename a live destination while retaining the same C vector.
+The dictionary keeps the original ngspice signal key and reports the new fully qualified vector name.
+Clear and later runs reuse that destination, and ownership is unchanged. Ordinary Tcl rename is unsupported
+because it leaves RBC’s registry under the old name. Query the bridge after the RBC rename has returned.
 Asynchronous output failures are reported once through Tcl’s background error handler and retained
 as errors from vectors. Incoming samples are discarded until a new plot initializes output.
 dict with vectors values accumulated up to this point in internal structure</p>
@@ -518,7 +529,11 @@ guarantee that queued vector updates have been processed.
 In vector mode, -clear empties vectors without destroying them and discards samples already queued.
 Later samples continue appending. It does not clear ngspice’s own snapshot data.
 The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
-as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming.
+as read-only: deleting, resizing or replacing them invalidates continued streaming.
+Use rbc::vector rename oldName newName to rename a live destination while retaining the same C vector.
+The dictionary keeps the original ngspice signal key and reports the new fully qualified vector name.
+Clear and later runs reuse that destination, and ownership is unchanged. Ordinary Tcl rename is unsupported
+because it leaves RBC’s registry under the old name. Query the bridge after the RBC rename has returned.
 Asynchronous output failures are reported once through Tcl’s background error handler and retained
 as errors from vectors. Incoming samples are discarded until a new plot initializes output.
 dict with vectors values accumulated up to this point in internal structure</p>

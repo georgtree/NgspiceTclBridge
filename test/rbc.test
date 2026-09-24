@@ -239,4 +239,59 @@ test rbc-rename-5 {renaming while a worker is streaming retains incoming data} -
         [::snap::second index end] [llength $::outputErrors]
 } -cleanup {clean $s} -result {::snap::second 100 198.0 0}
 
+test rbc-namespace-1 {create nested namespace even for list output; keep it after destroy} -body {
+    set before [package provide rbc::vector]
+    set s [::ngspicetclbridge::new $mockLibrary -namespace ::nsBridge::nested]
+    set exists [namespace exists ::nsBridge::nested]
+    $s destroy
+    list $exists [namespace exists ::nsBridge::nested] [expr {$before eq [package provide rbc::vector]}]
+} -cleanup {catch {$s destroy}; namespace delete ::nsBridge} -result {1 1 1}
+
+test rbc-namespace-2 {snapshot default and relative name use configured namespace; absolute name overrides} -constraints rbc -body {
+    set s [::ngspicetclbridge::new $mockLibrary -namespace ::nsBridge::nested]
+    begin $s
+    set a [$s asyncvector time -output vector]
+    set b [$s asyncvector v(1) -output vector -name complexCopy]
+    set c [$s asyncvector v(out) -output vector -name ::snap::absolute]
+    set data [list [$a length] [$b type] [$c range 0 end]]
+    $s destroy
+    list $a $b $c $data [$a length]
+} -cleanup {clean $s; namespace delete ::nsBridge} \
+-result {::nsBridge::nested::time ::nsBridge::nested::complexCopy ::snap::absolute {3 complex {0.0 2.0 4.0}} 3}
+
+test rbc-namespace-3 {explicit namespace is fixed relative to handle creation caller} -constraints rbc -body {
+    namespace eval ::nsBridge {}
+    set s [namespace eval ::nsBridge [list ::ngspicetclbridge::new $mockLibrary -namespace child]]
+    begin $s
+    namespace eval ::snap [list $s asyncvector time -output vector]
+} -cleanup {clean $s; namespace delete ::nsBridge} -result ::nsBridge::child::time
+
+test rbc-namespace-4 {omitted namespace preserves snapshot caller behavior} -constraints rbc -body {
+    namespace eval ::nsBridge {}
+    set s [namespace eval ::nsBridge [list ::ngspicetclbridge::new $mockLibrary]]
+    begin $s
+    namespace eval ::snap [list $s asyncvector time -output vector]
+} -cleanup {clean $s; namespace delete ::nsBridge} -result ::snap::time
+
+test rbc-namespace-5 {live and snapshot namespace agree; live collision stays protected} -constraints rbc -body {
+    set s [::ngspicetclbridge::new $mockLibrary -output vector -namespace ::nsBridge]
+    begin $s
+    set collision [catch {$s asyncvector time -ifexists replace}]
+    set copy [$s asyncvector time -name savedTime]
+    list [dict get [$s vectors] time] $collision $copy [$copy length]
+} -cleanup {clean $s; namespace delete ::nsBridge} -result {::nsBridge::time 1 ::nsBridge::savedTime 3}
+
+test rbc-namespace-6 {snapshot collision policy unchanged in configured namespace} -constraints rbc -body {
+    set s [::ngspicetclbridge::new $mockLibrary -namespace ::nsBridge]
+    begin $s
+    $s asyncvector time -output vector
+    set collision [catch {$s asyncvector time -output vector}]
+    set replaced [$s asyncvector time -output vector -ifexists replace]
+    list $collision $replaced
+} -cleanup {clean $s; namespace delete ::nsBridge} -result {1 ::nsBridge::time}
+
+test rbc-namespace-7 {empty namespace is rejected} -body {
+    ::ngspicetclbridge::new $mockLibrary -namespace {}
+} -returnCodes error -result {-namespace must not be empty}
+
 finishTests

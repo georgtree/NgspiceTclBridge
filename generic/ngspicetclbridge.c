@@ -2164,7 +2164,9 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
         Tcl_SetObjResult(interp, list);
         return TCL_OK;
     }
-    const char *ns = Tcl_GetCurrentNamespace(interp)->fullName;
+    /* An explicit handle namespace also applies to snapshots and relative -name values. */
+    const char *ns =
+        ctx->explicitNamespace ? Tcl_GetString(ctx->vectorNamespace) : Tcl_GetCurrentNamespace(interp)->fullName;
     Tcl_Obj *name;
     if (destination) {
         const char *text = Tcl_GetString(destination);
@@ -2994,6 +2996,37 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
     return TCL_OK;
 }
 
+//***  ResolveOutputNamespace function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ * ResolveOutputNamespace -- Resolve an explicit destination relative to the caller and create missing parents.
+ * Returns a retained, canonical namespace name, or NULL with an error. The namespace is not owned by the handle.
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option) {
+    const char *name = Tcl_GetString(option);
+    if (*name == '\0') {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("-namespace must not be empty", -1));
+        return NULL;
+    }
+    const char *current = Tcl_GetCurrentNamespace(interp)->fullName;
+    Tcl_Obj *qualified = strncmp(name, "::", 2) == 0
+                             ? option
+                             : Tcl_ObjPrintf("%s%s%s", current, strcmp(current, "::") == 0 ? "" : "::", name);
+    Tcl_IncrRefCount(qualified);
+    Tcl_Namespace *ns = Tcl_FindNamespace(interp, Tcl_GetString(qualified), NULL, 0);
+    if (ns == NULL) {
+        ns = Tcl_CreateNamespace(interp, Tcl_GetString(qualified), NULL, NULL);
+    }
+    Tcl_Obj *result = NULL;
+    if (ns != NULL) {
+        result = Tcl_NewStringObj(ns->fullName, -1);
+        Tcl_IncrRefCount(result);
+    }
+    Tcl_DecrRefCount(qualified);
+    return result;
+}
+
 //***  NgSpiceNewCmd function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -3013,9 +3046,9 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
  *      Tcl_Interp *interp    - input: target interpreter in which to create the new command
  *      Tcl_Size objc         - input: number of arguments
  *      Tcl_Obj *const objv[] - input: library path, optional initialization switches, and option/value pairs:
- *                                  -output list|vector, -ifexists error|replace, -namespace existingNamespace.
- *                                  Output and collision defaults also apply to on-demand snapshots.
- *                                  The live destination namespace is resolved once at handle creation.
+ *                                  -output list|vector, -ifexists error|replace, -namespace destinationNamespace
+ * (created if missing). Output and collision defaults also apply to on-demand snapshots. An explicit destination is
+ * resolved once and applies to live vectors and snapshots.
  *
  * Results:
  *      On success:
@@ -3040,7 +3073,7 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
 static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
     Tcl_Obj *libPathObj = NULL;
     int selector = 0, output = 0, replace = 0;
-    Tcl_Namespace *ns = Tcl_GetCurrentNamespace(interp);
+    Tcl_Obj *namespaceOption = NULL;
     for (Tcl_Size i = 1; i < objc; i++) {
         const char *opt = Tcl_GetString(objv[i]);
         if (strcmp(opt, "-noinit") == 0) {
@@ -3055,10 +3088,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 return TCL_ERROR;
             }
             if (strcmp(opt, "-namespace") == 0) {
-                ns = Tcl_FindNamespace(interp, Tcl_GetString(objv[i]), NULL, TCL_LEAVE_ERR_MSG);
-                if (!ns) {
-                    return TCL_ERROR;
-                }
+                namespaceOption = objv[i];
             } else if (OutputOption(interp, opt, objv[i], &output, &replace) != TCL_OK) {
                 return TCL_ERROR;
             }
@@ -3076,8 +3106,16 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         return TCL_ERROR;
     }
     /* Package loading can evaluate Tcl, so capture the namespace before loading it. */
-    Tcl_Obj *nsName = Tcl_NewStringObj(ns->fullName, -1);
-    Tcl_IncrRefCount(nsName);
+    Tcl_Obj *nsName;
+    if (namespaceOption != NULL) {
+        nsName = ResolveOutputNamespace(interp, namespaceOption);
+        if (nsName == NULL) {
+            return TCL_ERROR;
+        }
+    } else {
+        nsName = Tcl_NewStringObj(Tcl_GetCurrentNamespace(interp)->fullName, -1);
+        Tcl_IncrRefCount(nsName);
+    }
     if (output && BridgeRbcInit(interp) != TCL_OK) {
         Tcl_DecrRefCount(nsName);
         return TCL_ERROR;
@@ -3105,6 +3143,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     ctx->outputVectors = output;
     ctx->replaceVectors = replace;
     ctx->vectorNamespace = nsName;
+    ctx->explicitNamespace = namespaceOption != NULL;
     static unsigned long seq = 0;
     Tcl_Obj *name = Tcl_ObjPrintf("::ngspicetclbridge::s%lu", ++seq);
     Tcl_CreateObjCommand2(interp, Tcl_GetString(name), InstObjCmd, ctx, InstDeleteProc);

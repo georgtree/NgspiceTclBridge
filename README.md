@@ -153,7 +153,7 @@ only when vector output is requested; list-only use still works without RBC inst
 version with complex vectors and `-literal` name support.
 
 ```tcl
-namespace eval ::wave {}
+# ::wave is created automatically if needed.
 set sim [ngspicetclbridge::new /path/to/libngspice.so -output vector -namespace ::wave -ifexists error]
 # Load a circuit, then start it with $sim command bg_run.
 # After metadata has been processed by the event loop:
@@ -168,7 +168,7 @@ set listCopy [$sim asyncvector v(out) -output list]
 
 Live vector updates run in the Tcl thread, in batches. Run the event loop to receive them. Complex signals use complex
 RBC vectors. A graph can bind directly to the returned names through `-xdata` and `-ydata`; bindings survive clear and
-new runs. Use an existing dedicated namespace to avoid collisions such as the global Tcl `time` command.
+new runs. Use a dedicated namespace to avoid collisions such as the global Tcl `time` command.
 
 `-ifexists error` is the default. `replace` adopts an existing same-type RBC vector in place, retaining graph bindings;
 it never overwrites an unrelated Tcl command. Previously attached vectors are reused regardless of the collision policy.
@@ -276,3 +276,25 @@ subdirectories inside that prefix are preserved. `DESTDIR` is not included in ar
 not write to the configured system prefix. `DIST_ROOT` and `DIST_NAME` may be overridden to choose the archive output
 directory and name; `DIST_NAME` must be a single directory name. Run `dist-clean` separately, not alongside `dist`
 or `dist-zip` in the same parallel make invocation.
+
+### Vector destination namespace
+
+An explicit handle `-namespace` applies to both live vectors and `asyncvector` snapshots. Relative namespace names
+resolve against the caller creating the handle; missing namespaces and parents are created then. The canonical name
+is retained even when reads happen in another namespace. Empty namespace names are rejected; `::` selects the global
+namespace explicitly. Namespace creation also works in list-only builds and does not load RBC.
+
+Without `-namespace`, existing behavior is preserved: live destinations use the handle creation namespace, while
+snapshots use the read caller's namespace. A relative snapshot `-name` uses the selected default; a fully qualified
+`-name` overrides it and requires its destination namespace to exist.
+
+```tcl
+set sim [ngspicetclbridge::new $lib -output vector -namespace ::wave]
+# After simulation data is available, ::wave::time is the live vector.
+set snapshot [$sim asyncvector time -name savedTime]
+# -> ::wave::savedTime
+```
+
+Snapshot replacement of a live destination remains forbidden, even with `-ifexists replace`. Use a distinct snapshot
+name as above. Destroying the handle never deletes the namespace. Existing ownership rules remain: handle-created live
+vectors are destroyed, while adopted vectors and independent snapshots survive.

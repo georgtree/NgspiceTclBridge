@@ -177,6 +177,7 @@ typedef struct {
 
     int outputVectors;        /* Handle storage mode; immutable after creation. */
     int replaceVectors;       /* Collision policy for first attachment/snapshots. */
+    int explicitNamespace;    /* Apply the configured destination to snapshots too. */
     Tcl_Obj *vectorNamespace; /* Captured, fully qualified destination namespace. */
     BridgeRbc *rbc;           /* Live bindings, accessed only in the Tcl thread. */
     Tcl_Obj *vectorError;     /* Sticky asynchronous publication error. */
