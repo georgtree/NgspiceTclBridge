@@ -4,7 +4,7 @@
 #include <windows.h>
 typedef HMODULE PDlHandle;
 // Open a library from a Tcl path object
-static PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj) {
+static inline PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj) {
     const void *native = Tcl_FSGetNativePath(pathObj);
     if (native == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("could not get native path", -1));
@@ -20,7 +20,7 @@ static PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj) {
     return h;
 }
 
-static void *PDl_Sym(Tcl_Interp *interp, PDlHandle h, const char *name) {
+static inline void *PDl_Sym(Tcl_Interp *interp, PDlHandle h, const char *name) {
     FARPROC p = GetProcAddress(h, name);
     if (p == NULL) {
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("GetProcAddress failed for symbol '%s'", name));
@@ -29,7 +29,7 @@ static void *PDl_Sym(Tcl_Interp *interp, PDlHandle h, const char *name) {
     return (void *)p;
 }
 
-static void PDl_Close(PDlHandle h) {
+static inline void PDl_Close(PDlHandle h) {
     if (h != NULL) {
         FreeLibrary(h);
     }
@@ -37,7 +37,7 @@ static void PDl_Close(PDlHandle h) {
 #else
 #include <dlfcn.h>
 typedef void *PDlHandle;
-static PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj) {
+static inline PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj) {
     const void *native = Tcl_FSGetNativePath(pathObj);
     if (native == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("could not get native path", -1));
@@ -54,7 +54,7 @@ static PDlHandle PDl_OpenFromObj(Tcl_Interp *interp, Tcl_Obj *pathObj) {
     return h;
 }
 
-static void *PDl_Sym(Tcl_Interp *interp, PDlHandle h, const char *name) {
+static inline void *PDl_Sym(Tcl_Interp *interp, PDlHandle h, const char *name) {
     /* cppcheck-suppress misra-c2012-17.3 */
     dlerror(); // clear
     /* cppcheck-suppress misra-c2012-17.3 */
@@ -68,7 +68,7 @@ static void *PDl_Sym(Tcl_Interp *interp, PDlHandle h, const char *name) {
     return p;
 }
 
-static void PDl_Close(PDlHandle h) {
+static inline void PDl_Close(PDlHandle h) {
     if (h != NULL) {
         /* cppcheck-suppress misra-c2012-17.3 */
         dlclose(h);
