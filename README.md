@@ -173,7 +173,10 @@ new runs. Use an existing dedicated namespace to avoid collisions such as the gl
 `-ifexists error` is the default. `replace` adopts an existing same-type RBC vector in place, retaining graph bindings;
 it never overwrites an unrelated Tcl command. Previously attached vectors are reused regardless of the collision policy.
 Destroying the handle destroys only live vectors it created. Adopted vectors and on-demand `asyncvector` snapshots remain
-caller-owned. Do not modify, delete or rename live vectors while they are attached. Output errors are reported once through
+caller-owned. Use `rbc::vector rename oldName newName` to rename an attached live vector. The bridge follows the same C vector and
+preserves ownership, clear and rerun behavior; `SIM vectors` keeps the original ngspice signal key and returns the new
+fully qualified destination. An ordinary Tcl `rename` does not update the RBC registry and is not supported. Do not
+modify, resize, replace or delete live vectors while they are attached. Output errors are reported once through
 Tcl's background error handler and remain available from `SIM vectors`; a new plot retries initialization.
 
 `asyncvector` accepts `-output list|vector`, `-ifexists error|replace`, and `-name destination` overrides. Snapshots never

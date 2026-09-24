@@ -80,15 +80,21 @@ struct BridgeRbc {
     int count;
 };
 
-/* A destroyed or renamed command invalidates the binding permanently. Never silently reattach by name. */
+/* Follow the command token across renames. RBC updates its registry after
+ * command traces return, so defer vector/type validation to CheckBinding.
+ * Deletion remains permanent: never attach to a replacement with the same name. */
 static void BindingTrace(ClientData data, Tcl_Interp *interp, const char *oldName, const char *newName, int flags) {
     Binding *b = data;
     (void)interp;
     (void)oldName;
-    (void)newName;
-    b->invalid = 1;
     if (flags & TCL_TRACE_DELETE) {
+        b->invalid = 1;
         b->token = NULL;
+    } else if ((flags & TCL_TRACE_RENAME) && !b->invalid) {
+        Tcl_Obj *name = Tcl_NewStringObj(newName, -1);
+        Tcl_IncrRefCount(name);
+        Tcl_DecrRefCount(b->name);
+        b->name = name;
     }
 }
 

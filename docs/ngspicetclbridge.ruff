@@ -219,7 +219,11 @@ namespace eval ::ngspicetclbridge::SIM {
         # In vector mode, -clear empties vectors without destroying them and discards samples already queued.
         # Later samples continue appending. It does not clear ngspice's own snapshot data.
         # The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
-        # as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming.
+        # as read-only: deleting, resizing or replacing them invalidates continued streaming.
+        # Use rbc::vector rename oldName newName to rename a live destination while retaining the same C vector.
+        # The dictionary keeps the original ngspice signal key and reports the new fully qualified vector name.
+        # Clear and later runs reuse that destination, and ownership is unchanged. Ordinary Tcl rename is unsupported
+        # because it leaves RBC's registry under the old name. Query the bridge after the RBC rename has returned.
         # Asynchronous output failures are reported once through Tcl's background error handler and retained
         # as errors from vectors. Incoming samples are discarded until a new plot initializes output.
         #  -clear - empties stored samples and returns **nothing**.

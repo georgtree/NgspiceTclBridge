@@ -180,4 +180,63 @@ test rbc-3.1 {multiple growing batches retain previous real and complex samples}
             [$snapshot length]
 } -cleanup {clean $s} -result {1100 398.0 2198.0 {{2198.0 -3297.0}} 200}
 
+test rbc-rename-1 {live real and complex vectors follow full RBC renames across clear and rerun} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    rbc::vector rename ::live::v(out) ::snap::renamed
+    rbc::vector rename ::live::v(1) ::snap::complex(1)
+    set names [$s vectors]
+    $s command mock_point
+    update
+    set data [list [::snap::renamed range 0 end] [::snap::complex(1) range 0 end]]
+    $s vectors -clear
+    set empty [list [::snap::renamed length] [::snap::complex(1) length]]
+    begin $s 2
+    list [dict get $names v(out)] [dict get $names v(1)] $data $empty \
+        [expr {$names eq [$s vectors]}] [::snap::renamed range 0 end] [info commands ::live::v(out)]
+} -cleanup {clean $s} -result {::snap::renamed ::snap::complex(1) {{0.0 2.0 4.0 6.0} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0} {6.0 -9.0}}} {0 0} 1 {0.0 2.0} {}}
+
+test rbc-rename-2 {renamed owned vectors are destroyed; renamed borrowed vectors survive} -constraints rbc -body {
+    rbc::vector create ::live::v(out) -literal true -variable {}
+    set s [newSim -output vector -ifexists replace]
+    begin $s
+    rbc::vector rename ::live::v(out) ::snap::borrowed
+    rbc::vector rename ::live::v(1) ::snap::owned
+    $s destroy
+    list [::snap::borrowed range 0 end] [info commands ::snap::owned]
+} -cleanup {clean $s} -result {{0.0 2.0 4.0} {}}
+
+test rbc-rename-3 {renamed destination remains protected from snapshot replacement} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    rbc::vector rename ::live::v(out) ::snap::renamed
+    catch {$s asyncvector v(out) -name ::snap::renamed -ifexists replace} message
+    list $message [::snap::renamed length]
+} -cleanup {clean $s} -result {{vector "::snap::renamed" is maintained by a simulator handle} 3}
+
+test rbc-rename-4 {deletion after rename invalidates binding even if the name is reused} -constraints rbc -body {
+    set ::outputErrors {}
+    set s [newSim -output vector]
+    begin $s
+    rbc::vector rename ::live::v(out) ::snap::renamed
+    rbc::vector destroy ::snap::renamed
+    rbc::vector create ::snap::renamed -variable {}
+    ::snap::renamed set {99}
+    $s command mock_point
+    update
+    list [catch {$s vectors}] [llength $::outputErrors] [::snap::renamed range 0 end]
+} -cleanup {clean $s} -result {1 1 99.0}
+
+test rbc-rename-5 {renaming while a worker is streaming retains incoming data} -constraints rbc -body {
+    set ::outputErrors {}
+    set s [newSim -output vector]
+    $s command bg_run
+    waitUntil {[dict exists [$s vectors] v(out)] && [::live::v(out) length] >= 3}
+    rbc::vector rename ::live::v(out) ::snap::first
+    rbc::vector rename ::snap::first ::snap::second
+    waitUntil {![$s isrunning]}
+    list [dict get [$s vectors] v(out)] [::snap::second length] \
+        [::snap::second index end] [llength $::outputErrors]
+} -cleanup {clean $s} -result {::snap::second 100 198.0 0}
+
 finishTests

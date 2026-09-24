@@ -11,7 +11,7 @@ source [file join [file dirname [info script]] rbc-support.tcl]
 set haveGraph [expr {$haveRbc && ![catch {package require rbc}]}]
 testConstraint graph $haveGraph
 
-test rbc-graph-1.1 {graph keeps vector bindings across live updates, clear and rerun} -constraints graph -body {
+test rbc-graph-1.1 {graph keeps vector bindings across live rename, updates, clear and rerun} -constraints graph -body {
     set s [newSim -output vector]
     $s command bg_run
     waitUntil {[dict exists [$s vectors] v(out)] && [::live::v(out) length] >= 2}
@@ -23,6 +23,10 @@ test rbc-graph-1.1 {graph keeps vector bindings across live updates, clear and r
     .liveGraph element create signal -xdata $x -ydata $y -symbol none
     update
     set live [$s isrunning]
+    # Rename with a graph already attached and the worker still producing samples.
+    rbc::vector rename $y ::snap::graphSignal
+    set names [$s vectors]
+    set y [dict get $names v(out)]
     waitUntil {![$s isrunning]}
     set first [.liveGraph element cget signal -ydata]
     $s vectors -clear
@@ -33,10 +37,11 @@ test rbc-graph-1.1 {graph keeps vector bindings across live updates, clear and r
     waitUntil {![$s isrunning]}
     update
     list $live $empty [$y length] [expr {$first eq [.liveGraph element cget signal -ydata]}]\
-            [expr {$names eq [$s vectors]}] [expr {[.liveGraph axis limits x] ne {}}]
+            [expr {$names eq [$s vectors]}] [expr {[.liveGraph axis limits x] ne {}}] \
+        [expr {[lindex [.liveGraph axis limits y] 1] >= 198}]
 } -cleanup {
     catch {destroy .liveGraph}
     clean $s
-} -result {1 0 100 1 1 1}
+} -result {1 0 100 1 1 1 1}
 
 finishTests
