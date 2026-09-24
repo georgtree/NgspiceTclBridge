@@ -8,14 +8,21 @@ namespace eval ::ngspicetclbridge {
         #  -nospinit - inhibits spinit
         #  -nospiceinit - inhibits spiceinit
         #  -noinit - inhibit both spinit and spiceinit
+        #  -output - list (default) or vector; controls live storage and the default asyncvector result
+        #  -ifexists - error (default) or replace for initial vector destinations
+        #  -namespace - existing namespace for live vectors; defaults to the calling namespace
         #  libpath -  absolute full path to dynamic library
+        # Vector output requires an RBC-enabled build and rbc::vector with literal-name support.
+        # Use a dedicated namespace: the signal time otherwise collides with Tcl's global time command.
+        # Existing same-type vectors can be adopted with replace; their commands and graph clients are retained.
+        # Unrelated commands and vectors maintained by another simulator cannot be replaced.
         # Returns: command name to work with Ngspice instance, references as `SIM` later
         #
         # Example:
         #```tcl
         # set sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
         #```
-        # Synopsis: ?-nospinit|nospiceinit|noinit? libpath
+        # Synopsis: ?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace? ?-namespace name?
     }
 }
 
@@ -202,8 +209,20 @@ namespace eval ::ngspicetclbridge::SIM {
     }
 
     proc vectors {args} {
-        # Returns held **synchronously accumulated** vector values (built from `send_data` events) in a dict.
-        #  -clear - empties the internal memory structure and returns **nothing**.
+        # Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is
+        # the historical dictionary of lists (complex values are interleaved real/imaginary doubles).
+        # In vector mode, the result maps raw signal names to fully qualified live RBC vector commands.
+        # Real signals use real RBC vectors; complex signals use complex RBC vectors.
+        # Vector identities remain stable across runs. Each new plot clears retained vectors, including signals
+        # absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not
+        # guarantee that queued vector updates have been processed.
+        # In vector mode, -clear empties vectors without destroying them and discards samples already queued.
+        # Later samples continue appending. It does not clear ngspice's own snapshot data.
+        # The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
+        # as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming.
+        # Asynchronous output failures are reported once through Tcl's background error handler and retained
+        # as errors from vectors. Incoming samples are discarded until a new plot initializes output.
+        #  -clear - empties stored samples and returns **nothing**.
         # Returns: dict with vectors values accumulated up to this point in internal structure
         #
         # Example:
@@ -235,12 +254,22 @@ namespace eval ::ngspicetclbridge::SIM {
         # Synopsis: ?-clear?
     }
 
-    proc asyncvector {name} {
+    proc asyncvector {args} {
         # Fetches the current values of a named vector on demand via ngspice `ngGet_Vec_Info`. Works after the
         # simulation has produced any data (not necessarily the complete vector). By addding `-info` switch, vector
         # metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or
         # real), and length of the vector.
+        #  -output - list or vector; overrides the handle default for this snapshot only
+        #  -ifexists - error or replace; overrides the handle collision policy
+        #  -name - explicit destination vector command name (vector output only)
         #  -info - if this switch is provided, commands return dictionary with vector metadata
+        # Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
+        # By default its name is the raw signal name in the calling namespace; -name selects another destination.
+        # A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
+        # Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.
+        # Balanced parentheses, including numeric forms such as v(1), remain literal. Names unsafe for RBC or
+        # containing namespace separators are encoded as _raw_ followed by uppercase hexadecimal UTF-8 bytes.
+        # No mapped array variable is created. Read values through the vector command (for example, range 0 end).
         #  name - name of the vector
         # Returns: real vectors as a flat list of doubles, complex vectors as a list of `{re im}` pairs. Error if vector
         # does not exists.
@@ -255,7 +284,8 @@ namespace eval ::ngspicetclbridge::SIM {
         # # -> {{0.01 0.00} {0.02 0.00} ...}   ;# if complex
         #```
         #
-        # Synopsis: ?-info? name
+        # Synopsis: name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?
+        # Synopsis: -info name
     }
 
     proc messages {args} {

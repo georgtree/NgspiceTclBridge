@@ -951,52 +951,52 @@ test test-46 {} -body {
     unset s1
 }
 
-test test-47 {} -body {
-    catch {ngspicetclbridge::new -nospiceinit -nospinit $ngspiceLibPath} errorStr
-    return $errorStr
-} -result {wrong # args: should be "ngspicetclbridge::new -nospinit|-nospiceinit|-noinit libpath"} -cleanup {
-    unset  errorStr
+test test-47 {initialization switches can be combined} -body {
+    set s1 [ngspicetclbridge::new -nospiceinit -nospinit $ngspiceLibPath]
+} -match glob -result ::ngspicetclbridge::s* -cleanup {
+    $s1 destroy
+    unset s1
 }
 
 test test-48 {} -body {
     catch {ngspicetclbridge::new -spin $ngspiceLibPath} errorStr
     return $errorStr
-} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
+} -result {unexpected argument: -spin} -cleanup {
     unset errorStr
 }
 
 test test-49 {} -body {
-    catch {ngspicetclbridge::new -spin $ngspiceLibPath} errorStr
+    catch {ngspicetclbridge::new $ngspiceLibPath -spin} errorStr
     return $errorStr
-} -result {unknown option: -spin (expected -nospinit, -nospiceinit or -noinit)} -cleanup {
+} -result {unexpected argument: -spin} -cleanup {
     unset errorStr
 }
 
 test test-50 {} -constraints unix -body {
     catch {ngspicetclbridge::new -spin} errorStr
     return $errorStr
-} -result {-spin: cannot open shared object file: No such file or directory} -cleanup {
+} -result {unexpected argument: -spin} -cleanup {
     unset errorStr
 }
 
 test test-50.1 {} -constraints win -body {
     catch {ngspicetclbridge::new -spin} errorStr
     return $errorStr
-} -result {LoadLibraryExW failed: 87} -cleanup {
+} -result {unexpected argument: -spin} -cleanup {
     unset errorStr
 }
 
 test test-51 {} -body {
     catch {ngspicetclbridge::new -nospinit} errorStr
     return $errorStr
-} -result {in case of one argument, it must be library path, not -nospinit} -cleanup {
+} -result {wrong # args: should be "ngspicetclbridge::new libpath ?-noinit|-nospinit|-nospiceinit? ?-output list|vector? ?-ifexists error|replace? ?-namespace name?"} -cleanup {
     unset errorStr
 }
 
 test test-52 {} -body {
     catch {ngspicetclbridge::new} errorStr
     return $errorStr
-} -result {wrong # args: should be "ngspicetclbridge::new libpath"} -cleanup {
+} -result {wrong # args: should be "ngspicetclbridge::new libpath ?-noinit|-nospinit|-nospiceinit? ?-output list|vector? ?-ifexists error|replace? ?-namespace name?"} -cleanup {
     unset errorStr
 }
 

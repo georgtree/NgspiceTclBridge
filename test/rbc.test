@@ -1,0 +1,183 @@
+# Run explicitly; the ordinary tcltest directory runner must not load this optional suite.
+if {[lindex $argv 0] ne "--rbc-fixture"} {
+    return
+}
+
+package require tcltest
+namespace import ::tcltest::*
+
+# Optional, headless integration: make test-rbc (TCLLIBPATH must locate rbc::vector).
+source [file join [file dirname [info script]] rbc-support.tcl]
+
+test rbc-1.1 {list interface and independent list snapshots remain unchanged} -body {
+    set s [newSim]
+    begin $s
+    list [dict get [$s vectors] v(out)] [$s asyncvector v(1)]
+} -cleanup {clean $s} -result {{0.0 2.0 4.0} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}}}
+
+test rbc-1.2 {literal names, real and complex live output} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    set names [$s vectors]
+    list [dict get $names v(out)] [dict get $names v(1)] [::live::v(out) range 0 end] [::live::v(1) range 0 end]
+} -cleanup {clean $s} -result {::live::v(out) ::live::v(1) {0.0 2.0 4.0} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}}}
+
+test rbc-1.3 {clear discards queued samples and retains vector names} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    set names [$s vectors]
+    $s command mock_point
+    $s vectors -clear
+    update
+    set empty [::live::v(out) length]
+    $s command mock_point
+    update
+    list $empty [expr {$names eq [$s vectors]}] [::live::v(out) range 0 end]
+} -cleanup {clean $s} -result {0 1 8.0}
+
+test rbc-1.4 {new run reuses commands despite default collision error} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    set names [$s vectors]
+    begin $s 2
+    list [expr {$names eq [$s vectors]}] [::live::v(out) range 0 end]
+} -cleanup {clean $s} -result {1 {0.0 2.0}}
+
+test rbc-1.5 {snapshot override and caller ownership} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    set snapshot [$s asyncvector v(out) -name ::snap::copy]
+    set plain [$s asyncvector v(out) -output list]
+    $s destroy
+    list $snapshot [$snapshot range 0 end] $plain [info commands ::live::v(out)]
+} -cleanup {clean $s} -result {::snap::copy {0.0 2.0 4.0} {0.0 2.0 4.0} {}}
+
+test rbc-1.6 {list handle can request complex vector snapshot} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set v [$s asyncvector v(1) -output vector -name ::snap::v(1)]
+    list $v [$v range 0 end]
+} -cleanup {clean $s} -result {::snap::v(1) {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}}}
+
+test rbc-1.7 {replace adopts existing vector; handle does not destroy it} -constraints rbc -body {
+    rbc::vector create ::live::v(out) -literal true -variable {}
+    ::live::v(out) set {99}
+    set s [newSim -output vector -ifexists replace]
+    begin $s
+    $s destroy
+    list [::live::v(out) range 0 end] [info commands ::live::time]
+} -cleanup {clean $s} -result {{0.0 2.0 4.0} {}}
+
+test rbc-1.8 {snapshot refuses a live destination even with replace} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    catch {$s asyncvector v(out) -name ::live::v(out) -ifexists replace} message
+    list $message [::live::v(out) length]
+} -cleanup {clean $s} -result {{vector "::live::v(out)" is maintained by a simulator handle} 3}
+
+test rbc-1.9 {snapshot collision policy and replace} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    $s asyncvector v(out) -output vector -name ::snap::copy
+    set collision [catch {$s asyncvector v(out) -output vector -name ::snap::copy}]
+    $s command mock_point
+    $s asyncvector v(out) -output vector -name ::snap::copy -ifexists replace
+    list $collision [::snap::copy length]
+} -cleanup {clean $s} -result {1 4}
+
+test rbc-1.10 {worker callbacks update live vectors during simulation} -constraints rbc -body {
+    set s [newSim -output vector]
+    $s command bg_run
+    waitUntil {[dict exists [$s vectors] v(out)] && [::live::v(out) length] >= 3}
+    set active [$s isrunning]
+    waitUntil {![$s isrunning]}
+    list $active [::live::v(out) length] [::live::v(out) index end]
+} -cleanup {clean $s} -result {1 100 198.0}
+
+test rbc-1.11 {invalid options fail before loading the shared library} -body {
+    catch {::ngspicetclbridge::new nonexistent -output bad} message
+    set message
+} -result {-output must be list or vector}
+
+
+proc bgerror {message} {
+    lappend ::outputErrors $message
+}
+
+test rbc-2.1 {collision is persistent and reported once; no partial creation} -constraints rbc -body {
+    set ::outputErrors {}
+    proc ::live::v(out) {} {}
+    set s [newSim -output vector]
+    begin $s
+    set failed [catch {$s vectors} message]
+    for {set i 0} {$i < 5} {incr i} {
+        $s command mock_point
+        update
+    }
+    list $failed [llength $::outputErrors] [info commands ::live::time] $message
+} -cleanup {clean $s} -result {1 1 {} {command "::live::v(out)" already exists and is not an RBC vector}}
+
+test rbc-2.2 {deleted live vector is not silently recreated} -constraints rbc -body {
+    set ::outputErrors {}
+    set s [newSim -output vector]
+    begin $s
+    rename ::live::v(out) {}
+    $s command mock_point
+    update
+    set failed [catch {$s vectors} message]
+    list $failed [llength $::outputErrors] [info commands ::live::v(out)] $message
+} -cleanup {clean $s} -result {1 1 {} {live vector "::live::v(out)" was deleted or renamed}}
+
+test rbc-2.3 {borrowed renamed vector survives handle destruction} -constraints rbc -body {
+    rbc::vector create ::live::v(out) -literal true -variable {}
+    set s [newSim -output vector -ifexists replace]
+    begin $s
+    rename ::live::v(out) ::live::renamed
+    set failed [catch {$s vectors}]
+    $s destroy
+    list $failed [::live::renamed length]
+} -cleanup {clean $s} -result {1 3}
+
+test rbc-2.4 {wrong numeric type cannot be replaced} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    rbc::vector create ::snap::copy -type complex -variable {}
+    catch {$s asyncvector v(out) -output vector -name ::snap::copy -ifexists replace} message
+    set message
+} -cleanup {clean $s} -result {vector "::snap::copy" has a different numeric type}
+
+test rbc-2.5 {missing info query releases realloc lock} -body {
+    set s [newSim]
+    begin $s
+    set failed [catch {$s asyncvector -info missing}]
+    list $failed [$s asyncvector v(out)]
+} -cleanup {clean $s} -result {1 {0.0 2.0 4.0}}
+
+test rbc-2.6 {repeated asynchronous runs retain identities and replace samples} -constraints rbc -body {
+    set s [newSim -output vector]
+    $s command bg_run
+    waitUntil {[dict exists [$s vectors] v(out)] && [::live::v(out) length] > 0}
+    waitUntil {![$s isrunning]}
+    set names [$s vectors]
+    $s command bg_run
+    waitUntil {[$s isrunning]}
+    waitUntil {![$s isrunning]}
+    list [expr {$names eq [$s vectors]}] [::live::v(out) length]
+} -cleanup {clean $s} -result {1 100}
+
+test rbc-3.1 {multiple growing batches retain previous real and complex samples} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s 200
+    set snapshot [$s asyncvector v(out) -name ::snap::old]
+    for {set i 0} {$i < 900} {incr i} {
+        $s command mock_point
+        if {$i % 100 == 0} {
+            update
+        }
+    }
+    update
+    list [::live::v(out) length] [::live::v(out) index 199] [::live::v(out) index end] [::live::v(1) index end]\
+            [$snapshot length]
+} -cleanup {clean $s} -result {1100 398.0 2198.0 {{2198.0 -3297.0}} 200}
+
+finishTests

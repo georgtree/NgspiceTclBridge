@@ -132,9 +132,15 @@
 <p>Load dynamic library, path should be provided in native form for target OS.  Every <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::new</span></code>
 returns a command (e.g. <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::s1</span></code>). The following subcommands operate on that instance.
 Optionally the spinit and/or spiceinit initialization files could be forbidden for loading.</p>
-<pre class="literal-block"><strong>new</strong> <em>?-nospinit|nospiceinit|noinit? libpath</em></pre>
+<pre class="literal-block"><strong>new</strong> <em>?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace? ?-namespace name?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-ifexists</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Error (default) or replace for initial vector destinations.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Existing namespace for live vectors; defaults to the calling namespace.</p>
+</dd>
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-noinit</span></code><span class="colon">:</span></dt>
 <dd class="field-odd"><p>Inhibit both spinit and spiceinit.</p>
 </dd>
@@ -144,11 +150,18 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-nospinit</span></code><span class="colon">:</span></dt>
 <dd class="field-odd"><p>Inhibits spinit.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">libpath</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Absolute full path to dynamic library.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>List (default) or vector; controls live storage and the default asyncvector result.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">libpath</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Absolute full path to dynamic library.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
+<p>Vector output requires an RBC-enabled build and rbc::vector with literal-name support.
+Use a dedicated namespace: the signal time otherwise collides with Tcl’s global time command.
+Existing same-type vectors can be adopted with replace; their commands and graph clients are retained.
+Unrelated commands and vectors maintained by another simulator cannot be replaced.</p>
 <p>Example:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="o">/</span>usr<span class="o">/</span>local<span class="o">/</span>lib<span class="o">/</span>libngspice.so<span class="k">]</span>
 </pre></div>
@@ -217,7 +230,7 @@ ensemble.</p>
 </dd>
 <dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20plot"><span class="std std-ref">plot</span></a></dt><dd><p>Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot. current plot, or list of all plots, or list of all vectors.</p>
 </dd>
-<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20vectors"><span class="std std-ref">vectors</span></a></dt><dd><p>Returns held <strong>synchronously accumulated</strong> vector values (built from <code class="docutils literal notranslate"><span class="pre">send_data</span></code> events) in a dict. dict with vectors values accumulated up to this point in internal structure.</p>
+<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20vectors"><span class="std std-ref">vectors</span></a></dt><dd><p>Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is the historical dictionary of lists (complex values are interleaved real/imaginary doubles). In vector mode, the result maps raw signal names to fully qualified live RBC vector commands. Real signals use real RBC vectors; complex signals use complex RBC vectors. Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not guarantee that queued vector updates have been processed. In vector mode, -clear empties vectors without destroying them and discards samples already queued. Later samples continue appending. It does not clear ngspice’s own snapshot data. The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming. Asynchronous output failures are reported once through Tcl’s background error handler and retained as errors from vectors. Incoming samples are discarded until a new plot initializes output. dict with vectors values accumulated up to this point in internal structure.</p>
 </dd>
 <dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20waitevent"><span class="std std-ref">waitevent</span></a></dt><dd><p>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided).</p>
 </dd>
@@ -236,17 +249,36 @@ the instance.</p>
 simulation has produced any data (not necessarily the complete vector). By addding <code class="docutils literal notranslate"><span class="pre">-info</span></code> switch, vector
 metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or
 real), and length of the vector.</p>
-<pre class="literal-block"><strong>SIM asyncvector</strong> <em>?-info? name</em></pre>
+<pre class="literal-block"><strong>SIM asyncvector</strong> <em>name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?</em>
+<strong>SIM asyncvector</strong> <em>-info name</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">name</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Name of the vector.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-ifexists</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Error or replace; overrides the handle collision policy.</p>
 </dd>
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-info</span></code><span class="colon">:</span></dt>
 <dd class="field-even"><p>If this switch is provided, commands return dictionary with vector metadata.</p>
 </dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-name</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Explicit destination vector command name (vector output only)</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>List or vector; overrides the handle default for this snapshot only.</p>
+</dd>
 </dl>
 <p class="rubric">Description</p>
+<p>Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
+By default its name is the raw signal name in the calling namespace; -name selects another destination.
+A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
+Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.
+Balanced parentheses, including numeric forms such as v(1), remain literal. Names unsafe for RBC or
+containing namespace separators are encoded as _raw_ followed by uppercase hexadecimal UTF-8 bytes.
+No mapped array variable is created. Read values through the vector command (for example, range 0 end).</p>
+<dl class="field-list simple">
+<dt class="field-odd">name<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Name of the vector.</p>
+</dd>
+</dl>
 <p>Example:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">initvectors</span>
 <span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>out
@@ -445,13 +477,25 @@ current plot, or list of all plots, or list of all vectors</p>
 </section>
 <section id="sim-vectors">
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading">¶</a></h3>
-<p>Returns held <strong>synchronously accumulated</strong> vector values (built from <code class="docutils literal notranslate"><span class="pre">send_data</span></code> events) in a dict.
+<p>Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is
+the historical dictionary of lists (complex values are interleaved real/imaginary doubles).
+In vector mode, the result maps raw signal names to fully qualified live RBC vector commands.
+Real signals use real RBC vectors; complex signals use complex RBC vectors.
+Vector identities remain stable across runs. Each new plot clears retained vectors, including signals
+absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not
+guarantee that queued vector updates have been processed.
+In vector mode, -clear empties vectors without destroying them and discards samples already queued.
+Later samples continue appending. It does not clear ngspice’s own snapshot data.
+The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
+as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming.
+Asynchronous output failures are reported once through Tcl’s background error handler and retained
+as errors from vectors. Incoming samples are discarded until a new plot initializes output.
 dict with vectors values accumulated up to this point in internal structure</p>
 <pre class="literal-block"><strong>SIM vectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Empties the internal memory structure and returns <strong>nothing</strong>.</p>
+<dd class="field-odd"><p>Empties stored samples and returns <strong>nothing</strong>.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -464,7 +508,19 @@ dict with vectors values accumulated up to this point in internal structure</p>
 </pre></div>
 </div>
 <p class="rubric">Return value</p>
-<p>Returns held <strong>synchronously accumulated</strong> vector values (built from <code class="docutils literal notranslate"><span class="pre">send_data</span></code> events) in a dict.
+<p>Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is
+the historical dictionary of lists (complex values are interleaved real/imaginary doubles).
+In vector mode, the result maps raw signal names to fully qualified live RBC vector commands.
+Real signals use real RBC vectors; complex signals use complex RBC vectors.
+Vector identities remain stable across runs. Each new plot clears retained vectors, including signals
+absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not
+guarantee that queued vector updates have been processed.
+In vector mode, -clear empties vectors without destroying them and discards samples already queued.
+Later samples continue appending. It does not clear ngspice’s own snapshot data.
+The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
+as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming.
+Asynchronous output failures are reported once through Tcl’s background error handler and retained
+as errors from vectors. Incoming samples are discarded until a new plot initializes output.
 dict with vectors values accumulated up to this point in internal structure</p>
 </section>
 <section id="sim-waitevent">

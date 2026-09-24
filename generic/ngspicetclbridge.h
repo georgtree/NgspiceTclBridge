@@ -1,3 +1,5 @@
+#ifndef NGSPICETCLBRIDGE_H
+#define NGSPICETCLBRIDGE_H
 
 #include <math.h>
 #include <stdio.h>
@@ -130,6 +132,8 @@ typedef int (*ngSpice_LockRealloc_t)(void);
 typedef int (*ngSpice_UnlockRealloc_t)(void);
 
 //** define ngspice per-instance context structure
+typedef struct BridgeRbc BridgeRbc;
+
 typedef struct {
     /*------------------------------------------------------------------------------------------------------------------
      * Dynamic library and function pointers (ngspice shared library symbols)
@@ -171,6 +175,14 @@ typedef struct {
     DataBuf prod;                                 /* Primary data buffer — rows appended by ngspice thread */
     DataBuf pend;                                 /* Reserved future buffer (unused or staging) */
 
+    int outputVectors;        /* Handle storage mode; immutable after creation. */
+    int replaceVectors;       /* Collision policy for first attachment/snapshots. */
+    Tcl_Obj *vectorNamespace; /* Captured, fully qualified destination namespace. */
+    BridgeRbc *rbc;           /* Live bindings, accessed only in the Tcl thread. */
+    Tcl_Obj *vectorError;     /* Sticky asynchronous publication error. */
+    int outputBusy;           /* Reject reentrant mutations during RBC notifications. */
+    int dataEventQueued;      /* One pending SEND_DATA event per generation; mutex protected. */
+    int outputFailed;         /* Drop incoming samples after publication failure; mutex protected. */
     Tcl_Obj *vectorData;                          /* Tcl dict: vector name → list(values) */
     Tcl_Obj *vectorInit;                          /* Tcl dict: vector name → {number N real 0/1} */
 
@@ -228,3 +240,15 @@ typedef struct {
 
 //** functions
 DLLEXPORT int Ngspicetclbridge_Init(Tcl_Interp *interp);
+
+/* Optional RBC adapter. No RBC types escape into the bridge's core. */
+int BridgeRbcInit(Tcl_Interp *interp);
+Tcl_Obj *BridgeRbcName(const char *ns, const char *rawName);
+int BridgeRbcPrepare(NgSpiceContext *ctx, const InitSnap *snap);
+int BridgeRbcClear(NgSpiceContext *ctx);
+int BridgeRbcAppend(NgSpiceContext *ctx, const DataBuf *rows);
+int BridgeRbcResult(NgSpiceContext *ctx);
+void BridgeRbcDestroy(NgSpiceContext *ctx);
+/* Snapshot consumes samples (double[] or ngcomplex_t[]) on every path. */
+int BridgeRbcSnapshot(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Tcl_Size count, void *samples, int replace);
+#endif

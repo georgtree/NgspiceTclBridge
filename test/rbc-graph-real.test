@@ -1,0 +1,195 @@
+# Explicit real-ngspice integration; never run through the ordinary directory suite.
+if {[lindex $argv 0] ne "--real-ngspice"} {
+    return
+}
+if {[llength $argv] != 4} {
+    return -code error {usage: tclsh rbc-graph-real.test --real-ngspice bridgeLibrary ngspiceLibrary timeoutMilliseconds}
+}
+lassign [lrange $argv 1 end] bridgeLibrary ngspiceLibrary timeoutMilliseconds
+if {$ngspiceLibrary eq {} || ![file isfile $ngspiceLibrary]} {
+    return -code error {set NGSPICE_LIBRARY to the full path of the real ngspice shared library (ngspice.dll or libngspice.so)}
+}
+if {![string is integer -strict $timeoutMilliseconds] || $timeoutMilliseconds <= 0} {
+    return -code error {NGSPICE_TEST_TIMEOUT_MS must be a positive integer}
+}
+set ngspiceLibrary [file normalize $ngspiceLibrary]
+load [file normalize $bridgeLibrary] Ngspicetclbridge
+
+# This explicitly requested test fails if its required packages/display are missing.
+package require tcltest
+package require rbc
+namespace import ::tcltest::*
+set argv {}
+configure -verbose {start error}
+
+namespace eval ::realGraphTest {
+    variable cancelled 0
+    variable mutations {}
+    variable backgroundErrors {}
+}
+
+proc ::realGraphTest::assert {condition message} {
+    if {![uplevel 1 [list expr $condition]]} {
+        return -code error $message
+    }
+}
+
+proc ::realGraphTest::backgroundError {message options} {
+    variable backgroundErrors
+    lappend backgroundErrors $message
+}
+
+proc ::realGraphTest::commandChanged {old new operation} {
+    variable mutations
+    lappend mutations [list $old $new $operation]
+}
+
+proc ::realGraphTest::nodeName {mapping node} {
+    foreach raw [dict keys $mapping] {
+        if {$raw eq $node || [string equal -nocase $raw v($node)]} {
+            return $raw
+        }
+    }
+    return -code error "saved node $node missing from vector metadata: [dict keys $mapping]"
+}
+proc ::realGraphTest::run {sim graph expected timeout} {
+    variable cancelled
+    variable backgroundErrors
+    set mapping {}
+    set previous 0
+    set liveGrowth 0
+    set started [clock milliseconds]
+    $sim eventcounts -clear
+    assert {[$sim command bg_run] == 0} {ngspice rejected bg_run}
+    while {1} {
+        # Let Tk redraw and the bridge publish queued samples without blocking the event loop.
+        set timer [after 10 [list set ::realGraphTest::tick 1]]
+        vwait ::realGraphTest::tick
+        after cancel $timer
+        if {$cancelled} {
+            return -code error {graph test cancelled by closing its window}
+        }
+        if {[llength $backgroundErrors]} {
+            return -code error "background error: $backgroundErrors"
+        }
+        set current [$sim vectors]
+        if {$mapping eq {} && [dict exists $current time]} {
+            set mapping $current
+            if {$expected ne {}} {
+                dict for {raw name} $expected {
+                    assert {[dict exists $mapping $raw] && [dict get $mapping $raw] eq $name}\
+                        "live vector identity changed for $raw"
+                }
+            } else {
+                set x [dict get $mapping time]
+                foreach node {9 10 11 12} color {red blue green4 purple} {
+                    set raw [nodeName $mapping $node]
+                    $graph element create bit$node -label v($node) -xdata $x -ydata [dict get $mapping $raw]\
+                            -color $color -symbol none
+                }
+                dict for {raw name} $mapping {
+                    trace add command $name {rename delete} ::realGraphTest::commandChanged
+                }
+            }
+        }
+        if {$mapping ne {}} {
+            set x [dict get $mapping time]
+            set count [$x length]
+            if {[$sim isrunning] && $count > $previous} {
+                incr liveGrowth
+            }
+            set previous $count
+            .realGraph.status configure -text "Samples: $count; live updates observed: $liveGrowth"
+        }
+        # Count both start and stop callbacks, avoiding the startup race in isrunning.
+        if {[dict get [$sim eventcounts] bg_running] >= 2 && ![$sim isrunning]} {
+            break
+        }
+        if {[clock milliseconds] - $started > $timeout} {
+            return -code error "ngspice did not finish within $timeout ms; messages: [$sim messages]"
+        }
+    }
+    update
+    assert {$mapping ne {}} {ngspice produced no vector metadata}
+    assert {$liveGrowth >= 2} {fewer than two growing vector updates observed while ngspice was running}
+    assert {[llength $backgroundErrors] == 0} "background error: $backgroundErrors"
+    set x [dict get $mapping time]
+    set count [$x length]
+    assert {$count > 1} {ngspice produced insufficient transient samples}
+    assert {abs([lindex [$x index end] 0] - 10e-6) < 1e-12} {transient did not reach 10 microseconds}
+    # Compare every displayed trace and the time scale against independent ngspice snapshots.
+    set rawNames [list time]
+    foreach node {9 10 11 12} {
+        lappend rawNames [nodeName $mapping $node]
+    }
+    foreach raw $rawNames {
+        set vec [dict get $mapping $raw]
+        assert {[$vec length] == $count} "sample count mismatch for $raw"
+        set snapshot [$sim asyncvector $raw -output list]
+        assert {[$vec range 0 end] eq $snapshot} "live data differs from ngspice snapshot for $raw"
+    }
+    return $mapping
+}
+
+test rbc-graph-real-1.1 {four-bit adder: real ngspice streaming, clear, and graph-bound rerun} -setup {
+    set sim {}
+    set savedBackgroundHandler [interp bgerror {}]
+    interp bgerror {} ::realGraphTest::backgroundError
+    set ::realGraphTest::cancelled 0
+    set ::realGraphTest::mutations {}
+    set ::realGraphTest::backgroundErrors {}
+    namespace eval ::adderWave {}
+    toplevel .realGraph
+    wm title .realGraph {Real ngspice: four-bit adder RBC vectors}
+    wm protocol .realGraph WM_DELETE_WINDOW {set ::realGraphTest::cancelled 1}
+    rbc::graph .realGraph.graph -width 1000 -height 500
+    .realGraph.graph axis configure x -title {Time (s)}
+    .realGraph.graph axis configure y -title {Voltage (V)}
+    label .realGraph.status -text {Starting four-bit adder simulation...}
+    pack .realGraph.graph -fill both -expand 1
+    pack .realGraph.status -fill x
+    update
+    set sim [ngspicetclbridge::new $ngspiceLibrary -noinit -output vector -namespace ::adderWave]
+    set path [file join [file dirname [info script]] .. examples fourbit-adder.cir]
+    set channel [open $path r]
+    try {
+        set fourBitAdderCircuit [split [string trim [read $channel]] \n]
+    } finally {
+        close $channel
+    }
+    ::realGraphTest::assert {[$sim circuit $fourBitAdderCircuit] == 0} {ngspice rejected the four-bit adder circuit}
+} -body {
+    set graph .realGraph.graph
+    set names [::realGraphTest::run $sim $graph {} $timeoutMilliseconds]
+    set bindings {}
+    foreach node {9 10 11 12} {
+        lappend bindings [$graph element cget bit$node -xdata] [$graph element cget bit$node -ydata]
+    }
+    $sim vectors -clear
+    update
+    dict for {raw name} $names {
+        ::realGraphTest::assert {[$name length] == 0} "clear did not empty $raw"
+        ::realGraphTest::assert {[dict get [$sim vectors] $raw] eq $name} "clear changed the name of $raw"
+    }
+    ::realGraphTest::run $sim $graph $names $timeoutMilliseconds
+    set afterBindings {}
+    foreach node {9 10 11 12} {
+        lappend afterBindings [$graph element cget bit$node -xdata] [$graph element cget bit$node -ydata]
+    }
+    ::realGraphTest::assert {$bindings eq $afterBindings} {graph bindings changed across clear/rerun}
+    ::realGraphTest::assert {$::realGraphTest::mutations eq {}} {live vector commands were deleted or renamed}
+    list [llength [$graph element names]] [llength $::realGraphTest::backgroundErrors]
+} -cleanup {
+    # Stop callbacks before disposing of the graph, live vectors and error handler.
+    if {$sim ne {}} {
+        catch {$sim destroy}
+    }
+    catch {destroy .realGraph}
+    catch {namespace delete ::adderWave}
+    update
+    interp bgerror {} $savedBackgroundHandler
+} -result {4 0}
+
+set failed $::tcltest::numTests(Failed)
+cleanupTests
+exit [expr {$failed != 0}]

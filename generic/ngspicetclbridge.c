@@ -691,6 +691,26 @@ static void QueueMsg(NgSpiceContext *ctx, const char *msg) {
 }
 
 //** events processing
+//***  VectorOutputError function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ * VectorOutputError -- Retain the first asynchronous output failure and discard pending samples.
+ * Called only by the Tcl thread. The retained error remains available from the vectors command.
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void VectorOutputError(NgSpiceContext *ctx) {
+    if (!ctx->vectorError && !ctx->destroying) {
+        ctx->vectorError = Tcl_GetObjResult(ctx->interp);
+        Tcl_IncrRefCount(ctx->vectorError);
+        Tcl_MutexLock(&ctx->mutex);
+        ctx->outputFailed = 1;
+        DataBuf_Free(&ctx->prod);
+        DataBuf_Init(&ctx->prod);
+        Tcl_MutexUnlock(&ctx->mutex);
+        Tcl_BackgroundException(ctx->interp, TCL_ERROR);
+    }
+}
+
 //***  NgSpiceEventProc function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -748,6 +768,10 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         Tcl_Release((ClientData)ctx);
         return 1;
     }
+    if (ctx->outputBusy) {
+        return 0;
+    }
+    Tcl_InterpState saved = Tcl_SaveInterpState(interp, TCL_OK);
     switch ((enum CallbacksIds)sp->callbackId) {
     case SEND_INIT_DATA: {
         InitSnap *isnap = NULL;
@@ -770,6 +794,17 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             ctx->vectorInit = dict;
             Tcl_IncrRefCount(dict);
             Tcl_MutexUnlock(&ctx->mutex);
+            if (ctx->vectorError) {
+                Tcl_DecrRefCount(ctx->vectorError);
+                ctx->vectorError = NULL;
+            }
+            if (ctx->outputVectors) {
+                ctx->outputBusy = 1;
+                if (BridgeRbcPrepare(ctx, isnap) != TCL_OK) {
+                    VectorOutputError(ctx);
+                }
+                ctx->outputBusy = 0;
+            }
             FreeInitSnap(isnap);
         }
         break;
@@ -779,6 +814,8 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         DataBuf_Init(&take);
         /* detach producer buffer */
         Tcl_MutexLock(&ctx->mutex);
+        ctx->dataEventQueued = 0;
+        int failed = ctx->outputFailed;
         take = ctx->prod;
         ctx->prod.rows = NULL;
         ctx->prod.count = 0;
@@ -790,6 +827,15 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             ctx->vectorData = dup;
         }
         Tcl_MutexUnlock(&ctx->mutex);
+        if (ctx->outputVectors) {
+            ctx->outputBusy = 1;
+            if (!failed && take.count && BridgeRbcAppend(ctx, &take) != TCL_OK) {
+                VectorOutputError(ctx);
+            }
+            ctx->outputBusy = 0;
+            DataBuf_Free(&take);
+            break;
+        }
         for (size_t r = 0; r < take.count; r++) {
             DataRow *dr = &take.rows[r];
             for (int i = 0; i < dr->veccount; i++) {
@@ -817,6 +863,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
     default:
         break;
     }
+    Tcl_RestoreInterpState(interp, saved);
     Tcl_Release((ClientData)ctx);
     return 1;
 }
@@ -1299,12 +1346,20 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
     }
     Tcl_MutexLock(&ctx->mutex);
     mygen = ctx->gen;
-    DataBuf_Ensure(&ctx->prod, ctx->prod.count + (size_t)1);
-    ctx->prod.rows[ctx->prod.count] = row;
-    ctx->prod.count++;
+    int queue = 0;
+    if (!ctx->outputFailed) {
+        DataBuf_Ensure(&ctx->prod, ctx->prod.count + (size_t)1);
+        ctx->prod.rows[ctx->prod.count++] = row;
+        queue = !ctx->dataEventQueued;
+        ctx->dataEventQueued = 1;
+    } else {
+        FreeDataRow(&row);
+    }
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_DATA);
-    NgSpiceQueueEvent(ctx, SEND_DATA, mygen);
+    if (queue) {
+        NgSpiceQueueEvent(ctx, SEND_DATA, mygen);
+    }
     return 0;
 }
 //***  SendInitDataCallback function
@@ -1364,7 +1419,11 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         Tcl_Free(ctx->init_snap);
     }
     ctx->init_snap = snap;
-    uint64_t mygen = ctx->gen;
+    DataBuf_Free(&ctx->prod);
+    DataBuf_Init(&ctx->prod);
+    ctx->dataEventQueued = 0;
+    ctx->outputFailed = 0;
+    uint64_t mygen = ++ctx->gen;
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_INIT_DATA);
     NgSpiceQueueEvent(ctx, SEND_INIT_DATA, mygen);
@@ -1703,6 +1762,14 @@ static void InstFreeProc(void *cdata) {
     if (ctx->vectorInit != NULL) {
         Tcl_DecrRefCount(ctx->vectorInit);
     }
+    BridgeRbcDestroy(ctx);
+    if (ctx->vectorNamespace) {
+        Tcl_DecrRefCount(ctx->vectorNamespace);
+    }
+    if (ctx->vectorError) {
+        Tcl_DecrRefCount(ctx->vectorError);
+    }
+    FreeInitSnap(ctx->init_snap);
     MsgQ_Free(&ctx->msgq);
     MsgQ_Free(&ctx->capq);
     DataBuf_Free(&ctx->prod);
@@ -1986,6 +2053,139 @@ static void InstDeleteProc(void *cdata) {
     Tcl_EventuallyFree((ClientData)ctx, InstFreeProc);
 }
 //** command registering function
+//***  OutputOption function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ * OutputOption -- Parse the shared output and collision policy options without loading RBC.
+ * Results: TCL_OK, or TCL_ERROR with a diagnostic.
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int OutputOption(Tcl_Interp *interp, const char *option, Tcl_Obj *value, int *output, int *replace) {
+    const char *text = Tcl_GetString(value);
+    if (strcmp(option, "-output") == 0) {
+        if (strcmp(text, "list") == 0) {
+            *output = 0;
+            return TCL_OK;
+        }
+        if (strcmp(text, "vector") == 0) {
+            *output = 1;
+            return TCL_OK;
+        }
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("-output must be list or vector", -1));
+    } else {
+        if (strcmp(text, "error") == 0) {
+            *replace = 0;
+            return TCL_OK;
+        }
+        if (strcmp(text, "replace") == 0) {
+            *replace = 1;
+            return TCL_OK;
+        }
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("-ifexists must be error or replace", -1));
+    }
+    return TCL_ERROR;
+}
+
+//***  AsyncVector function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ * AsyncVector -- Return a list or an independent, caller-owned RBC snapshot of a simulator vector.
+ * Copy the numeric storage while ngspice's realloc lock is held, then release the lock before creating Tcl/RBC output.
+ * Results: TCL_OK with the historical list representation or the fully qualified RBC name; TCL_ERROR on failure.
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]) {
+    Tcl_Interp *interp = ctx->interp;
+    int output = ctx->outputVectors, replace = ctx->replaceVectors;
+    Tcl_Obj *source = NULL, *destination = NULL;
+    for (Tcl_Size i = 2; i < objc; i++) {
+        const char *opt = Tcl_GetString(objv[i]);
+        if (strcmp(opt, "-output") == 0 || strcmp(opt, "-ifexists") == 0 || strcmp(opt, "-name") == 0) {
+            if (++i == objc) {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing value for %s", opt));
+                return TCL_ERROR;
+            }
+            if (strcmp(opt, "-name") == 0) {
+                destination = objv[i];
+            } else if (OutputOption(interp, opt, objv[i], &output, &replace) != TCL_OK) {
+                return TCL_ERROR;
+            }
+        } else if (!source && opt[0] != '-') {
+            source = objv[i];
+        } else {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unexpected argument: %s", opt));
+            return TCL_ERROR;
+        }
+    }
+    if (!source || (destination && !output)) {
+        Tcl_WrongNumArgs(interp, 2, objv, "name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?");
+        return TCL_ERROR;
+    }
+    const char *rawName = Tcl_GetString(source);
+    ctx->ngSpice_LockRealloc();
+    pvector_info info = ctx->ngGet_Vec_Info((char *)rawName);
+    if (!info) {
+        ctx->ngSpice_UnlockRealloc();
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("vector with name \"%s\" does not exist", rawName));
+        return TCL_ERROR;
+    }
+    int complex = (info->v_flags & VF_COMPLEX) != 0;
+    Tcl_Size count = info->v_length;
+    size_t width = complex ? sizeof(ngcomplex_t) : sizeof(double);
+    if (count < 0 || (size_t)count > SIZE_MAX / width) {
+        ctx->ngSpice_UnlockRealloc();
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid vector length", -1));
+        return TCL_ERROR;
+    }
+    void *samples = Tcl_AttemptAlloc(count ? (size_t)count * width : 1);
+    if (!samples) {
+        ctx->ngSpice_UnlockRealloc();
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to allocate vector snapshot", -1));
+        return TCL_ERROR;
+    }
+    if (count) {
+        memcpy(samples, complex ? (void *)info->v_compdata : (void *)info->v_realdata, (size_t)count * width);
+    }
+    ctx->ngSpice_UnlockRealloc();
+    if (!output) {
+        Tcl_Obj *list = Tcl_NewListObj(0, NULL);
+        for (Tcl_Size i = 0; i < count; i++) {
+            Tcl_Obj *value;
+            if (complex) {
+                ngcomplex_t *data = samples;
+                Tcl_Obj *pair[] = {Tcl_NewDoubleObj(data[i].cx_real), Tcl_NewDoubleObj(data[i].cx_imag)};
+                value = Tcl_NewListObj(2, pair);
+            } else {
+                value = Tcl_NewDoubleObj(((double *)samples)[i]);
+            }
+            Tcl_ListObjAppendElement(interp, list, value);
+        }
+        Tcl_Free(samples);
+        Tcl_SetObjResult(interp, list);
+        return TCL_OK;
+    }
+    const char *ns = Tcl_GetCurrentNamespace(interp)->fullName;
+    Tcl_Obj *name;
+    if (destination) {
+        const char *text = Tcl_GetString(destination);
+        if (!*text) {
+            Tcl_Free(samples);
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("empty destination vector name", -1));
+            return TCL_ERROR;
+        }
+        name = strncmp(text, "::", 2) == 0 ? destination
+                                           : Tcl_ObjPrintf("%s%s%s", ns, strcmp(ns, "::") == 0 ? "" : "::", text);
+    } else {
+        name = BridgeRbcName(ns, rawName);
+    }
+    Tcl_IncrRefCount(name);
+    ctx->outputBusy = 1;
+    int code = BridgeRbcSnapshot(ctx, name, complex, count, samples, replace);
+    ctx->outputBusy = 0;
+    Tcl_DecrRefCount(name);
+    return code;
+}
+
 //***  InstObjCmd function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -2041,6 +2241,8 @@ static void InstDeleteProc(void *cdata) {
  *      - Internally uses wait_for() on ctx->evt_counts[].
  *
  *   vectors ?-clear?
+ *      - In vector mode, returns raw-name -> live RBC command mappings. Clear retains vector commands and clients.
+ *      - Live output failures are retained and returned here; borrowed vectors survive instance destruction.
  *      - Without -clear: returns ctx->vectorData (dict: vecName -> list-of-samples).
  *      - With -clear: replaces ctx->vectorData with a new empty dict and returns nothing.
  *
@@ -2052,7 +2254,7 @@ static void InstDeleteProc(void *cdata) {
  *      - "plot -vecs <plot>": returns list of vector names in that plot (ngSpice_AllVecs()).
  *      - Errors if options don't match.
  *
- *   asyncvector name
+ *   asyncvector name ?-output list|vector? ?-ifexists error|replace? ?-name destination?
  *   asyncvector -info name
  *      - asyncvector <name>:
  *            * Queries ngGet_Vec_Info(<name>), returns list of data samples.
@@ -2112,6 +2314,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     const char *sub = Tcl_GetString(objv[1]);
+    if (ctx->outputBusy && strcmp(sub, "destroy") != 0) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("vector output update is in progress", -1));
+        code = TCL_ERROR;
+        goto done;
+    }
     if (strcmp(sub, "command") == 0) {
         int do_capture = 0;
         int argi = 2;
@@ -2154,6 +2361,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             goto done;
         }
         if (strcmp(cmd, "bg_run") == 0) {
+            if (ctx->ngSpice_running()) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("simulation is already running", -1));
+                code = TCL_ERROR;
+                goto done;
+            }
             Tcl_MutexLock(&ctx->bg_mu);
             ctx->state = NGSTATE_STARTING_BG;
             ctx->bg_started = 0;
@@ -2161,6 +2373,8 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_MutexUnlock(&ctx->bg_mu);
             Tcl_MutexLock(&ctx->mutex);
             ctx->gen++;
+            ctx->dataEventQueued = 0;
+            ctx->outputFailed = 0;
             ctx->new_run_pending = 0;
             if (ctx->init_snap != NULL) {
                 for (int i = 0; i < ctx->init_snap->veccount; i++) {
@@ -2356,6 +2570,28 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         } else {
             /* No action required: all valid cases handled above (MISRA 15.7) */
         }
+        if (ctx->outputVectors) {
+            if (ctx->vectorError) {
+                Tcl_SetObjResult(interp, ctx->vectorError);
+                code = TCL_ERROR;
+                goto done;
+            }
+            if (do_clear) {
+                Tcl_MutexLock(&ctx->mutex);
+                DataBuf_Free(&ctx->prod);
+                DataBuf_Init(&ctx->prod);
+                Tcl_MutexUnlock(&ctx->mutex);
+                ctx->outputBusy = 1;
+                code = BridgeRbcClear(ctx);
+                ctx->outputBusy = 0;
+                if (code == TCL_OK) {
+                    Tcl_ResetResult(interp);
+                }
+            } else {
+                code = BridgeRbcResult(ctx);
+            }
+            goto done;
+        }
         if (!ctx->vectorData) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("no vector data", -1));
             code = TCL_ERROR;
@@ -2422,7 +2658,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "asyncvector") == 0) {
-        if (objc == 4) {
+        if (objc == 4 && strcmp(Tcl_GetString(objv[2]), "-info") == 0) {
             const char *opt = Tcl_GetString(objv[2]);
             const char *vecname = Tcl_GetString(objv[3]);
             if (strcmp(opt, "-info") == 0) {
@@ -2430,6 +2666,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 /* cppcheck-suppress misra-c2012-17.3 */
                 pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
                 if (vinfo == NULL) {
+                    ctx->ngSpice_UnlockRealloc();
                     Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
                     Tcl_SetObjResult(interp, errMsg);
                     code = TCL_ERROR;
@@ -2438,7 +2675,6 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 int vlength = vinfo->v_length;
                 int vtype = vinfo->v_type;
                 Tcl_Obj *info = Tcl_NewDictObj();
-                Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("notype", -1));
                 switch ((enum vector_types)vtype) {
                 case SV_NOTYPE:
                     Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj("notype", -1));
@@ -2530,41 +2766,8 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 code = TCL_ERROR;
                 goto done;
             }
-        } else if (objc == 3) {
-            const char *vecname = Tcl_GetString(objv[2]);
-            ctx->ngSpice_LockRealloc();
-            /* cppcheck-suppress misra-c2012-17.3 */
-            pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
-            if (vinfo == NULL) {
-                Tcl_Obj *errMsg = Tcl_ObjPrintf("vector with name \"%s\" does not exist", vecname);
-                ctx->ngSpice_UnlockRealloc();
-                Tcl_SetObjResult(interp, errMsg);
-                code = TCL_ERROR;
-                goto done;
-            }
-            int vlength = vinfo->v_length;
-            Tcl_Obj *dataObj = Tcl_NewListObj(0, NULL);
-            if ((vinfo->v_flags & (short)VF_COMPLEX) != 0) {
-                const ngcomplex_t *cdataLoc = vinfo->v_compdata;
-                for (int i = 0; i < vlength; i++) {
-                    Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
-                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdataLoc[i].cx_real));
-                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(cdataLoc[i].cx_imag));
-                    Tcl_ListObjAppendElement(interp, dataObj, pair);
-                }
-            } else {
-                const double *rdata = vinfo->v_realdata;
-                for (int i = 0; i < vlength; i++) {
-                    Tcl_ListObjAppendElement(interp, dataObj, Tcl_NewDoubleObj(rdata[i]));
-                }
-            }
-            ctx->ngSpice_UnlockRealloc();
-            Tcl_SetObjResult(interp, dataObj);
-            code = TCL_OK;
-            goto done;
         } else {
-            Tcl_WrongNumArgs(interp, 2, objv, "string");
-            code = TCL_ERROR;
+            code = AsyncVector(ctx, objc, objv);
             goto done;
         }
     }
@@ -2809,9 +3012,10 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
  *      ClientData cd         - input: not used (reserved for future use)
  *      Tcl_Interp *interp    - input: target interpreter in which to create the new command
  *      Tcl_Size objc         - input: number of arguments
- *      Tcl_Obj *const objv[] - input: argument vector; expects exactly 2 arguments:
- *                                  objv[0] = command name ("::ngspicetclbridge::new")
- *                                  objv[1] = path to ngspice shared library (DLL/.so/.dylib)
+ *      Tcl_Obj *const objv[] - input: library path, optional initialization switches, and option/value pairs:
+ *                                  -output list|vector, -ifexists error|replace, -namespace existingNamespace.
+ *                                  Output and collision defaults also apply to on-demand snapshots.
+ *                                  The live destination namespace is resolved once at handle creation.
  *
  * Results:
  *      On success:
@@ -2834,35 +3038,48 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
  */
 /* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Tcl expected function signature */
 static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *libPathObj;
-    int selector = 0;
-    if (objc == 1) {
-        Tcl_WrongNumArgs(interp, 1, objv, "libpath");
-        return TCL_ERROR;
-    } else if (objc == 2) {
-        const char *opt = Tcl_GetString(objv[1]);
-        if ((strcmp(opt, "-nospinit") == 0) || (strcmp(opt, "-nospiceinit") == 0) || (strcmp(opt, "-noinit") == 0)) {
-            Tcl_SetObjResult(interp,
-                             Tcl_ObjPrintf("in case of one argument, it must be library path, not %s", opt));
-            return TCL_ERROR;
-        }
-        libPathObj = objv[1];
-    } else if (objc == 3) {
-        const char *opt = Tcl_GetString(objv[1]);
-        libPathObj = objv[2];
-        if (strcmp(opt, "-nospinit") == 0) {
-            selector = 1;
-        } else if (strcmp(opt, "-nospiceinit") == 0) {
-            selector = 2;
-        } else if (strcmp(opt, "-noinit") == 0) {
+    Tcl_Obj *libPathObj = NULL;
+    int selector = 0, output = 0, replace = 0;
+    Tcl_Namespace *ns = Tcl_GetCurrentNamespace(interp);
+    for (Tcl_Size i = 1; i < objc; i++) {
+        const char *opt = Tcl_GetString(objv[i]);
+        if (strcmp(opt, "-noinit") == 0) {
             selector = 3;
+        } else if (strcmp(opt, "-nospinit") == 0) {
+            selector |= 1;
+        } else if (strcmp(opt, "-nospiceinit") == 0) {
+            selector |= 2;
+        } else if (strcmp(opt, "-output") == 0 || strcmp(opt, "-ifexists") == 0 || strcmp(opt, "-namespace") == 0) {
+            if (++i == objc) {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing value for %s", opt));
+                return TCL_ERROR;
+            }
+            if (strcmp(opt, "-namespace") == 0) {
+                ns = Tcl_FindNamespace(interp, Tcl_GetString(objv[i]), NULL, TCL_LEAVE_ERR_MSG);
+                if (!ns) {
+                    return TCL_ERROR;
+                }
+            } else if (OutputOption(interp, opt, objv[i], &output, &replace) != TCL_OK) {
+                return TCL_ERROR;
+            }
+        } else if (!libPathObj && opt[0] != '-') {
+            libPathObj = objv[i];
         } else {
-            Tcl_SetObjResult(interp,
-                             Tcl_ObjPrintf("unknown option: %s (expected -nospinit, -nospiceinit or -noinit)", opt));
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unexpected argument: %s", opt));
             return TCL_ERROR;
         }
-    } else {
-        Tcl_WrongNumArgs(interp, 1, objv, "-nospinit|-nospiceinit|-noinit libpath");
+    }
+    if (!libPathObj) {
+        Tcl_WrongNumArgs(interp, 1, objv,
+                         "libpath ?-noinit|-nospinit|-nospiceinit? ?-output list|vector? ?-ifexists error|replace? "
+                         "?-namespace name?");
+        return TCL_ERROR;
+    }
+    /* Package loading can evaluate Tcl, so capture the namespace before loading it. */
+    Tcl_Obj *nsName = Tcl_NewStringObj(ns->fullName, -1);
+    Tcl_IncrRefCount(nsName);
+    if (output && BridgeRbcInit(interp) != TCL_OK) {
+        Tcl_DecrRefCount(nsName);
         return TCL_ERROR;
     }
     NgSpiceContext *ctx = Tcl_Alloc(sizeof *ctx);
@@ -2878,11 +3095,16 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     ctx->handle = PDl_OpenFromObj(interp, libPathObj);
     if (!ctx->handle) {
         Tcl_Free(ctx);
+        Tcl_DecrRefCount(nsName);
         return TCL_ERROR;
     }
     if (NgResolveAll(interp, ctx) != TCL_OK) {
+        Tcl_DecrRefCount(nsName);
         return TCL_ERROR;
     }
+    ctx->outputVectors = output;
+    ctx->replaceVectors = replace;
+    ctx->vectorNamespace = nsName;
     static unsigned long seq = 0;
     Tcl_Obj *name = Tcl_ObjPrintf("::ngspicetclbridge::s%lu", ++seq);
     Tcl_CreateObjCommand2(interp, Tcl_GetString(name), InstObjCmd, ctx, InstDeleteProc);

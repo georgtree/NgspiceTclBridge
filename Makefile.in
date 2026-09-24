@@ -18,7 +18,7 @@
 PKG_SOURCES = @PKG_SOURCES@
 PKG_OBJECTS = @PKG_OBJECTS@
 DOC_HTML_FILES = @DOC_HTML_FILES@
-DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c
+DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c test/mockngspice.c test/rbc.test test/rbc-graph.test test/rbc-support.tcl test/rbc-graph-real.test
 
 PKG_STUB_SOURCES = @PKG_STUB_SOURCES@
 PKG_STUB_OBJECTS = @PKG_STUB_OBJECTS@
@@ -145,14 +145,33 @@ test: binaries libraries test-memory
 
 # Standalone ownership regression: no ngspice library, argparse or extexpr required.
 MEMORY_TEST = bridge-memory-test$(EXEEXT)
-$(MEMORY_TEST): $(srcdir)/test/memory.c $(srcdir)/generic/ngspicetclbridge.c \
+$(MEMORY_TEST): $(srcdir)/test/memory.c $(srcdir)/generic/ngspicetclbridgeRbc.c $(srcdir)/generic/ngspicetclbridge.c \
         $(srcdir)/generic/ngspicetclbridge.h $(srcdir)/generic/sharedspice.h $(srcdir)/generic/portable_dl.h
-	$(COMPILE) $(LDFLAGS) -o $@ $(srcdir)/test/memory.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
+	$(COMPILE) -UUSE_TCL_STUBS $(LDFLAGS) -o $@ $(srcdir)/test/memory.c $(srcdir)/generic/ngspicetclbridgeRbc.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
 
 test-memory: $(MEMORY_TEST)
 	$(PKG_ENV) ./$(MEMORY_TEST)
 
 #========================================================================
+# Optional integration checks use a deterministic shared-library fixture.
+MOCK_NGSPICE = mock$(PKG_LIB_FILE)
+$(MOCK_NGSPICE): $(srcdir)/test/mockngspice.c $(srcdir)/generic/sharedspice.h
+	$(SHLIB_LD) $(CPPFLAGS) $(DEFS) $(INCLUDES) -UUSE_TCL_STUBS $(LDFLAGS) -o $@ $(srcdir)/test/mockngspice.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
+
+test-rbc: binaries $(MOCK_NGSPICE)
+	$(PKG_ENV) $(TCLSH) $(srcdir)/test/rbc.test --rbc-fixture $(PKG_LIB_FILE) $(MOCK_NGSPICE)
+
+test-rbc-graph: binaries $(MOCK_NGSPICE)
+	$(PKG_ENV) $(TCLSH) $(srcdir)/test/rbc-graph.test --rbc-fixture $(PKG_LIB_FILE) $(MOCK_NGSPICE)
+
+# Real-ngspice graph integration: supply the full shared-library filename.
+NGSPICE_LIBRARY ?=
+NGSPICE_TEST_TIMEOUT_MS ?= 180000
+.PHONY: test-rbc test-rbc-graph test-rbc-graph-real
+
+test-rbc-graph-real: binaries
+	$(PKG_ENV) $(TCLSH) "$(srcdir)/test/rbc-graph-real.test" --real-ngspice "$(PKG_LIB_FILE)" "$(NGSPICE_LIBRARY)" "$(NGSPICE_TEST_TIMEOUT_MS)"
+
 # Package installing recipes
 #========================================================================
 install: all install-binaries install-libraries install-doc
@@ -296,7 +315,7 @@ dist: dist-clean
 # Cleaning of building files
 #========================================================================
 clean:
-	-rm -f $(MEMORY_TEST)
+	-rm -f $(MEMORY_TEST) $(MOCK_NGSPICE)
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)

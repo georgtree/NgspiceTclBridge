@@ -768,6 +768,7 @@ ac_user_opts='
 enable_option_checking
 with_tcl
 with_tcl8
+with_rbc
 with_tclinclude
 enable_threads
 enable_shared
@@ -1420,6 +1421,8 @@ Optional Packages:
   --with-tcl              directory containing tcl configuration
                           (tclConfig.sh)
   --with-tcl8             Compile for Tcl8 in Tcl9 environment
+  --with-rbc=DIR          RBC public header directory, source tree, or
+                          installation prefix
   --with-tclinclude       directory containing the public Tcl header files
 
 Some influential environment variables:
@@ -5312,7 +5315,7 @@ printf "%s\n" "$ac_cv_c_bigendian" >&6; }
 
 
 
-    vars="ngspicetclbridge.c"
+    vars="ngspicetclbridge.c ngspicetclbridgeRbc.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -5414,6 +5417,51 @@ printf "%s\n" "$ac_cv_c_bigendian" >&6; }
     done
 
 
+
+# RBC support is opt-in. Compile its portable stub client source, never link the RBC shared library.
+
+# Check whether --with-rbc was given.
+if test ${with_rbc+y}
+then :
+  withval=$with_rbc; rbc_dir="$withval"
+else $as_nop
+  rbc_dir=no
+fi
+
+if test "$rbc_dir" != no; then
+    if test "$rbc_dir" = yes; then
+        as_fn_error $? "--with-rbc requires a directory" "$LINENO" 5
+    fi
+    if test "$TCL_MAJOR_VERSION" -lt 9; then
+        as_fn_error $? "rbc-tk9 vector support requires Tcl 9; use --without-rbc for Tcl 8.6" "$LINENO" 5
+    fi
+    RBC_INCLUDE_DIR=
+    for rbc_candidate in "$rbc_dir" "$rbc_dir/include" "$rbc_dir/generic"; do
+        if test -f "$rbc_candidate/rbcVector.h" && test -f "$rbc_candidate/rbcDecls.h" &&
+           test -f "$rbc_candidate/rbcStubLib.c"; then
+            RBC_INCLUDE_DIR=`cd "$rbc_candidate" && pwd`
+            break
+        fi
+    done
+    if test -z "$RBC_INCLUDE_DIR"; then
+        as_fn_error $? "cannot find rbcVector.h, rbcDecls.h and rbcStubLib.c under $rbc_dir" "$LINENO" 5
+    fi
+
+    vars="-I"${RBC_INCLUDE_DIR}""
+    for i in $vars; do
+	PKG_INCLUDES="$PKG_INCLUDES $i"
+    done
+
+
+
+printf "%s\n" "#define HAVE_RBC 1" >>confdefs.h
+
+
+printf "%s\n" "#define USE_RBC_STUBS 1" >>confdefs.h
+
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: RBC vector output enabled: $RBC_INCLUDE_DIR" >&5
+printf "%s\n" "$as_me: RBC vector output enabled: $RBC_INCLUDE_DIR" >&6;}
+fi
 
 DOC_HTML_FILES="index.html objects.inv search.html searchindex.js genindex.html"
 DOC_SRCDIR="${srcdir}/docs"

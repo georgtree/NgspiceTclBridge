@@ -11,13 +11,41 @@ TEA_PATH_TCLCONFIG
 TEA_LOAD_TCLCONFIG
 TEA_PREFIX
 TEA_SETUP_COMPILER
-TEA_ADD_SOURCES([ngspicetclbridge.c])
+TEA_ADD_SOURCES([ngspicetclbridge.c ngspicetclbridgeRbc.c])
 TEA_ADD_HEADERS([generic/ngspicetclbridge.h generic/sharedspice.h generic/portable_dl.h])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
 TEA_ADD_CFLAGS([])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([ngspicetclbridge.tcl])
+
+# RBC support is opt-in. Compile its portable stub client source, never link the RBC shared library.
+AC_ARG_WITH([rbc],
+    [AS_HELP_STRING([--with-rbc=DIR], [RBC public header directory, source tree, or installation prefix])],
+    [rbc_dir="$withval"], [rbc_dir=no])
+if test "$rbc_dir" != no; then
+    if test "$rbc_dir" = yes; then
+        AC_MSG_ERROR([--with-rbc requires a directory])
+    fi
+    if test "$TCL_MAJOR_VERSION" -lt 9; then
+        AC_MSG_ERROR([rbc-tk9 vector support requires Tcl 9; use --without-rbc for Tcl 8.6])
+    fi
+    RBC_INCLUDE_DIR=
+    for rbc_candidate in "$rbc_dir" "$rbc_dir/include" "$rbc_dir/generic"; do
+        if test -f "$rbc_candidate/rbcVector.h" && test -f "$rbc_candidate/rbcDecls.h" &&
+           test -f "$rbc_candidate/rbcStubLib.c"; then
+            RBC_INCLUDE_DIR=`cd "$rbc_candidate" && pwd`
+            break
+        fi
+    done
+    if test -z "$RBC_INCLUDE_DIR"; then
+        AC_MSG_ERROR([cannot find rbcVector.h, rbcDecls.h and rbcStubLib.c under $rbc_dir])
+    fi
+    TEA_ADD_INCLUDES([-I"${RBC_INCLUDE_DIR}"])
+    AC_DEFINE([HAVE_RBC], [1], [Build RBC vector output support])
+    AC_DEFINE([USE_RBC_STUBS], [1], [Use the RBC stubs interface])
+    AC_MSG_NOTICE([RBC vector output enabled: $RBC_INCLUDE_DIR])
+fi
 
 DOC_HTML_FILES="index.html objects.inv search.html searchindex.js genindex.html"
 DOC_SRCDIR="${srcdir}/docs"

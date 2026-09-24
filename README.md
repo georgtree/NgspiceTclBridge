@@ -144,3 +144,80 @@ The callback now releases temporary dictionary keys and complex-sample container
 keys do not adopt newly allocated equal key objects; complex list append retains the elements rather than
 their temporary container. Both otherwise remain leaked even after clearing the bridge's vector dictionary.
 The fix preserves the existing command interface and sample representation.
+
+## Optional RBC vector output
+
+Build with `./configure --with-rbc=/path/to/rbc` (a source tree, installed header directory, or installation prefix).
+The default `--without-rbc` build has no RBC dependency. An enabled build uses RBC stubs and loads `rbc::vector`
+only when vector output is requested; list-only use still works without RBC installed. Use the current rbc-tk9
+version with complex vectors and `-literal` name support.
+
+```tcl
+namespace eval ::wave {}
+set sim [ngspicetclbridge::new /path/to/libngspice.so -output vector -namespace ::wave -ifexists error]
+# Load a circuit, then start it with $sim command bg_run.
+# After metadata has been processed by the event loop:
+set signals [$sim vectors]
+# Example result: time ::wave::time v(out) ::wave::v(out)
+set samples [::wave::v(out) range 0 end]
+$sim vectors -clear
+# Commands survive clear and are refilled by subsequent samples/runs.
+set copy [$sim asyncvector v(out) -name ::savedOutput]
+set listCopy [$sim asyncvector v(out) -output list]
+```
+
+Live vector updates run in the Tcl thread, in batches. Run the event loop to receive them. Complex signals use complex
+RBC vectors. A graph can bind directly to the returned names through `-xdata` and `-ydata`; bindings survive clear and
+new runs. Use an existing dedicated namespace to avoid collisions such as the global Tcl `time` command.
+
+`-ifexists error` is the default. `replace` adopts an existing same-type RBC vector in place, retaining graph bindings;
+it never overwrites an unrelated Tcl command. Previously attached vectors are reused regardless of the collision policy.
+Destroying the handle destroys only live vectors it created. Adopted vectors and on-demand `asyncvector` snapshots remain
+caller-owned. Do not modify, delete or rename live vectors while they are attached. Output errors are reported once through
+Tcl's background error handler and remain available from `SIM vectors`; a new plot retries initialization.
+
+`asyncvector` accepts `-output list|vector`, `-ifexists error|replace`, and `-name destination` overrides. Snapshots never
+become live bindings and cannot overwrite an attached live vector. Snapshot data is copied under ngspice's realloc lock;
+RBC operations happen after unlocking. `asyncvector -info name` is unchanged.
+
+Signal names with balanced parentheses, including `v(1)`, are preserved literally. Unsafe names, namespace separators,
+and the reserved `_raw_` prefix are encoded using the same `_raw_` plus uppercase UTF-8 hex convention as tclsimrawreader.
+New vectors have no mapped array variable. `SIM vectors` returns the exact raw-name-to-command mapping.
+
+Optional checks use a deterministic shared-ngspice fixture, including a worker thread; they do not need a circuit solver:
+
+```sh
+make test-rbc TCLLIBPATH="/path/to/rbc/package"
+make test-rbc-graph TCLLIBPATH="/path/to/rbc/package /path/to/Tk/package"
+```
+
+`test/rbc-graph.test` is a separate display-dependent check of graph bindings during streaming, clear and rerun. Neither
+optional suite runs through `test/all.tcl`. The graph check skips when Tk/RBC or a display is unavailable. These fixture
+checks complement the existing tests against a real ngspice shared library.
+
+### Graph integration with real ngspice
+
+The separate `test-rbc-graph-real` target uses your actual ngspice shared library and the four-bit adder in
+`examples/fourbit-adder.cir`. It does not build or load the mock library. The circuit retains its 10 microsecond
+transient analysis and saves `v(9)`, `v(10)`, `v(11)` and `v(12)`.
+
+```sh
+# Linux
+make test-rbc-graph-real NGSPICE_LIBRARY=/usr/local/lib/libngspice.so TCLLIBPATH="/path/to/rbc"
+
+# Windows / MSYS2: pass the complete DLL filename, using forward slashes.
+make test-rbc-graph-real NGSPICE_LIBRARY="C:/Spice64/bin/ngspice.dll" TCLLIBPATH="C:/path/to/rbc"
+```
+
+Requires an RBC-enabled bridge, full RBC/Tk with a working display, and an ngspice library compatible with the bridge.
+Missing requirements cause an explicit error. This target is excluded from ordinary `make test`.
+
+A window plots all four output voltages as the simulation runs. The test observes at least two increases in sample count
+while ngspice is active, checks completion at 10 microseconds, and compares every displayed vector and its time scale with
+independent list snapshots from ngspice. It then clears the live vectors and repeats the simulation without recreating the
+graph elements or vector commands. Closing the test window cancels the test; otherwise it closes automatically on completion.
+
+The timeout is 180 seconds per run. For a slower build, use `NGSPICE_TEST_TIMEOUT_MS=600000`. This is deliberately a long,
+two-run integration test. If a machine completes the entire simulation before two live updates can be observed, the test
+reports that condition rather than claiming that streaming was verified. Initialization files are disabled with `-noinit`
+so local ngspice settings do not alter the example.

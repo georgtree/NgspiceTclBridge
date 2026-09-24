@@ -1,0 +1,42 @@
+# Run explicitly; the ordinary tcltest directory runner must not load this optional suite.
+if {[lindex $argv 0] ne "--rbc-fixture"} {
+    return
+}
+package require tcltest
+namespace import ::tcltest::*
+
+# Optional display test, deliberately separate from all.tcl and the headless suite.
+# make test-rbc-graph TCLLIBPATH="/path/to/rbc /path/to/Tk"
+source [file join [file dirname [info script]] rbc-support.tcl]
+set haveGraph [expr {$haveRbc && ![catch {package require rbc}]}]
+testConstraint graph $haveGraph
+
+test rbc-graph-1.1 {graph keeps vector bindings across live updates, clear and rerun} -constraints graph -body {
+    set s [newSim -output vector]
+    $s command bg_run
+    waitUntil {[dict exists [$s vectors] v(out)] && [::live::v(out) length] >= 2}
+    set names [$s vectors]
+    set x [dict get $names time]
+    set y [dict get $names v(out)]
+    rbc::graph .liveGraph
+    pack .liveGraph
+    .liveGraph element create signal -xdata $x -ydata $y -symbol none
+    update
+    set live [$s isrunning]
+    waitUntil {![$s isrunning]}
+    set first [.liveGraph element cget signal -ydata]
+    $s vectors -clear
+    update
+    set empty [$y length]
+    $s command bg_run
+    waitUntil {[$s isrunning]}
+    waitUntil {![$s isrunning]}
+    update
+    list $live $empty [$y length] [expr {$first eq [.liveGraph element cget signal -ydata]}]\
+            [expr {$names eq [$s vectors]}] [expr {[.liveGraph axis limits x] ne {}}]
+} -cleanup {
+    catch {destroy .liveGraph}
+    clean $s
+} -result {1 0 100 1 1 1}
+
+finishTests

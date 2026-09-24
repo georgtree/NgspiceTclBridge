@@ -15,7 +15,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBgetScaleInfo\fP \fIsim\fP
 .br
-\fBnew\fP \fI?-nospinit|nospiceinit|noinit? libpath\fP
+\fBnew\fP \fI?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace? ?-namespace name?\fP
 .br
 \fBreadVecsAsync\fP \fI?-info? sim\fP
 .br
@@ -25,7 +25,9 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM abort\fP
 .br
-\fBSIM asyncvector\fP \fI?-info? name\fP
+\fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?\fP
+.br
+\fBSIM asyncvector\fP \fI-info name\fP
 .br
 \fBSIM circuit\fP \fI?-string? circuit\fP
 .br
@@ -187,12 +189,18 @@ Load dynamic library, path should be provided in native form for target OS\&.  E
 returns a command (e\&.g\&. ::ngspicetclbridge::s1)\&. The following subcommands operate on that instance\&.
 Optionally the spinit and/or spiceinit initialization files could be forbidden for loading\&.
 .RS 4n
-\fBnew\fP \fI?-nospinit|nospiceinit|noinit? libpath\fP
+\fBnew\fP \fI?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace? ?-namespace name?\fP
 .br
 .RE
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+-ifexists
+Error (default) or replace for initial vector destinations\&.
+.TP
+-namespace
+Existing namespace for live vectors; defaults to the calling namespace\&.
 .TP
 -noinit
 Inhibit both spinit and spiceinit\&.
@@ -203,11 +211,19 @@ Inhibits spiceinit\&.
 -nospinit
 Inhibits spinit\&.
 .TP
+-output
+List (default) or vector; controls live storage and the default asyncvector result\&.
+.TP
 libpath
 Absolute full path to dynamic library\&.
 .RE
 .PP
 \fBDescription\fR
+.PP
+Vector output requires an RBC-enabled build and rbc::vector with literal-name support\&.
+Use a dedicated namespace: the signal time otherwise collides with Tcl's global time command\&.
+Existing same-type vectors can be adopted with replace; their commands and graph clients are retained\&.
+Unrelated commands and vectors maintained by another simulator cannot be replaced\&.
 .PP
 Example:
 .PP
@@ -318,7 +334,7 @@ Queues of textual messages captured from Ngspice (stdout/stderr) and bridge stat
 Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to name of the provided plot\&. current plot, or list of all plots, or list of all vectors\&.
 .TP
 \fIvectors\fP
-Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&. dict with vectors values accumulated up to this point in internal structure\&.
+Returns data accumulated from send_data events on the Tcl event loop\&. In list mode, the result is the historical dictionary of lists (complex values are interleaved real/imaginary doubles)\&. In vector mode, the result maps raw signal names to fully qualified live RBC vector commands\&. Real signals use real RBC vectors; complex signals use complex RBC vectors\&. Vector identities remain stable across runs\&. Each new plot clears retained vectors, including signals absent from that plot\&. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not guarantee that queued vector updates have been processed\&. In vector mode, -clear empties vectors without destroying them and discards samples already queued\&. Later samples continue appending\&. It does not clear ngspice's own snapshot data\&. The handle destroys vectors it created, but leaves adopted vectors alive\&. Treat live vector contents as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming\&. Asynchronous output failures are reported once through Tcl's background error handler and retained as errors from vectors\&. Incoming samples are discarded until a new plot initializes output\&. dict with vectors values accumulated up to this point in internal structure\&.
 .TP
 \fIwaitevent\fP
 Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed, or the timeout expires (if provided)\&.
@@ -346,21 +362,42 @@ simulation has produced any data (not necessarily the complete vector)\&. By add
 metadata is provided, i\&.e\&. type of the vector (current, voltage, time, etc), type of the numbers (complex or
 real), and length of the vector\&.
 .RS 4n
-\fBSIM asyncvector\fP \fI?-info? name\fP
+\fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName?\fP
+.br
+\fBSIM asyncvector\fP \fI-info name\fP
 .br
 .RE
 .PP
 \fBParameters\fR
 .RS 4n
 .TP
-name
-Name of the vector\&.
+-ifexists
+Error or replace; overrides the handle collision policy\&.
 .TP
 -info
 If this switch is provided, commands return dictionary with vector metadata\&.
+.TP
+-name
+Explicit destination vector command name (vector output only)
+.TP
+-output
+List or vector; overrides the handle default for this snapshot only\&.
 .RE
 .PP
 \fBDescription\fR
+.PP
+Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction\&.
+By default its name is the raw signal name in the calling namespace; -name selects another destination\&.
+A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace\&.
+Existing same-type snapshot vectors are updated in place with replace; other commands are rejected\&.
+Balanced parentheses, including numeric forms such as v(1), remain literal\&. Names unsafe for RBC or
+containing namespace separators are encoded as _raw_ followed by uppercase hexadecimal UTF-8 bytes\&.
+No mapped array variable is created\&. Read values through the vector command (for example, range 0 end)\&.
+.RS 4n
+.TP
+name
+Name of the vector\&.
+.RE
 .PP
 Example:
 .PP
@@ -671,7 +708,19 @@ current plot, or list of all plots, or list of all vectors
 \fBSIM vectors\fR (::ngspicetclbridge)
 .RE
 .PP
-Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
+Returns data accumulated from send_data events on the Tcl event loop\&. In list mode, the result is
+the historical dictionary of lists (complex values are interleaved real/imaginary doubles)\&.
+In vector mode, the result maps raw signal names to fully qualified live RBC vector commands\&.
+Real signals use real RBC vectors; complex signals use complex RBC vectors\&.
+Vector identities remain stable across runs\&. Each new plot clears retained vectors, including signals
+absent from that plot\&. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not
+guarantee that queued vector updates have been processed\&.
+In vector mode, -clear empties vectors without destroying them and discards samples already queued\&.
+Later samples continue appending\&. It does not clear ngspice's own snapshot data\&.
+The handle destroys vectors it created, but leaves adopted vectors alive\&. Treat live vector contents
+as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming\&.
+Asynchronous output failures are reported once through Tcl's background error handler and retained
+as errors from vectors\&. Incoming samples are discarded until a new plot initializes output\&.
 dict with vectors values accumulated up to this point in internal structure
 .RS 4n
 \fBSIM vectors\fP \fI?-clear?\fP
@@ -682,7 +731,7 @@ dict with vectors values accumulated up to this point in internal structure
 .RS 4n
 .TP
 -clear
-Empties the internal memory structure and returns \fBnothing\fP\&.
+Empties stored samples and returns \fBnothing\fP\&.
 .RE
 .PP
 \fBDescription\fR
@@ -701,7 +750,19 @@ $sim vectors -clear
 .PP
 \fBReturn value\fR
 .PP
-Returns held \fBsynchronously accumulated\fP vector values (built from send_data events) in a dict\&.
+Returns data accumulated from send_data events on the Tcl event loop\&. In list mode, the result is
+the historical dictionary of lists (complex values are interleaved real/imaginary doubles)\&.
+In vector mode, the result maps raw signal names to fully qualified live RBC vector commands\&.
+Real signals use real RBC vectors; complex signals use complex RBC vectors\&.
+Vector identities remain stable across runs\&. Each new plot clears retained vectors, including signals
+absent from that plot\&. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not
+guarantee that queued vector updates have been processed\&.
+In vector mode, -clear empties vectors without destroying them and discards samples already queued\&.
+Later samples continue appending\&. It does not clear ngspice's own snapshot data\&.
+The handle destroys vectors it created, but leaves adopted vectors alive\&. Treat live vector contents
+as read-only: deleting, renaming, resizing or replacing them invalidates continued streaming\&.
+Asynchronous output failures are reported once through Tcl's background error handler and retained
+as errors from vectors\&. Incoming samples are discarded until a new plot initializes output\&.
 dict with vectors values accumulated up to this point in internal structure
 .PP
 .RS -4n
