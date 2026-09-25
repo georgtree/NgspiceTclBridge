@@ -16,6 +16,9 @@ namespace eval ::ngspicetclbridge {
         if {!$nocleanup} {
             $sim command {destroy all}
         }
+        if {$::tcl_platform(platform) eq {windows}} {
+            $sim command {set num_threads=1}
+        }
         $sim command bg_run
         $sim waitevent bg_running -n 2
         update
