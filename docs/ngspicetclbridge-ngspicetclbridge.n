@@ -19,7 +19,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBreadVecsAsync\fP \fI?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? sim\fP
 .br
-\fBrun\fP \fIsim\fP
+\fBrun\fP \fI?args?\fP
 .br
 \fBSIM\fP \fIsubcommand \&.\&.\&.\fP
 .br
@@ -290,7 +290,7 @@ dictionary
 .PP
 Runs simulation in background thread, waits for the completion, process event in the queue and returns
 .RS 4n
-\fBrun\fP \fIsim\fP
+\fBrun\fP \fI?args?\fP
 .br
 .RE
 .PP
@@ -298,7 +298,7 @@ Runs simulation in background thread, waits for the completion, process event in
 .RS 4n
 .TP
 sim
-Simulator handler that is returned by ngspicetclbridge::new
+Simulator handler that is returned by ngspicetclbridge::new -nocleanup -if provided, results from previous run are retained\&.
 .RE
 .PP
 \fBReturn value\fR

@@ -208,11 +208,11 @@ vector fails, previously created or replaced snapshots remain available in the d
 <section id="run">
 <span id="r-symbolqz3a3angspicetclbridge3a3arun"></span><span id="index-15"></span><span id="index-14"></span><h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
 <p>Runs simulation in background thread, waits for the completion, process event in the queue and returns</p>
-<pre class="literal-block"><strong>run</strong> <em>sim</em></pre>
+<pre class="literal-block"><strong>run</strong> <em>?args?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Simulator handler that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
+<dd class="field-odd"><p>Simulator handler that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code> -nocleanup -if provided, results from previous run are retained.</p>
 </dd>
 </dl>
 <p class="rubric">Return value</p>

@@ -4,10 +4,18 @@ namespace eval ::ngspicetclbridge {
 
     namespace export run readVecsAsync getCircuit getScaleInfo getPlotName getCircuitTitle getPlotDate
 
-    proc run {sim} {
+    proc run {args} {
         # Runs simulation in background thread, waits for the completion, process event in the queue and returns
         #  sim -  simulator handler that is returned by `ngspicetclbridge::new`
+        #  -nocleanup -if provided, results from previous run are retained
         # Returns:
+        argparse -exact {
+            {-nocleanup -boolean}
+            sim
+        }
+        if {!$nocleanup} {
+            $sim command {destroy all}
+        }
         $sim command bg_run
         $sim waitevent bg_running -n 2
         update
