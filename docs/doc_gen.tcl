@@ -4,6 +4,7 @@ package require fileutil
 set docDir [file dirname [file normalize [info script]]]
 set sourceDir [file join $docDir ..]
 source [file join $docDir startPage.ruff]
+source [file join $docDir rbcBindings.ruff]
 source [file join $docDir notesAndInternals.ruff]
 source [file join $docDir troubleshooting.ruff]
 source [file join $docDir ngspicetclbridge.ruff]
@@ -23,7 +24,7 @@ set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -
                          -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
                          -copyright "George Yashin" {*}$::argv]
 
-set namespaces [list ::Examples ::Troubleshooting ::ngspicetclbridge {::Notes and internals}]
+set namespaces [list ::rbcBindings ::Examples ::Troubleshooting ::ngspicetclbridge {::Notes and internals}]
 
 ruff::document $namespaces -format sphinx -outfile ngspicetclbridge.rst -outdir [file join $docDir sphinx]\
         {*}$commonSphinx

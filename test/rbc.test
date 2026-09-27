@@ -355,7 +355,7 @@ test rbc-readall-7 {metadata rejects output options without creating namespaces}
     set s [newSim]
     set code [catch {::ngspicetclbridge::readVecsAsync -info -namespace ::snap::unused $s} message]
     list $code $message [namespace exists ::snap::unused]
-} -cleanup {clean $s} -result {1 {-info cannot be combined with -output, -namespace or -ifexists} 0}
+} -cleanup {clean $s} -result {1 {-info cannot be combined with -output, -namespace, -ifexists or -names} 0}
 
 test rbc-readall-8 {empty namespace and invalid output options are rejected} -constraints rbc -body {
     set s [newSim]
@@ -374,5 +374,82 @@ test rbc-readall-9 {direct asyncvector namespace override anchors relative names
     set inherited [$s asyncvector time -output vector]
     list $relative $absolute $inherited [$absolute range 0 end]
 } -cleanup {clean $s} -result {::snap::child::saved ::snap::complex ::live::time {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}}}
+
+
+test rbc-auto-1 {single real and complex snapshots use RBC automatic names and survive handle destruction} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set a [$s asyncvector time -output vector -namespace ::snap::automatic -name #auto]
+    set b [$s asyncvector v(1) -output vector -namespace ::snap::automatic -name #auto -ifexists replace]
+    $s destroy
+    list [namespace qualifiers $a] [expr {$a ne $b}] [$a range 0 end] [$b range 0 end] [$b variable]
+} -cleanup {clean $s} -result {::snap::automatic 1 {0.0 0.1 0.2} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}} {}}
+
+test rbc-auto-2 {bulk fresh names preserve keys and repeated reads coexist} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set expected [::ngspicetclbridge::readVecsAsync $s]
+    set a [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap -names #auto $s]
+    set b [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap -names #auto $s]
+    set ok [expr {[dict keys $expected] eq [dict keys $a]}]
+    dict for {key v} $a {
+        set ok [expr {$ok && [namespace qualifiers $v] eq "::snap" && $v ne [dict get $b $key]
+                     && [$v range 0 end] eq [dict get $expected $key]}]
+    }
+    set ok
+} -cleanup {clean $s} -result 1
+
+test rbc-auto-3 {mixed naming, inherited namespace, and literal auto name} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set d [::ngspicetclbridge::readVecsAsync -output vector -names {time #auto v(out) auto} $s]
+    list [namespace qualifiers [dict get $d time]] [dict get $d v(out)] [dict get $d v(1)]
+} -cleanup {clean $s} -result {::live ::live::auto ::live::v(1)}
+
+test rbc-auto-4 {relative nested namespace override preserves full names} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set v [namespace eval ::snap [list $s asyncvector time -output vector -namespace {child::nested} -name #auto]]
+    list [namespace qualifiers $v] [$v range 0 end]
+} -cleanup {clean $s} -result {::snap::child::nested {0.0 0.1 0.2}}
+
+test rbc-auto-5 {automatic snapshots do not reuse or destroy live bindings} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    set live [$s vectors]
+    set d [::ngspicetclbridge::readVecsAsync -names #auto $s]
+    set same [expr {$live eq [$s vectors]}]
+    $s destroy
+    list $same [[dict get $d time] length]
+} -cleanup {clean $s} -result {1 3}
+
+test rbc-auto-6 {bulk naming rejects invalid options before creating snapshots} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set errors {}
+    foreach opts {
+        {-info -names #auto}
+        {-output list -names #auto}
+        {-output vector -names {missing #auto}}
+        {-output vector -names {time {}}}
+        {-output vector -names malformed}
+    } {lappend errors [catch {::ngspicetclbridge::readVecsAsync -namespace ::snap {*}$opts $s}]}
+    list $errors [info commands ::snap::*]
+} -cleanup {clean $s} -result {{1 1 1 1 1} {}}
+
+test rbc-auto-7 {destroy during automatic vector creation removes the new snapshot} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set hook [list apply {{sim command code result op} {
+        if {[lindex $command 1] eq "create"} {$sim destroy}
+    }} $s]
+    trace add execution ::rbc::vector leave $hook
+    set code [catch {$s asyncvector time -output vector -namespace ::snap -name #auto} message]
+    trace remove execution ::rbc::vector leave $hook
+    list $code [info commands ::snap::*] $message
+} -cleanup {
+    catch {trace remove execution ::rbc::vector leave $hook}
+    clean $s
+} -result {1 {} {simulator handle was destroyed during vector creation}}
 
 finishTests

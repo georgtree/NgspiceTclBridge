@@ -150,8 +150,10 @@ static int CheckBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec) {
     return TCL_OK;
 }
 
-/* All Tcl calls use object arguments. Numeric-looking parentheses must remain literal names. */
-static int CreateVector(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Rbc_Vector **vec, Tcl_Command *token) {
+/* All Tcl calls use object arguments. Numeric-looking parentheses remain literal names.
+ * Replace the caller-owned name reference with RBC's actual name, including #auto expansion. */
+static int CreateVector(NgSpiceContext *ctx, Tcl_Obj **namePtr, int complex, Rbc_Vector **vec, Tcl_Command *token) {
+    Tcl_Obj *name = *namePtr;
     Tcl_Obj *args[] = {Tcl_NewStringObj("::rbc::vector", -1),
                        Tcl_NewStringObj("create", -1),
                        name,
@@ -171,6 +173,10 @@ static int CreateVector(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Rbc_Vec
     if (code != TCL_OK) {
         return code;
     }
+    Tcl_Obj *actual = Tcl_GetObjResult(ctx->interp);
+    Tcl_IncrRefCount(actual);
+    Tcl_DecrRefCount(*namePtr);
+    *namePtr = name = actual;
     *token = Tcl_FindCommand(ctx->interp, Tcl_GetString(name), NULL, TCL_GLOBAL_ONLY);
     if (*token == NULL || !Rbc_VectorExists2(ctx->interp, Tcl_GetString(name))) {
         Tcl_SetObjResult(ctx->interp, Tcl_NewStringObj("RBC vector was removed during creation", -1));
@@ -182,7 +188,14 @@ static int CreateVector(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Rbc_Vec
         Tcl_SetObjResult(ctx->interp, Tcl_NewStringObj("simulator handle was destroyed during vector creation", -1));
         return TCL_ERROR;
     }
-    return Rbc_GetVector(ctx->interp, Tcl_GetString(name), vec);
+    code = Rbc_GetVector(ctx->interp, Tcl_GetString(name), vec);
+    if (code != TCL_OK) {
+        Tcl_InterpState state = Tcl_SaveInterpState(ctx->interp, code);
+        Tcl_DeleteCommandFromToken(ctx->interp, *token);
+        *token = NULL;
+        Tcl_RestoreInterpState(ctx->interp, state);
+    }
+    return code;
 }
 
 static void FreeBinding(Tcl_Interp *interp, Binding *b) {
@@ -254,7 +267,7 @@ int BridgeRbcPrepare(NgSpiceContext *ctx, const InitSnap *snap) {
             int owned = 0, fresh;
             int code = CheckDestination(ctx->interp, name, !snap->vecs[i].is_real, ctx->replaceVectors, &vec);
             if (code == TCL_OK && vec == NULL) {
-                code = CreateVector(ctx, name, !snap->vecs[i].is_real, &vec, &token);
+                code = CreateVector(ctx, &name, !snap->vecs[i].is_real, &vec, &token);
                 owned = 1;
             } else if (code == TCL_OK) {
                 token = Tcl_FindCommand(ctx->interp, Tcl_GetString(name), NULL, TCL_GLOBAL_ONLY);
@@ -508,6 +521,7 @@ int BridgeRbcSnapshot(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Tcl_Size 
     Tcl_Command token = NULL;
     void *data = samples;
     int created = 0, code = TCL_ERROR;
+    Tcl_IncrRefCount(name);
     if (BridgeRbcInit(ctx->interp) != TCL_OK) {
         goto done;
     }
@@ -532,11 +546,14 @@ int BridgeRbcSnapshot(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Tcl_Size 
         }
         Tcl_Free(samples);
     }
-    if (CheckDestination(ctx->interp, name, complex, replace, &vec) != TCL_OK) {
+    const char *text = Tcl_GetString(name);
+    size_t length = strlen(text);
+    int automatic = length >= 7 && strcmp(text + length - 7, "::#auto") == 0;
+    if (!automatic && CheckDestination(ctx->interp, name, complex, replace, &vec) != TCL_OK) {
         goto done;
     }
     if (vec == NULL) {
-        if (CreateVector(ctx, name, complex, &vec, &token) != TCL_OK) {
+        if (CreateVector(ctx, &name, complex, &vec, &token) != TCL_OK) {
             goto done;
         }
         created = 1;
@@ -555,6 +572,7 @@ done:
         Tcl_RestoreInterpState(ctx->interp, state);
     }
     Tcl_Free(data);
+    Tcl_DecrRefCount(name);
     return code;
 #else
     (void)name;

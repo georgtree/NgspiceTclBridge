@@ -3,7 +3,8 @@ if {[lindex $argv 0] ne "--real-ngspice"} {
     return
 }
 if {[llength $argv] != 4} {
-    return -code error {usage: tclsh rbc-graph-real.test --real-ngspice bridgeLibrary ngspiceLibrary timeoutMilliseconds}
+    return -code error {usage: tclsh rbc-graph-real.test --real-ngspice bridgeLibrary ngspiceLibrary\
+                                timeoutMilliseconds}
 }
 lassign [lrange $argv 1 end] bridgeLibrary ngspiceLibrary timeoutMilliseconds
 if {$ngspiceLibrary eq {}} {
@@ -14,7 +15,8 @@ if {$ngspiceLibrary eq {}} {
     }
 }
 if {![file isfile $ngspiceLibrary]} {
-    return -code error {set NGSPICE_LIBRARY to the full path of the real ngspice shared library (ngspice.dll or libngspice.so)}
+    return -code error {set NGSPICE_LIBRARY to the full path of the real ngspice shared library\
+                                (ngspice.dll or libngspice.so)}
 }
 if {![string is integer -strict $timeoutMilliseconds] || $timeoutMilliseconds <= 0} {
     return -code error {NGSPICE_TEST_TIMEOUT_MS must be a positive integer}

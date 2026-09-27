@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>RBC vectors support &#8212; ngspicetclbridge  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Examples" href="ngspicetclbridge-Examples.html" />
+    <link rel="prev" title="NgspiceTclBridge - drive ngspice (shared library) from Tcl" href="ngspicetclbridge.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-Examples.html" title="Examples"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ngspicetclbridge.html" title="NgspiceTclBridge - drive ngspice (shared library) from Tcl"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">RBC vectors support</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="rbc-vectors-support">
+<span id="r-rbc-vectors-support"></span><span id="r-rbc20vectors20support"></span><span id="r-namespaceqz3a3arbcbindings"></span><h1>RBC vectors support<a class="headerlink" href="#rbc-vectors-support" title="Link to this heading">¶</a></h1>
+<section id="optional-rbc-vector-output">
+<span id="r-rbcbindings-optional-rbc-vector-output"></span><span id="r-3a3arbcbindingsqzoptional20rbc20vector20output"></span><h2>Optional RBC vector output<a class="headerlink" href="#optional-rbc-vector-output" title="Link to this heading">¶</a></h2>
+<p>Build with <code class="docutils literal notranslate"><span class="pre">./configure</span> <span class="pre">--with-rbc=/path/to/rbc</span></code> (a source tree, installed header directory, or installation
+prefix).  The default <code class="docutils literal notranslate"><span class="pre">--without-rbc</span></code> build has no RBC dependency. An enabled build uses RBC stubs and loads
+<code class="docutils literal notranslate"><span class="pre">rbc::vector</span></code> only when vector output is requested; list-only use still works without RBC installed. Use the
+current rbc-tk9 version with complex vectors and <code class="docutils literal notranslate"><span class="pre">-literal</span></code> name support.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="c"># ::wave is created automatically if needed.</span>
+<span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="o">/</span>path<span class="o">/</span>to<span class="o">/</span>libngspice.so<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>wave<span class="w"> </span><span class="o">-</span>ifexists<span class="w"> </span>error<span class="k">]</span>
+<span class="c"># Load a circuit, then start it with $sim command bg_run.</span>
+<span class="c"># After metadata has been processed by the event loop:</span>
+<span class="k">set</span><span class="w"> </span>signals<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">vectors</span><span class="k">]</span>
+<span class="c"># Example result: time ::wave::time v(out) ::wave::v(out)</span>
+<span class="k">set</span><span class="w"> </span>samples<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">wave</span><span class="o">::</span>v<span class="k">(</span><span class="nv">out</span><span class="k">)</span><span class="w"> </span>range<span class="w"> </span><span class="mi">0</span><span class="w"> </span>end<span class="k">]</span>
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">vectors</span><span class="w"> </span><span class="o">-</span>clear
+<span class="c"># Commands survive clear and are refilled by subsequent samples/runs.</span>
+<span class="k">set</span><span class="w"> </span>copy<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)</span><span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="o">::</span>savedOutput<span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>listCopy<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)</span><span class="w"> </span><span class="o">-</span>output<span class="w"> </span>list<span class="k">]</span>
+</pre></div>
+</div>
+<p>Live vector updates run in the Tcl thread, in batches. Run the event loop to receive them. Complex signals use
+complex RBC vectors. A graph can bind directly to the returned names through <code class="docutils literal notranslate"><span class="pre">-xdata</span></code> and <code class="docutils literal notranslate"><span class="pre">-ydata</span></code>; bindings
+survive clear and new runs. Use a dedicated namespace to avoid collisions such as the global Tcl <code class="docutils literal notranslate"><span class="pre">time</span></code>
+command.</p>
+<p><code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">error</span></code> is the default. <code class="docutils literal notranslate"><span class="pre">replace</span></code> adopts an existing same-type RBC vector in place, retaining graph
+bindings; it never overwrites an unrelated Tcl command. Previously attached vectors are reused regardless of
+the collision policy.  Destroying the handle destroys only live vectors it created. Adopted vectors and
+on-demand <code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> snapshots remain caller-owned. Use <code class="docutils literal notranslate"><span class="pre">rbc::vector</span> <span class="pre">rename</span> <span class="pre">oldName</span> <span class="pre">newName</span></code> to rename an
+attached live vector. The bridge follows the same C vector and preserves ownership, clear and rerun behavior;
+<code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code> keeps the original ngspice signal key and returns the new fully qualified destination. An
+ordinary Tcl <code class="docutils literal notranslate"><span class="pre">rename</span></code> does not update the RBC registry and is not supported. Do not modify, resize, replace or
+delete live vectors while they are attached. Output errors are reported once through Tcl’s background error
+handler and remain available from <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code>; a new plot retries initialization.</p>
+<p><code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> accepts <code class="docutils literal notranslate"><span class="pre">-output</span> <span class="pre">list|vector</span></code>, <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">error|replace</span></code>, <code class="docutils literal notranslate"><span class="pre">-name</span> <span class="pre">destination</span></code>, and <code class="docutils literal notranslate"><span class="pre">-namespace</span>
+<span class="pre">name</span></code> overrides.  The per-call namespace is for vector output, resolves relative to the caller, and is created
+with missing parents.  It does not change the handle defaults or live bindings. A fully qualified <code class="docutils literal notranslate"><span class="pre">-name</span></code> takes
+precedence. Snapshots never become live bindings and cannot overwrite an attached live vector. Snapshot data is
+copied under ngspice’s realloc lock; RBC operations happen after unlocking. <code class="docutils literal notranslate"><span class="pre">asyncvector</span> <span class="pre">-info</span> <span class="pre">name</span></code> is
+unchanged.</p>
+<p><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code> returns all current-plot snapshots as a dictionary from raw signal names to lists or RBC vector
+names.  It inherits the handle’s output, namespace, and collision defaults and accepts <code class="docutils literal notranslate"><span class="pre">-output</span></code>, <code class="docutils literal notranslate"><span class="pre">-namespace</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">-ifexists</span></code> overrides. With no explicit namespace, it uses the helper’s caller namespace. Complex signals
+produce complex vectors; snapshots remain caller-owned. Use a separate destination when the simulator already
+maintains live vectors:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>snapshots<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>readVecsAsync<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>snapshots<span class="w"> </span><span class="nv">$sim</span><span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>snapshots<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>readVecsAsync<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>snapshots<span class="w"> </span><span class="o">-</span>ifexists<span class="w"> </span>replace<span class="w"> </span><span class="nv">$sim</span><span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>lists<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>readVecsAsync<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>list<span class="w"> </span><span class="nv">$sim</span><span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>metadata<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>readVecsAsync<span class="w"> </span><span class="o">-</span>info<span class="w"> </span><span class="nv">$sim</span><span class="k">]</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">-info</span></code> cannot be combined with output options. Each vector is copied separately, so reading a running
+simulation is not an atomic snapshot across signals. If a later read fails, earlier snapshots remain created or
+updated.</p>
+<p>Signal names with balanced parentheses, including <code class="docutils literal notranslate"><span class="pre">v(1)</span></code>, are preserved literally. Unsafe names, namespace
+separators, and the reserved <code class="docutils literal notranslate"><span class="pre">_raw_</span></code> prefix are encoded using the same <code class="docutils literal notranslate"><span class="pre">_raw_</span></code> plus uppercase UTF-8 hex
+convention as tclsimrawreader.  New vectors have no mapped array variable. <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code> returns the exact
+raw-name-to-command mapping.</p>
+<p>The headless <code class="docutils literal notranslate"><span class="pre">test-rbc</span></code> checks also load the public Tcl helpers and require <code class="docutils literal notranslate"><span class="pre">argparse</span></code> on <code class="docutils literal notranslate"><span class="pre">TCLLIBPATH</span></code>.
+Optional checks use a deterministic shared-ngspice fixture, including a worker thread; they do not need a
+circuit solver:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-rbc<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/rbc/package&quot;</span>
+make<span class="w"> </span>test-rbc-graph<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/rbc/package /path/to/Tk/package&quot;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">test/rbc-graph.test</span></code> is a separate display-dependent check of graph bindings during streaming, clear and
+rerun. Neither optional suite runs through <code class="docutils literal notranslate"><span class="pre">test/all.tcl</span></code>. The graph check skips when Tk/RBC or a display is
+unavailable. These fixture checks complement the existing tests against a real ngspice shared library.</p>
+<section id="graph-integration-with-real-ngspice">
+<span id="r-rbcbindings-graph-integration-with-real-ngspice"></span><span id="r-3a3arbcbindingsqzgraph20integration20with20real20ngspice"></span><h3>Graph integration with real ngspice<a class="headerlink" href="#graph-integration-with-real-ngspice" title="Link to this heading">¶</a></h3>
+<p>The separate <code class="docutils literal notranslate"><span class="pre">test-rbc-graph-real</span></code> target uses your actual ngspice shared library and the four-bit adder in
+<code class="docutils literal notranslate"><span class="pre">examples/fourbit-adder.cir</span></code>. It does not build or load the mock library. The circuit retains its 10 microsecond
+transient analysis and saves <code class="docutils literal notranslate"><span class="pre">v(9)</span></code>, <code class="docutils literal notranslate"><span class="pre">v(10)</span></code>, <code class="docutils literal notranslate"><span class="pre">v(11)</span></code> and <code class="docutils literal notranslate"><span class="pre">v(12)</span></code>.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Linux</span>
+make<span class="w"> </span>test-rbc-graph-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/usr/local/lib/libngspice.so<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/rbc&quot;</span>
+
+<span class="c1"># Windows / MSYS2: pass the complete DLL filename, using forward slashes.</span>
+make<span class="w"> </span>test-rbc-graph-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span><span class="s2">&quot;C:/Spice64/bin/ngspice.dll&quot;</span><span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;C:/path/to/rbc&quot;</span>
+</pre></div>
+</div>
+<p>Requires an RBC-enabled bridge, full RBC/Tk with a working display, and an ngspice library compatible with the
+bridge.  Missing requirements cause an explicit error. This target is excluded from ordinary <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>.</p>
+<p>A window plots all four output voltages as the simulation runs. The test observes at least two increases in
+sample count while ngspice is active, checks completion at 10 microseconds, and compares every displayed vector
+and its time scale with independent list snapshots from ngspice. It then clears the live vectors and repeats
+the simulation without recreating the graph elements or vector commands. Closing the test window cancels the
+test; otherwise it closes automatically on completion.</p>
+<p>The timeout is 180 seconds per run. For a slower build, use <code class="docutils literal notranslate"><span class="pre">NGSPICE_TEST_TIMEOUT_MS=600000</span></code>. This is
+deliberately a long, two-run integration test. If a machine completes the entire simulation before two live
+updates can be observed, the test reports that condition rather than claiming that streaming was
+verified. Initialization files are disabled with <code class="docutils literal notranslate"><span class="pre">-noinit</span></code> so local ngspice settings do not alter the example.</p>
+</section>
+<section id="vector-destination-namespace">
+<span id="r-rbcbindings-vector-destination-namespace"></span><span id="r-3a3arbcbindingsqzvector20destination20namespace"></span><h3>Vector destination namespace<a class="headerlink" href="#vector-destination-namespace" title="Link to this heading">¶</a></h3>
+<p>An explicit handle <code class="docutils literal notranslate"><span class="pre">-namespace</span></code> applies to both live vectors and <code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> snapshots. Relative namespace
+names resolve against the caller creating the handle; missing namespaces and parents are created then. The
+canonical name is retained even when reads happen in another namespace. Empty namespace names are rejected;
+<code class="docutils literal notranslate"><span class="pre">::</span></code> selects the global namespace explicitly. Namespace creation also works in list-only builds and does not
+load RBC.</p>
+<p>Without <code class="docutils literal notranslate"><span class="pre">-namespace</span></code>, existing behavior is preserved: live destinations use the handle creation namespace,
+while snapshots use the read caller’s namespace. A relative snapshot <code class="docutils literal notranslate"><span class="pre">-name</span></code> uses the selected default; a fully
+qualified <code class="docutils literal notranslate"><span class="pre">-name</span></code> overrides it and requires its destination namespace to exist.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="nv">$lib</span><span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>wave<span class="k">]</span>
+<span class="c"># After simulation data is available, ::wave::time is the live vector.</span>
+<span class="k">set</span><span class="w"> </span>snapshot<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>time<span class="w"> </span><span class="o">-</span>name<span class="w"> </span>savedTime<span class="k">]</span>
+<span class="c"># -&gt; ::wave::savedTime</span>
+</pre></div>
+</div>
+<p>Snapshot replacement of a live destination remains forbidden, even with <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">replace</span></code>. Use a distinct
+snapshot name as above. Destroying the handle never deletes the namespace. Existing ownership rules remain:
+handle-created live vectors are destroyed, while adopted vectors and independent snapshots survive.</p>
+</section>
+</section>
+<section id="automatic-snapshot-vector-names">
+<span id="r-rbcbindings-automatic-snapshot-vector-names"></span><span id="r-3a3arbcbindingsqzautomatic20snapshot20vector20names"></span><h2>Automatic snapshot vector names<a class="headerlink" href="#automatic-snapshot-vector-names" title="Link to this heading">¶</a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">-name</span> <span class="pre">#auto</span></code> on a single <code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> snapshot, or <code class="docutils literal notranslate"><span class="pre">-names</span> <span class="pre">#auto</span></code> on <code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code> to request a fresh
+RBC vector for every signal:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>one<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)</span><span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>results<span class="w"> </span><span class="o">-</span>name<span class="w"> </span><span class="err">#</span>auto<span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>waves<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>readVecsAsync<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>results<span class="w"> </span><span class="o">-</span>names<span class="w"> </span><span class="err">#</span>auto<span class="w"> </span><span class="nv">$sim</span><span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>output<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$waves</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)]</span>
+<span class="nb">puts</span><span class="w"> </span><span class="k">[</span><span class="nv">$output</span><span class="w"> </span><span class="nv">length</span><span class="k">]</span>
+<span class="o">::</span><span class="nv">rbc</span><span class="o">::</span>vector<span class="w"> </span>destroy<span class="w"> </span><span class="nv">$one</span><span class="w"> </span><span class="k">{</span><span class="o">*</span><span class="k">}[</span><span class="nb">dict</span><span class="w"> </span>values<span class="w"> </span><span class="nv">$waves</span><span class="k">]</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span> <span class="pre">-names</span></code> also accepts a dictionary mapping original plot vector names to destinations, for
+example <code class="docutils literal notranslate"><span class="pre">-names</span> <span class="pre">{time</span> <span class="pre">#auto</span> <span class="pre">v(out)</span> <span class="pre">saved}</span></code>. Omitted entries retain the normal signal-derived names. Naming
+requires effective vector output, either explicitly selected or inherited from the handle, and cannot be
+combined with <code class="docutils literal notranslate"><span class="pre">-info</span></code>.  Unknown keys, empty destinations and malformed dictionaries are rejected before
+reading.</p>
+<p>RBC expands a final <code class="docutils literal notranslate"><span class="pre">#auto</span></code> component itself, in the namespace selected by the per-call <code class="docutils literal notranslate"><span class="pre">-namespace</span></code>, then the
+explicit handle namespace, or otherwise the caller’s namespace.  Relative namespace overrides and
+missing-parent creation continue to work as before.  Absolute destination names override this location and
+require an existing parent namespace.  <code class="docutils literal notranslate"><span class="pre">auto</span></code> without <code class="docutils literal notranslate"><span class="pre">#</span></code> remains an ordinary name. Automatic snapshots always
+create fresh vectors; <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">replace</span></code> continues to apply to explicit destinations.</p>
+<p>The dictionary keys remain the original ngspice signal names; values are the actual fully qualified RBC
+commands. Real/complex types and values are preserved. Snapshot vectors are caller-owned and survive simulator
+destruction; release them with <code class="docutils literal notranslate"><span class="pre">::rbc::vector</span> <span class="pre">destroy</span></code>.  Live <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">vectors</span></code> bindings keep their existing
+names, identity and handle-owned lifetime.  Bulk snapshots still read one vector at a time: if a later read
+fails, earlier snapshots remain in the destination namespace, as with explicit names.</p>
+<hr class="docutils" />
+<p class="centered">
+<strong>Copyright (c) George Yashin</strong></p></section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">RBC vectors support</a><ul>
+<li><a class="reference internal" href="#optional-rbc-vector-output">Optional RBC vector output</a><ul>
+<li><a class="reference internal" href="#graph-integration-with-real-ngspice">Graph integration with real ngspice</a></li>
+<li><a class="reference internal" href="#vector-destination-namespace">Vector destination namespace</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="ngspicetclbridge.html"
+                          title="previous chapter">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="ngspicetclbridge-Examples.html"
+                          title="next chapter">Examples</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/ngspicetclbridge-rbcBindings.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-Examples.html" title="Examples"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ngspicetclbridge.html" title="NgspiceTclBridge - drive ngspice (shared library) from Tcl"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">RBC vectors support</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright George Yashin.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

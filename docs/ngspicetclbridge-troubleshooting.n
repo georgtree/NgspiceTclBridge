@@ -31,4 +31,6 @@ ngspicetclbridge-notes-and-internals(n) - information about implementation
 .sp 1
 Public commands documentation:
 .br
+ngspicetclbridge-rbcbindings(n)
+.br
 ngspicetclbridge-ngspicetclbridge(n)

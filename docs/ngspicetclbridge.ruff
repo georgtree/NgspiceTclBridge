@@ -268,7 +268,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # real), and length of the vector.
         #  -output - list or vector; overrides the handle default for this snapshot only
         #  -ifexists - error or replace; overrides the handle collision policy
-        #  -name - explicit destination vector command name (vector output only)
+        #  -name - explicit destination or `#auto` for a fresh RBC name in the selected namespace (vector output only)
         #  -namespace - per-call destination namespace (vector output only); created if missing, including parents
         #  -info - if this switch is provided, commands return dictionary with vector metadata
         # Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.

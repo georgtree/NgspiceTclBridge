@@ -15,7 +15,7 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Examples" href="ngspicetclbridge-Examples.html" />
+    <link rel="next" title="RBC vectors support" href="ngspicetclbridge-rbcBindings.html" />
     <link rel="prev" title="&lt;no title&gt;" href="index.html" /> 
   </head><body>
     <div class="related" role="navigation" aria-label="Related">
@@ -25,7 +25,7 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="ngspicetclbridge-Examples.html" title="Examples"
+          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="index.html" title="&lt;no title&gt;"
@@ -127,6 +127,68 @@ with next commands:</p>
 </pre></div>
 </div>
 <p>Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data.</p>
+</section>
+<section id="checking-callback-memory-ownership">
+<span id="r-checking-callback-memory-ownership"></span><span id="r-checking20callback20memory20ownership"></span><h2>Checking callback memory ownership<a class="headerlink" href="#checking-callback-memory-ownership" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test-memory</span></code> runs a standalone C regression against the bridge’s actual <code class="docutils literal notranslate"><span class="pre">SEND_DATA</span></code> event handler.
+It requires Tcl headers and its link library, but does not load ngspice or require argparse/extexpr.
+The same check runs before the existing suite with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>. For an existing build directory, regenerate
+its Makefile with <code class="docutils literal notranslate"><span class="pre">./config.status</span></code> after applying this change.</p>
+<p>The test performs 64 repeated real/complex data cycles, retaining snapshots while additional samples arrive.
+It verifies sample values, snapshot independence, and that temporary string/list objects are either released
+or owned after each batch. This checks object ownership rather than RSS, which can remain elevated because
+allocators retain freed memory for reuse.</p>
+<p>The callback now releases temporary dictionary keys and complex-sample containers after insertion. Existing
+keys do not adopt newly allocated equal key objects; complex list append retains the elements rather than
+their temporary container. Both otherwise remain leaked even after clearing the bridge’s vector dictionary.
+The fix preserves the existing command interface and sample representation.</p>
+</section>
+<section id="installation-layout-and-removal">
+<span id="r-installation-layout-and-removal"></span><span id="r-installation20layout20and20removal"></span><h2>Installation layout and removal<a class="headerlink" href="#installation-layout-and-removal" title="Link to this heading">¶</a></h2>
+<p>Installation follows the rbc-tk9 layout and honors the directories selected by <code class="docutils literal notranslate"><span class="pre">configure</span></code>:</p>
+<ul class="simple">
+<li><p>The package library, Tcl scripts and <code class="docutils literal notranslate"><span class="pre">pkgIndex.tcl</span></code> go together in <code class="docutils literal notranslate"><span class="pre">$(libdir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)</span></code>.</p></li>
+<li><p>Any public headers and stub client sources go in <code class="docutils literal notranslate"><span class="pre">$(includedir)</span></code>; executable binaries go in <code class="docutils literal notranslate"><span class="pre">$(bindir)</span></code>.</p></li>
+<li><p>Manpages go in <code class="docutils literal notranslate"><span class="pre">$(mandir)/mann</span></code>.</p></li>
+<li><p>HTML documentation, its image/static resources, and <code class="docutils literal notranslate"><span class="pre">LICENSE</span></code> go in <code class="docutils literal notranslate"><span class="pre">$(datadir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)/doc</span></code>.</p></li>
+</ul>
+<p>Use <code class="docutils literal notranslate"><span class="pre">--prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">--libdir</span></code>, <code class="docutils literal notranslate"><span class="pre">--includedir</span></code>, <code class="docutils literal notranslate"><span class="pre">--datadir</span></code> and <code class="docutils literal notranslate"><span class="pre">--mandir</span></code> at configure time to change these locations.
+All install and uninstall targets honor <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code> for staging:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--prefix<span class="o">=</span>/your/prefix
+make
+make<span class="w"> </span>install<span class="w"> </span><span class="nv">DESTDIR</span><span class="o">=</span>/your/staging/root
+make<span class="w"> </span>uninstall<span class="w"> </span><span class="nv">DESTDIR</span><span class="o">=</span>/your/staging/root
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">uninstall</span></code> runs <code class="docutils literal notranslate"><span class="pre">uninstall-binaries</span></code>, <code class="docutils literal notranslate"><span class="pre">uninstall-libraries</span></code> and <code class="docutils literal notranslate"><span class="pre">uninstall-doc</span></code>. It removes the package-owned
+runtime directory, but removes only this package’s named files from shared binary, include and documentation paths.
+Unrelated documentation files are retained; empty documentation directories are removed. Keep the configured build
+and source tree to uninstall the corresponding installation, and use the same path overrides for install and
+uninstall.</p>
+<p><code class="docutils literal notranslate"><span class="pre">DOC_INSTALL_DIR</span></code> can override the complete HTML destination. As in rbc-tk9, its default already includes <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code>;
+when overriding it explicitly, include the staging root yourself if needed.</p>
+</section>
+<section id="installation-archives">
+<span id="r-installation-archives"></span><span id="r-installation20archives"></span><h2>Installation archives<a class="headerlink" href="#installation-archives" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist</span></code> follows rbc-tk9: it builds the package, stages <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> under the build directory, and creates
+<code class="docutils literal notranslate"><span class="pre">dist/$(PACKAGE_NAME)$(PACKAGE_VERSION).tar.gz</span></code>. <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-zip</span></code> creates the same payload as a ZIP file as well.
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-clean</span></code> removes this package’s staging directory and both archives.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>-j4<span class="w"> </span>dist
+make<span class="w"> </span>dist-zip
+</pre></div>
+</div>
+<p>These are platform-specific installation archives, not source distributions. Their contents are relative to the
+configured installation prefix: normally <code class="docutils literal notranslate"><span class="pre">lib/</span></code>, <code class="docutils literal notranslate"><span class="pre">include/</span></code>, and <code class="docutils literal notranslate"><span class="pre">share/</span></code>, without an enclosing package directory.
+Extract or merge the archive contents into the desired prefix. The payload uses the same install targets as normal
+installation, including the built library, Tcl runtime files, public headers, manpages, HTML resources and license.
+Tests, build files and examples that are not installed by <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> are not included.</p>
+<p>Configured installation directories must be below <code class="docutils literal notranslate"><span class="pre">prefix</span></code>; <code class="docutils literal notranslate"><span class="pre">dist</span></code> reports an error if one is outside it.
+When using <code class="docutils literal notranslate"><span class="pre">--with-tcl</span></code> and a custom prefix, set <code class="docutils literal notranslate"><span class="pre">--exec-prefix</span></code> to the same prefix if TEA would otherwise inherit
+Tcl’s execution prefix, for example <code class="docutils literal notranslate"><span class="pre">sh</span> <span class="pre">./configure</span> <span class="pre">--prefix=/opt/mypackages</span> <span class="pre">--exec-prefix=/opt/mypackages</span></code>. Custom
+subdirectories inside that prefix are preserved. <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code> is not included in archive paths. The staging install
+does not write to the configured system prefix. <code class="docutils literal notranslate"><span class="pre">DIST_ROOT</span></code> and <code class="docutils literal notranslate"><span class="pre">DIST_NAME</span></code> may be overridden to choose the archive
+output directory and name; <code class="docutils literal notranslate"><span class="pre">DIST_NAME</span></code> must be a single directory name. Run <code class="docutils literal notranslate"><span class="pre">dist-clean</span></code> separately, not alongside
+<code class="docutils literal notranslate"><span class="pre">dist</span></code> or <code class="docutils literal notranslate"><span class="pre">dist-zip</span></code> in the same parallel make invocation.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
@@ -149,6 +211,9 @@ with next commands:</p>
 <li><a class="reference internal" href="#notes">Notes</a></li>
 <li><a class="reference internal" href="#warnings">Warnings</a></li>
 <li><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
+<li><a class="reference internal" href="#checking-callback-memory-ownership">Checking callback memory ownership</a></li>
+<li><a class="reference internal" href="#installation-layout-and-removal">Installation layout and removal</a></li>
+<li><a class="reference internal" href="#installation-archives">Installation archives</a></li>
 </ul>
 </li>
 </ul>
@@ -161,8 +226,8 @@ with next commands:</p>
   </div>
   <div>
     <h4>Next topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-Examples.html"
-                          title="next chapter">Examples</a></p>
+    <p class="topless"><a href="ngspicetclbridge-rbcBindings.html"
+                          title="next chapter">RBC vectors support</a></p>
   </div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
@@ -192,7 +257,7 @@ with next commands:</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="ngspicetclbridge-Examples.html" title="Examples"
+          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
              >next</a> |</li>
         <li class="right" >
           <a href="index.html" title="&lt;no title&gt;"

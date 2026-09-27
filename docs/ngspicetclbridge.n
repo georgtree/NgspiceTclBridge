@@ -126,6 +126,84 @@ $s1 messages -clear
 .RE
 .PP
 Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data\&.
+.SH "CHECKING CALLBACK MEMORY OWNERSHIP"
+.PP
+make test-memory runs a standalone C regression against the bridge's actual SEND_DATA event handler\&.
+It requires Tcl headers and its link library, but does not load ngspice or require argparse/extexpr\&.
+The same check runs before the existing suite with make test\&. For an existing build directory, regenerate
+its Makefile with \&./config\&.status after applying this change\&.
+.PP
+The test performs 64 repeated real/complex data cycles, retaining snapshots while additional samples arrive\&.
+It verifies sample values, snapshot independence, and that temporary string/list objects are either released
+or owned after each batch\&. This checks object ownership rather than RSS, which can remain elevated because
+allocators retain freed memory for reuse\&.
+.PP
+The callback now releases temporary dictionary keys and complex-sample containers after insertion\&. Existing
+keys do not adopt newly allocated equal key objects; complex list append retains the elements rather than
+their temporary container\&. Both otherwise remain leaked even after clearing the bridge's vector dictionary\&.
+The fix preserves the existing command interface and sample representation\&.
+.SH "INSTALLATION LAYOUT AND REMOVAL"
+.PP
+Installation follows the rbc-tk9 layout and honors the directories selected by configure:
+.TP
+\(bu
+The package library, Tcl scripts and pkgIndex\&.tcl go together in $(libdir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)\&.
+.TP
+\(bu
+Any public headers and stub client sources go in $(includedir); executable binaries go in $(bindir)\&.
+.TP
+\(bu
+Manpages go in $(mandir)/mann\&.
+.TP
+\(bu
+HTML documentation, its image/static resources, and LICENSE go in $(datadir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)/doc\&.
+.PP
+Use --prefix, --libdir, --includedir, --datadir and --mandir at configure time to change these locations\&.
+All install and uninstall targets honor DESTDIR for staging:
+.PP
+.RS 4n
+.nf
+\&./configure --prefix=/your/prefix
+make
+make install DESTDIR=/your/staging/root
+make uninstall DESTDIR=/your/staging/root
+.fi
+.RE
+.PP
+make uninstall runs uninstall-binaries, uninstall-libraries and uninstall-doc\&. It removes the package-owned
+runtime directory, but removes only this package's named files from shared binary, include and documentation paths\&.
+Unrelated documentation files are retained; empty documentation directories are removed\&. Keep the configured build
+and source tree to uninstall the corresponding installation, and use the same path overrides for install and
+uninstall\&.
+.PP
+DOC_INSTALL_DIR can override the complete HTML destination\&. As in rbc-tk9, its default already includes DESTDIR;
+when overriding it explicitly, include the staging root yourself if needed\&.
+.SH "INSTALLATION ARCHIVES"
+.PP
+make dist follows rbc-tk9: it builds the package, stages make install under the build directory, and creates
+dist/$(PACKAGE_NAME)$(PACKAGE_VERSION)\&.tar\&.gz\&. make dist-zip creates the same payload as a ZIP file as well\&.
+make dist-clean removes this package's staging directory and both archives\&.
+.PP
+.RS 4n
+.nf
+make -j4 dist
+make dist-zip
+.fi
+.RE
+.PP
+These are platform-specific installation archives, not source distributions\&. Their contents are relative to the
+configured installation prefix: normally lib/, include/, and share/, without an enclosing package directory\&.
+Extract or merge the archive contents into the desired prefix\&. The payload uses the same install targets as normal
+installation, including the built library, Tcl runtime files, public headers, manpages, HTML resources and license\&.
+Tests, build files and examples that are not installed by make install are not included\&.
+.PP
+Configured installation directories must be below prefix; dist reports an error if one is outside it\&.
+When using --with-tcl and a custom prefix, set --exec-prefix to the same prefix if TEA would otherwise inherit
+Tcl's execution prefix, for example sh \&./configure --prefix=/opt/mypackages --exec-prefix=/opt/mypackages\&. Custom
+subdirectories inside that prefix are preserved\&. DESTDIR is not included in archive paths\&. The staging install
+does not write to the configured system prefix\&. DIST_ROOT and DIST_NAME may be overridden to choose the archive
+output directory and name; DIST_NAME must be a single directory name\&. Run dist-clean separately, not alongside
+dist or dist-zip in the same parallel make invocation\&.
 
 
 .SH SEE ALSO
@@ -139,5 +217,7 @@ ngspicetclbridge-notes-and-internals(n) - information about implementation
 .br
 .sp 1
 Public commands documentation:
+.br
+ngspicetclbridge-rbcbindings(n)
 .br
 ngspicetclbridge-ngspicetclbridge(n)
