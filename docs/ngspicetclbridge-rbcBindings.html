@@ -47,7 +47,7 @@
 <p>Build with <code class="docutils literal notranslate"><span class="pre">./configure</span> <span class="pre">--with-rbc=/path/to/rbc</span></code> (a source tree, installed header directory, or installation
 prefix).  The default <code class="docutils literal notranslate"><span class="pre">--without-rbc</span></code> build has no RBC dependency. An enabled build uses RBC stubs and loads
 <code class="docutils literal notranslate"><span class="pre">rbc::vector</span></code> only when vector output is requested; list-only use still works without RBC installed. Use the
-current rbc-tk9 version with complex vectors and <code class="docutils literal notranslate"><span class="pre">-literal</span></code> name support.</p>
+RBC 0.8.1 or newer headers and runtime, including the read-only stubs API.</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="c"># ::wave is created automatically if needed.</span>
 <span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="o">/</span>path<span class="o">/</span>to<span class="o">/</span>libngspice.so<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>wave<span class="w"> </span><span class="o">-</span>ifexists<span class="w"> </span>error<span class="k">]</span>
 <span class="c"># Load a circuit, then start it with $sim command bg_run.</span>
@@ -153,6 +153,22 @@ snapshot name as above. Destroying the handle never deletes the namespace. Exist
 handle-created live vectors are destroyed, while adopted vectors and independent snapshots survive.</p>
 </section>
 </section>
+<section id="read-only-destinations">
+<span id="r-rbcbindings-read-only-destinations"></span><span id="r-3a3arbcbindingsqzread2donly20destinations"></span><h2>Read-only destinations<a class="headerlink" href="#read-only-destinations" title="Link to this heading">¶</a></h2>
+<p>Snapshot output and adoption with <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">replace</span></code> reject locked real or complex destinations with
+<code class="docutils literal notranslate"><span class="pre">RBC</span> <span class="pre">VECTOR</span> <span class="pre">READONLY</span></code>; the bridge never silently unlocks them. Newly created vectors are writable.
+Locking an attached live vector prevents subsequent updates, including direct writes within its existing
+capacity. All batch destinations are checked before writing the first vector. A streaming failure follows
+the existing persistent vector-output error path and reports one background error; unlocking alone does
+not replay discarded simulation data. Start a new simulation after unlocking to resume cleanly.</p>
+<p>Reading <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code> is allowed while an attached vector is locked, unless a prior output failure is
+already recorded. <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span> <span class="pre">-clear</span></code> checks all retained destinations first. A lock present at entry
+leaves their contents, bridge storage metadata and pending producer rows intact. Unlock and retry clear,
+or continue the current simulation. Renaming and handle cleanup retain their existing ownership rules;
+cleanup can destroy owned locked vectors. Snapshots remain caller-owned.</p>
+<p>Checks are repeated before individual updates because Tcl callbacks can change later destinations.
+Publication is not a transaction against arbitrary reentrant application callbacks.</p>
+</section>
 <section id="automatic-snapshot-vector-names">
 <span id="r-rbcbindings-automatic-snapshot-vector-names"></span><span id="r-3a3arbcbindingsqzautomatic20snapshot20vector20names"></span><h2>Automatic snapshot vector names<a class="headerlink" href="#automatic-snapshot-vector-names" title="Link to this heading">¶</a></h2>
 <p>Use <code class="docutils literal notranslate"><span class="pre">-name</span> <span class="pre">#auto</span></code> on a single <code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> snapshot, or <code class="docutils literal notranslate"><span class="pre">-names</span> <span class="pre">#auto</span></code> on <code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code> to request a fresh
@@ -200,6 +216,7 @@ fails, earlier snapshots remain in the destination namespace, as with explicit n
 <li><a class="reference internal" href="#vector-destination-namespace">Vector destination namespace</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#read-only-destinations">Read-only destinations</a></li>
 <li><a class="reference internal" href="#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
 </ul>
 </li>

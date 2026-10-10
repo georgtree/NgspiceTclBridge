@@ -2599,14 +2599,14 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 goto done;
             }
             if (do_clear) {
-                Tcl_MutexLock(&ctx->mutex);
-                DataBuf_Free(&ctx->prod);
-                DataBuf_Init(&ctx->prod);
-                Tcl_MutexUnlock(&ctx->mutex);
                 ctx->outputBusy = 1;
                 code = BridgeRbcClear(ctx);
                 ctx->outputBusy = 0;
                 if (code == TCL_OK) {
+                    Tcl_MutexLock(&ctx->mutex);
+                    DataBuf_Free(&ctx->prod);
+                    DataBuf_Init(&ctx->prod);
+                    Tcl_MutexUnlock(&ctx->mutex);
                     Tcl_ResetResult(interp);
                 }
             } else {

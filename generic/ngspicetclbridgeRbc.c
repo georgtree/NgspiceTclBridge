@@ -3,6 +3,9 @@
 #ifdef HAVE_RBC
 #include <rbcVector.h>
 #include <rbcDecls.h>
+#ifndef Rbc_VectorCheckWritable
+#error "RBC 0.8.1 or newer stubs headers are required"
+#endif
 #include <rbcStubLib.c>
 #endif
 
@@ -15,7 +18,7 @@
  */
 int BridgeRbcInit(Tcl_Interp *interp) {
 #ifdef HAVE_RBC
-    return Rbc_VectorInitStubs(interp, "0.5.0", 0) ? TCL_OK : TCL_ERROR;
+    return Rbc_VectorInitStubs(interp, "0.8.1", 0) ? TCL_OK : TCL_ERROR;
 #else
     Tcl_SetObjResult(interp, Tcl_NewStringObj("ngspicetclbridge was built without RBC vector support", -1));
     return TCL_ERROR;
@@ -123,6 +126,9 @@ static int CheckDestination(Tcl_Interp *interp, Tcl_Obj *name, int complex, int 
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("vector \"%s\" has a different numeric type", s));
             return TCL_ERROR;
         }
+        if (Rbc_VectorCheckWritable(interp, *vec) != TCL_OK) {
+            return TCL_ERROR;
+        }
     } else if (Tcl_GetCommandInfo(interp, s, &info)) {
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("command \"%s\" already exists and is not an RBC vector", s));
         return TCL_ERROR;
@@ -148,6 +154,15 @@ static int CheckBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec) {
         return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+/* Reading the live mapping is allowed while locked. Mutating paths additionally
+ * check permission before touching either borrowed storage or binding metadata. */
+static int CheckWritableBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec) {
+    if (CheckBinding(interp, b, vec) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    return Rbc_VectorCheckWritable(interp, *vec);
 }
 
 /* All Tcl calls use object arguments. Numeric-looking parentheses remain literal names.
@@ -233,13 +248,20 @@ int BridgeRbcPrepare(NgSpiceContext *ctx, const InitSnap *snap) {
         Tcl_InitHashTable(&ctx->rbc->bindings, TCL_STRING_KEYS);
     }
     BridgeRbc *r = ctx->rbc;
+    /* Prepare clears retained signals too, even when absent from this plot. */
+    for (Binding *b = r->head; b != NULL; b = b->next) {
+        Rbc_Vector *vec;
+        if (CheckWritableBinding(ctx->interp, b, &vec) != TCL_OK) {
+            return TCL_ERROR;
+        }
+    }
     for (int i = 0; i < snap->veccount; i++) {
         Tcl_HashEntry *entry = Tcl_FindHashEntry(&r->bindings, snap->vecs[i].name);
         Rbc_Vector *vec;
         int code;
         if (entry != NULL) {
             Binding *b = Tcl_GetHashValue(entry);
-            code = CheckBinding(ctx->interp, b, &vec);
+            code = CheckWritableBinding(ctx->interp, b, &vec);
             if (code == TCL_OK && b->complex != !snap->vecs[i].is_real) {
                 Tcl_SetObjResult(ctx->interp, Tcl_ObjPrintf("live vector \"%s\" has a different numeric type",
                                                             Tcl_GetString(b->name)));
@@ -318,22 +340,22 @@ int BridgeRbcClear(NgSpiceContext *ctx) {
     }
     for (Binding *b = ctx->rbc->head; b != NULL; b = b->next) {
         Rbc_Vector *vec;
-        if (CheckBinding(ctx->interp, b, &vec) != TCL_OK) {
+        if (CheckWritableBinding(ctx->interp, b, &vec) != TCL_OK) {
             return TCL_ERROR;
         }
     }
     for (Binding *b = ctx->rbc->head; b != NULL; b = b->next) {
         Rbc_Vector *vec;
-        if (ctx->destroying || CheckBinding(ctx->interp, b, &vec) != TCL_OK) {
+        if (ctx->destroying || CheckWritableBinding(ctx->interp, b, &vec) != TCL_OK) {
             return TCL_ERROR;
         }
-        b->length = b->capacity = 0;
-        b->data = NULL;
         int code = b->complex ? Rbc_ResetComplexVector(vec, NULL, 0, 0, TCL_STATIC)
                               : Rbc_ResetVector(vec, NULL, 0, 0, TCL_STATIC);
         if (code != TCL_OK) {
             return code;
         }
+        b->length = b->capacity = 0;
+        b->data = NULL;
     }
     return TCL_OK;
 #else
@@ -345,8 +367,8 @@ int BridgeRbcClear(NgSpiceContext *ctx) {
 /*
  *----------------------------------------------------------------------------------------------------------------------
  * BridgeRbcAppend -- Append a detached batch directly to RBC storage, without per-sample Tcl objects.
- * Validate the complete layout before modifying data. Geometric capacity growth avoids copying the full history
- * on every batch. Filled storage is published once per vector through ResetVector, giving one notification per batch.
+ * Validate the complete layout and every destination's writability before modifying data. Geometric capacity growth
+ * avoids copying the full history on every batch. Filled storage is published once per vector through ResetVector, giving one notification per batch.
  * Attached vector contents are bridge-managed: external resizing/replacement is diagnosed rather than using stale data.
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -373,10 +395,17 @@ int BridgeRbcAppend(NgSpiceContext *ctx, const DataBuf *rows) {
             }
         }
     }
+    /* A locked later output must not allow an earlier vector to be appended. */
+    for (int i = 0; i < r->count; i++) {
+        Rbc_Vector *vec;
+        if (CheckWritableBinding(ctx->interp, r->active[i], &vec) != TCL_OK) {
+            return TCL_ERROR;
+        }
+    }
     for (int i = 0; i < r->count; i++) {
         Binding *b = r->active[i];
         Rbc_Vector *vec;
-        if (ctx->destroying || CheckBinding(ctx->interp, b, &vec) != TCL_OK) {
+        if (ctx->destroying || CheckWritableBinding(ctx->interp, b, &vec) != TCL_OK) {
             return TCL_ERROR;
         }
         void *old = b->complex ? (void *)Rbc_VectorComplexData(vec) : (void *)Rbc_VectorData(vec);

@@ -93,7 +93,7 @@ run simulation by <a class="reference internal" href="ngspicetclbridge-ngspicetc
 read vectors with <a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#r-symbolqz3a3angspicetclbridge3a3asim20asyncvector"><span class="std std-ref">::ngspicetclbridge::SIM asyncvector</span></a> command and prepare data for plotting:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>n<span class="w"> </span><span class="nv">$ns</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="c"># change model parameter</span>
-<span class="w">    </span><span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">&quot;altermod diomod n </span><span class="o">=</span><span class="s2"> $n&quot;</span>
+<span class="w">    </span><span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">&quot;altermod diomod n </span><span class="o">=</span><span class="s2"> </span><span class="o">$</span><span class="s2">n&quot;</span>
 <span class="w">    </span><span class="c"># run simulation and wait for the end</span>
 <span class="w">    </span><span class="nv">run</span><span class="w"> </span><span class="nv">$sim</span>
 <span class="w">    </span><span class="c"># read result vectors and prepare for plotting</span>

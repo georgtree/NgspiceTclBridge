@@ -10,7 +10,7 @@ rbcBindings - Commands in namespace rbcBindings
 Build with \&./configure --with-rbc=/path/to/rbc (a source tree, installed header directory, or installation
 prefix)\&.  The default --without-rbc build has no RBC dependency\&. An enabled build uses RBC stubs and loads
 rbc::vector only when vector output is requested; list-only use still works without RBC installed\&. Use the
-current rbc-tk9 version with complex vectors and -literal name support\&.
+RBC 0\&.8\&.1 or newer headers and runtime, including the read-only stubs API\&.
 .PP
 .RS 4n
 .nf
@@ -141,6 +141,23 @@ set snapshot [$sim asyncvector time -name savedTime]
 Snapshot replacement of a live destination remains forbidden, even with -ifexists replace\&. Use a distinct
 snapshot name as above\&. Destroying the handle never deletes the namespace\&. Existing ownership rules remain:
 handle-created live vectors are destroyed, while adopted vectors and independent snapshots survive\&.
+.SH "READ-ONLY DESTINATIONS"
+.PP
+Snapshot output and adoption with -ifexists replace reject locked real or complex destinations with
+RBC VECTOR READONLY; the bridge never silently unlocks them\&. Newly created vectors are writable\&.
+Locking an attached live vector prevents subsequent updates, including direct writes within its existing
+capacity\&. All batch destinations are checked before writing the first vector\&. A streaming failure follows
+the existing persistent vector-output error path and reports one background error; unlocking alone does
+not replay discarded simulation data\&. Start a new simulation after unlocking to resume cleanly\&.
+.PP
+Reading SIM vectors is allowed while an attached vector is locked, unless a prior output failure is
+already recorded\&. SIM vectors -clear checks all retained destinations first\&. A lock present at entry
+leaves their contents, bridge storage metadata and pending producer rows intact\&. Unlock and retry clear,
+or continue the current simulation\&. Renaming and handle cleanup retain their existing ownership rules;
+cleanup can destroy owned locked vectors\&. Snapshots remain caller-owned\&.
+.PP
+Checks are repeated before individual updates because Tcl callbacks can change later destinations\&.
+Publication is not a transaction against arbitrary reentrant application callbacks\&.
 .SH "AUTOMATIC SNAPSHOT VECTOR NAMES"
 .PP
 Use -name #auto on a single asyncvector snapshot, or -names #auto on readVecsAsync to request a fresh

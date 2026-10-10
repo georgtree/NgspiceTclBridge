@@ -452,4 +452,74 @@ test rbc-auto-7 {destroy during automatic vector creation removes the new snapsh
     clean $s
 } -result {1 {} {simulator handle was destroyed during vector creation}}
 
+foreach rawName {v(out) v(1)} {
+    test rbc-readonly-snapshot-$rawName {snapshot replacement rejects locked real/complex output} -constraints rbc -body {
+        set s [newSim]
+        begin $s
+        set v [$s asyncvector $rawName -output vector -name ::snap::copy]
+        set before [$v index :]
+        $v readonly true
+        set code [catch {$s asyncvector $rawName -output vector -name $v -ifexists replace} message options]
+        set unchanged [expr {$before eq [$v index :]}]
+        $v readonly false
+        $s asyncvector $rawName -output vector -name $v -ifexists replace
+        list $code [dict get $options -errorcode] $unchanged [$v readonly]
+    } -cleanup {clean $s} -result {1 {RBC VECTOR READONLY} 1 0}
+}
+
+test rbc-readonly-clear {failed clear preserves every vector and binding; unlocking resumes appends} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    ::live::time readonly true
+    set mapping [$s vectors]
+    set code [catch {$s vectors -clear} message options]
+    set lengths [lmap v [dict values $mapping] {$v length}]
+    ::live::time readonly false
+    $s command mock_point
+    update
+    set appended [::live::time length]
+    $s vectors -clear
+    list $code [dict get $options -errorcode] $lengths $appended [::live::time length]
+} -cleanup {clean $s} -result {1 {RBC VECTOR READONLY} {3 3 3} 4 0}
+
+foreach rawName {v(out) v(1)} {
+    test rbc-readonly-live-$rawName {all live destinations checked before any in-capacity append} -constraints rbc -body {
+        set ::outputErrors {}
+        set s [newSim -output vector]
+        begin $s
+        set mapping [$s vectors]
+        [dict get $mapping $rawName] readonly true
+        $s command mock_point
+        update
+        set code [catch {$s vectors} message]
+        set lengths [lmap v [dict values $mapping] {$v length}]
+        [dict get $mapping $rawName] readonly false
+        begin $s 2
+        set recovered [lmap v [dict values [$s vectors]] {$v length}]
+        list $code [string match {*is read-only} $message] [llength $::outputErrors] $lengths $recovered
+    } -cleanup {clean $s} -result {1 1 1 {3 3 3} {2 2 2}}
+}
+
+test rbc-readonly-adopt {initial replacement refuses a locked vector without creating earlier outputs} -constraints rbc -body {
+    rbc::vector create ::live::v(out) -literal true -variable {}
+    ::live::v(out) set {99}
+    ::live::v(out) readonly true
+    set ::outputErrors {}
+    set s [newSim -output vector -ifexists replace]
+    begin $s
+    set code [catch {$s vectors} message]
+    list $code [string match {*is read-only} $message] [::live::v(out) index :] [info commands ::live::time]
+} -cleanup {clean $s} -result {1 1 99.0 {}}
+
+test rbc-readonly-clear-pending {rejected clear does not discard queued producer samples} -constraints rbc -body {
+    set s [newSim -output vector]
+    begin $s
+    ::live::time readonly true
+    $s command mock_point
+    set code [catch {$s vectors -clear}]
+    ::live::time readonly false
+    update
+    list $code [lmap v [dict values [$s vectors]] {$v length}]
+} -cleanup {clean $s} -result {1 {4 4 4}}
+
 finishTests
