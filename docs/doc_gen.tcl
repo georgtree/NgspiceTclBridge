@@ -15,10 +15,10 @@ set packageVersion [package versions ngspicetclbridge]
 puts $packageVersion
 set title "Tcl NgspiceTclBridge package"
 
-set commonSphinx [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace -recurse false\
-                    -includesource false -pagesplit namespace -autopunctuate true -compact false -includeprivate false\
-                    -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
-                    -copyright "George Yashin" {*}$::argv]
+set commonSphinx [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace\
+                          -recurse false -includesource false -pagesplit namespace -autopunctuate true -compact false\
+                          -includeprivate false -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version\
+                          $packageVersion -copyright "George Yashin" {*}$::argv]
 set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace -recurse false\
                          -pagesplit namespace -autopunctuate true -compact false -includeprivate false\
                          -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
@@ -29,6 +29,7 @@ set namespaces [list ::rbcBindings ::Examples ::Troubleshooting ::ngspicetclbrid
 ruff::document $namespaces -format sphinx -outfile ngspicetclbridge.rst -outdir [file join $docDir sphinx]\
         {*}$commonSphinx
 ruff::document $namespaces -format nroff -outdir $docDir -outfile ngspicetclbridge.n {*}$commonNroff
+
 
 ::fileutil::appendToFile [file join $docDir sphinx conf.py] {html_theme = "classic"
 extensions = [
@@ -58,7 +59,7 @@ def setup(app):
     lexers["tcl"] = MyTclLexer()
 }
 
-catch {exec sphinx-build -b html [file join $docDir sphinx] [file join $docDir]} errorStr
+catch {exec sphinx-build -E -a -b html [file join $docDir sphinx] [file join $docDir]} errorStr
 puts $errorStr
 
 # ticklechart graphs substitutions

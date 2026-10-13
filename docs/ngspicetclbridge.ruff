@@ -11,21 +11,26 @@ namespace eval ::ngspicetclbridge {
         #  -output - list (default) or vector; controls live storage and the default asyncvector result
         #  -ifexists - error (default) or replace for initial vector destinations
         #  -namespace - destination for live vectors and snapshots; created at handle construction if missing
-        # Relative namespaces resolve against the creation caller, and the qualified name is retained. Missing parents
-        # are created too. Empty names are rejected. The namespace is never deleted when the handle is destroyed.
-        # Without this option, live vectors use the creation namespace and snapshots use their calling namespace.
-        #  libpath -  absolute full path to dynamic library
-        # Vector output requires an RBC-enabled build and rbc::vector with literal-name support.
-        # Use a dedicated namespace: the signal time otherwise collides with Tcl's global time command.
-        # Existing same-type vectors can be adopted with replace; their commands and graph clients are retained.
-        # Unrelated commands and vectors maintained by another simulator cannot be replaced.
-        # Returns: command name to work with Ngspice instance, references as `SIM` later
+        #
+        # Namespace:
+        # - Relative names resolve against the handle creation caller; the fully qualified name is retained.
+        # - Missing namespaces and parents are created. Empty names are rejected.
+        # - Destroying the handle does not delete the namespace.
+        # - Without this option, live vectors use the creation namespace; snapshots use their caller's namespace.
+        # - Use a dedicated namespace to avoid collisions, such as the signal time and Tcl's global time command.
+        #
+        # Vector output:
+        # - Requires an RBC-enabled build and `rbc::vector` with literal-name support.
+        # - With replace, existing same-type vectors are adopted, preserving their commands and graph clients.
+        # - Unrelated commands and vectors maintained by another simulator cannot be replaced.
         #
         # Example:
         #```tcl
         # set sim [::ngspicetclbridge::new /usr/local/lib/libngspice.so]
         #```
-        # Synopsis: ?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace? ?-namespace name?
+        # Synopsis: ?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace?
+        # ?-namespace name?
+        # Returns: command name to work with Ngspice instance, references as `SIM` later
     }
 }
 
@@ -37,13 +42,13 @@ namespace eval ::ngspicetclbridge::SIM {
         # deferred to the time is could be safely sent, and in that case `-capture` message and command results code
         # are not availaible as a return of `command`.
         #  string -  command string
-        # Returns: Ngspice result code, or dictionary with result code and the message
         #
         # Example:
         #```tcl
         # $sim command {circbyline v1 in 0 1}
         # $sim command bg_run
         #```
+        # Returns: Ngspice result code, or dictionary with result code and the message
     }
 
     proc circuit {args} {
@@ -52,7 +57,6 @@ namespace eval ::ngspicetclbridge::SIM {
         # separator between netlists lines.
         #  -string - allows to pass circuit as ordinary string
         #  circuit -  list of string
-        # Returns: Ngspice result code
         #
         # Example:
         #```tcl
@@ -69,28 +73,29 @@ namespace eval ::ngspicetclbridge::SIM {
         # $sim command bg_run
         #```
         # Synopsis: ?-string? circuit
+        # Returns: Ngspice result code
     }
 
     proc plot {args} {
-        # Returns current plot name if no arguments provided, names of all plots or all vectors names that belongs to
+        # Gets current plot name if no arguments provided, names of all plots or all vectors names that belongs to
         # name of the provided plot.
         #  -all - switch to return all plots names
         #  -vecs plotname - switch with argument to get all vectors names belonging to `name` plot
-        # Returns: current plot, or list of all plots, or list of all vectors
         #
         # Synopsis: -all
         # Synopsis: -vecs name
+        # Returns: current plot, or list of all plots, or list of all vectors
     }
 
     proc inputpath {args} {
-        # Returns current path for XSPICE code models if `-current` switch is provided, or set current path to value 
+        # Gets current path for XSPICE code models if `-current` switch is provided, or set current path to value 
         # provided.
         #  -current - switch to return current path
         #  path - full path to desired location
-        # Returns: current path
         #
         # Synopsis: -current
         # Synopsis: path
+        # Returns: current path
     }
 
     proc waitevent {args} {
@@ -99,38 +104,7 @@ namespace eval ::ngspicetclbridge::SIM {
         #  name -  name of the event
         #  -n N - number of events that should happend for termination after waiting is started
         #  timeout_ms -  timeout in miliseconds, optional
-        # Returns: dictionary with information about event
         #
-        #
-        #ruffopt includedformats nroff
-        #```
-        # ┌───────────────────┬──────────────────────────────┬───────────────────────────────────────────────────────┐
-        # │ Event name        │ Ngspice callback function    │ When it is called                                     │
-        # ├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
-        # │ send_char         │ SendChar                     │ Whenever Ngspice produces a line of text              │
-        # │                   │                              │ on stdout or stderr.                                  │
-        # ├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
-        # │ send_stat         │ SendStat                     │ When Ngspice’s simulation status changes              │
-        # │                   │                              │ (e.g., --ready--, tran 50.1%, convergence messages).  │
-        # ├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
-        # │ controlled_exit   │ ControlledExit               │ When Ngspice exits, either due to an error            │
-        # │                   │                              │ or after a quit command from Tcl/Ngspice.             │
-        # ├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
-        # │ send_data         │ SendData                     │ During an analysis, whenever Ngspice sends            │
-        # │                   │                              │ a row of vector values (time step or sweep point)     │
-        # │                   │                              │ to the callback.                                      │
-        # ├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
-        # │ send_init_data    │ SendInitData                 │ At the start of a run, when Ngspice sends metadata    │
-        # │                   │                              │ for all vectors in the current plot                   │
-        # │                   │                              │ (names, types, indexes, real/complex).                │
-        # ├───────────────────┼──────────────────────────────┼───────────────────────────────────────────────────────┤
-        # │ bg_running        │ BGThreadRunning              │ When the Ngspice background thread changes state:     │
-        # │                   │                              │ running=false → it just started running               │
-        # │                   │                              │ running=true  → it has stopped.                       │
-        # └───────────────────┴──────────────────────────────┴───────────────────────────────────────────────────────┘
-        #```
-        #
-        #ruffopt excludedformats nroff
         # | Event name        | Ngspice callback function name | When it is called                                                                                                                 |
         # |:------------------|:-------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
         # | `send_char`       | `SendChar`                     | Whenever Ngspice produces a line of text on stdout or stderr.                                                                     |
@@ -141,41 +115,6 @@ namespace eval ::ngspicetclbridge::SIM {
         # | `bg_running`      | `BGThreadRunning`              | When the Ngspice background thread changes state: running=false means it just started running, running=true means it has stopped. |
         #
         #
-        #
-        #ruffopt includedformats nroff
-        #```
-        # ┌─────┬─────────────────────────┬─────────────────────────────┬─────────────────────────┬─────────────────────┐
-        # │ Time│ Tcl Script Action       │ Ngspice Core Activity       │ Bridge Callback Fired   │ Tcl Event Name Seen │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t0  │ set s [..::new ..]      │ Library loaded              │ (none)                  │ (none)              │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t1  │ $s init                 │ Initialization completed    │ (none)                  │ (none)              │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t2  │ cirPass …               │ Parses circuit line         │ send_char("...")        │ send_char           │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t3  │ (more circbyline calls) │ Parses circuit line         │ send_char("...")        │ send_char           │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t4  │ $s command bg_run       │ Start background simulation │ bg_running(false)       │ bg_running          │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t5  │ (analysis setup)        │ Build vector table          │ send_init_data()        │ send_init_data      │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t6  │ (analysis running)      │ First data point            │ send_data(...)          │ send_data           │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t7  │ (analysis running)      │ More points                 │ send_data(...)          │ send_data           │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t8  │ (analysis running)      │ Status change               │ send_stat("...")        │ send_stat           │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t9  │ (analysis completed)    │ Simulation ready            │ send_stat("--ready--")  │ send_stat           │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t10 │ (BG thread exits)       │ Background thread exits     │ bg_running(true)        │ bg_running          │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t11 │ $s command quit         │ ngspice quits               │ controlled_exit(...)    │ controlled_exit     │
-        # ├─────┼─────────────────────────┼─────────────────────────────┼─────────────────────────┼─────────────────────┤
-        # │ t12 │ $s destroy              │ Teardown                    │ (no further calls)      │ (command removed)   │
-        # └─────┴─────────────────────────┴─────────────────────────────┴─────────────────────────┴─────────────────────┘
-        #```
-        #
-        #ruffopt excludedformats nroff
         # | Time | Tcl Script Action         | Ngspice Core Activity       | Bridge Callback Fired    | Tcl Event Name Seen |
         # |------|---------------------------|-----------------------------|--------------------------|---------------------|
         # | t0   | `set s [..::new ..]`      | Library loaded              | *(none)*                 | *(none)*            |
@@ -209,28 +148,40 @@ namespace eval ::ngspicetclbridge::SIM {
         # If you want “fresh” waits, you can clear counts with `eventcounts -clear`.
         #
         # Synopsis: name ?-n N? ?timeout_ms?
+        # Returns: dictionary with information about event
     }
 
     proc vectors {args} {
-        # Returns data accumulated from send_data events on the Tcl event loop. In list mode, the result is
-        # the historical dictionary of lists (complex values are interleaved real/imaginary doubles).
-        # In vector mode, the result maps raw signal names to fully qualified live RBC vector commands.
-        # Real signals use real RBC vectors; complex signals use complex RBC vectors.
-        # Vector identities remain stable across runs. Each new plot clears retained vectors, including signals
-        # absent from that plot. Updates require the Tcl event loop to run; eventcounts/waitevent alone do not
-        # guarantee that queued vector updates have been processed.
-        # In vector mode, -clear empties vectors without destroying them and discards samples already queued.
-        # Later samples continue appending. It does not clear ngspice's own snapshot data.
-        # The handle destroys vectors it created, but leaves adopted vectors alive. Treat live vector contents
-        # as read-only: deleting, resizing or replacing them invalidates continued streaming.
-        # Use rbc::vector rename oldName newName to rename a live destination while retaining the same C vector.
-        # The dictionary keeps the original ngspice signal key and reports the new fully qualified vector name.
-        # Clear and later runs reuse that destination, and ownership is unchanged. Ordinary Tcl rename is unsupported
-        # because it leaves RBC's registry under the old name. Query the bridge after the RBC rename has returned.
-        # Asynchronous output failures are reported once through Tcl's background error handler and retained
-        # as errors from vectors. Incoming samples are discarded until a new plot initializes output.
+        # Gets data accumulated from send_data events through the Tcl event loop.
         #  -clear - empties stored samples and returns **nothing**.
-        # Returns: dict with vectors values accumulated up to this point in internal structure
+        #
+        # Output:
+        # - List mode: dictionary mapping signal names to lists. Complex samples use interleaved real/imaginary doubles.
+        # - Vector mode: dictionary mapping raw signal names to fully qualified live RBC vector commands. Real and
+        # complex signals use the corresponding vector types.
+        #
+        # Updates and clearing:
+        # - Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent
+        #   from that plot.
+        # - Updates require Tcl event processing; eventcounts/waitevent alone do not guarantee that queued vector
+        #   updates have been processed.
+        # - In vector mode, -clear empties vectors and discards queued samples without destroying the vectors. Later
+        #   samples continue appending. Ngspice snapshot data is unaffected.
+        #
+        # Ownership and renaming:
+        # - The handle destroys vectors it created; adopted vectors remain alive.
+        # - Treat live contents as read-only. Deleting, resizing or replacing attached vectors invalidates continued
+        #   streaming.
+        # - Use rbc::vector rename oldName newName to rename a live vector. Its identity, ownership and streaming
+        #   connection are preserved across clear and subsequent runs.
+        # - After renaming completes, query the bridge for the updated dictionary: signal keys remain unchanged, while
+        #   destination names reflect the rename.
+        # - Ordinary Tcl rename is unsupported because it leaves RBC's registry unchanged.
+        #
+        # Errors:
+        # - Asynchronous output failures are reported once through Tcl's background error handler and on subsequent
+        #   vectors calls. Incoming samples are discarded until a new plot initializes output.
+        #
         #
         # Example:
         #```tcl
@@ -242,12 +193,12 @@ namespace eval ::ngspicetclbridge::SIM {
         #```
         #
         # Synopsis: ?-clear?
+        # Returns: dict with vectors values accumulated up to this point in internal structure
     }
 
     proc initvectors {args} {
-        # Returns held **initial vector metadata** (built from send_init_data) in a dict.
+        # Gets held **initial vector metadata** (built from send_init_data) in a dict.
         #  -clear - empties the internal memory structure and returns **nothing**.
-        # Returns: dict with initial vector metadata saved in internal structure
         #
         # Example:
         #```tcl
@@ -259,32 +210,36 @@ namespace eval ::ngspicetclbridge::SIM {
         # in the storage.
         #
         # Synopsis: ?-clear?
+        # Returns: dict with initial vector metadata saved in internal structure
     }
 
     proc asyncvector {args} {
-        # Fetches the current values of a named vector on demand via ngspice `ngGet_Vec_Info`. Works after the
-        # simulation has produced any data (not necessarily the complete vector). By addding `-info` switch, vector
-        # metadata is provided, i.e. type of the vector (current, voltage, time, etc), type of the numbers (complex or
-        # real), and length of the vector.
-        #  -output - list or vector; overrides the handle default for this snapshot only
+        # Fetches the current values of a named vector through ngspice's ngGet_Vec_Info. Available once the simulation
+        # has produced data; the vector may still be incomplete.
+        #  -output - list or vector; overrides the handle default for this snapshot
         #  -ifexists - error or replace; overrides the handle collision policy
-        #  -name - explicit destination or `#auto` for a fresh RBC name in the selected namespace (vector output only)
-        #  -namespace - per-call destination namespace (vector output only); created if missing, including parents
-        #  -info - if this switch is provided, commands return dictionary with vector metadata
-        # Vector output creates an independent RBC snapshot, owned by the caller and surviving handle destruction.
-        # With an explicit handle -namespace, snapshots and relative -name destinations use that namespace.
-        # Otherwise they use the calling namespace. A per-call -namespace overrides the handle namespace and resolves
-        # relative to the caller. It does not change the handle defaults or live bindings. Empty names are rejected.
-        # A fully qualified -name overrides the selected namespace.
-        # The destination namespace selected by an absolute -name must already exist.
-        # A snapshot cannot overwrite a live vector maintained by any simulator, even with -ifexists replace.
-        # Existing same-type snapshot vectors are updated in place with replace; other commands are rejected.
-        # Balanced parentheses, including numeric forms such as v(1), remain literal. Names unsafe for RBC or
-        # containing namespace separators are encoded as _raw_ followed by uppercase hexadecimal UTF-8 bytes.
-        # No mapped array variable is created. Read values through the vector command (for example, range 0 end).
-        #  name - name of the vector
-        # Returns: real vectors as a flat list of doubles, complex vectors as a list of `{re im}` pairs. Error if vector
-        # does not exists.
+        #  -name - destination name or #auto for a fresh RBC name (vector output only)
+        #  -namespace - destination namespace; created with missing parents (vector output only)
+        #  -info - returns a metadata dictionary: signal type, real/complex type and length
+        #  name - ngspice vector name
+        #
+        # Ownership and replacement:
+        # - Vector output creates an independent, caller-owned snapshot that survives handle destruction.
+        # - With -ifexists replace, existing same-type snapshot vectors are updated in place. Unrelated commands and
+        #   live vectors maintained by any simulator cannot be overwritten.
+        #
+        # Destination namespace:
+        # - Uses the explicit handle -namespace, or otherwise the caller's namespace.
+        # - A per-call -namespace overrides this selection and resolves relative to the caller. It does not change
+        #   handle defaults or live bindings. Empty names are rejected.
+        # - A fully qualified -name overrides the selected namespace; its parent must already exist.
+        # - #auto creates a fresh RBC vector in the selected namespace.
+        #
+        # Signal-derived names and access:
+        # - Balanced parentheses, including v(1), remain literal. Names unsafe for RBC or containing namespace
+        #   separators are encoded as _raw_ followed by uppercase hexadecimal UTF-8 bytes.
+        # - No mapped array variable is created. Read values through the vector command, for example: $vector range 0
+        #    end.
         #
         # Example:
         #```tcl
@@ -298,6 +253,8 @@ namespace eval ::ngspicetclbridge::SIM {
         #
         # Synopsis: name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?
         # Synopsis: -info name
+        # Returns: real vectors as a flat list of doubles, complex vectors as a list of `{re im}` pairs. Error if vector
+        # does not exists.
     }
 
     proc messages {args} {
@@ -323,7 +280,6 @@ namespace eval ::ngspicetclbridge::SIM {
     proc eventcounts {args} {
         # Gets or reset the cumulative event counters for this simulator instance.
         #  -clear - zeros all counts and returns nothing.
-        # Returns: returns a dict with keys as events names, and counts for each event as a value
         #
         # Example:
         #```tcl
@@ -332,11 +288,13 @@ namespace eval ::ngspicetclbridge::SIM {
         #```
         #
         # Synopsis: ?-clear?
+        # Returns: returns a dict with keys as events names, and counts for each event as a value
     }
 
     proc abort {} {
         # Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does **not** free
         # the instance.
+        # Returns: nothing.
     }
 
     proc isrunning {} {
@@ -350,6 +308,7 @@ namespace eval ::ngspicetclbridge::SIM {
         # - Wakes any waiters
         # - Quiesces the ngspice background thread
         # - Defers and performs full cleanup
+        # Returns: nothing.
     }
 
     namespace export *

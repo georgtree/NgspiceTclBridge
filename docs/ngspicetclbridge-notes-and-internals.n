@@ -214,31 +214,19 @@ ngspice runs its own simulation threads internally, so callbacks can fire at any
 DC/AC/transient analysis, at startup, or when shutting down\&. The order and timing depend entirely on the
 simulation type and ngspice’s internal scheduler\&. Common callback types include:
 .PP
-.RS 4n
 .nf
-┌──────────────────────────────┬──────────────────────────────────────────────────────────────┐
-│ Callback Function            │ Trigger Condition / Purpose                                  │
-├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ SendCharCallback             │ Emits text lines printed by ngspice                          │
-│                              │ (stdout/stderr)\&.                                             │
-├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ SendStatCallback             │ Emits status messages such as                                │
-│                              │ “tran simulation complete”\&.                                  │
-├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ ControlledExitCallback       │ Invoked when ngspice is about to terminate, either via       │
-│                              │ “quit” or internal exit\&.                                     │
-├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ SendDataCallback             │ Called each time a new data point (vector values) is         │
-│                              │ available during simulation\&.                                 │
-├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ SendInitDataCallback         │ Called once at the start of a run, delivering vector         │
-│                              │ metadata (vecinfoall)\&.                                       │
-├──────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ BGThreadRunningCallback      │ Indicates that ngspice’s background thread has started       │
-│                              │ or stopped\&.                                                  │
-└──────────────────────────────┴──────────────────────────────────────────────────────────────┘
+┌─────────────────────────┬───────────────────────────────────────────────────────────────────────────────────┐
+│ Callback Function       │ Trigger Condition / Purpose                                                       │
+├─────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
+│ SendCharCallback        │ Emits text lines printed by ngspice (stdout/stderr)\&.                              │
+│ SendStatCallback        │ Emits status messages such as “tran simulation complete”\&.                         │
+│ ControlledExitCallback  │ Invoked when ngspice is about to terminate, either via “quit” or internal exit\&.   │
+│ SendDataCallback        │ Called each time a new data point (vector values) is available during simulation\&. │
+│ SendInitDataCallback    │ Called once at the start of a run, delivering vector metadata (vecinfoall)\&.       │
+│ BGThreadRunningCallback │ Indicates that ngspice’s background thread has started or stopped\&.                │
+└─────────────────────────┴───────────────────────────────────────────────────────────────────────────────────┘
+
 .fi
-.RE
 .SS "THREAD SAFETY AND QUEUEING BEHAVIOR"
 .PP
 Each callback runs on a non-Tcl thread owned by ngspice, meaning direct interaction with Tcl objects or
@@ -458,33 +446,20 @@ NgSpiceContext\&.
 .PP
 Each NgSpiceContext has its own set of synchronization primitives:
 .PP
-.RS 4n
 .nf
-┌───────────────────┬──────────────────────────────────────────────────────────────────────────────┐
-│ Mutex / Condition │ Purpose                                                                      │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ mutex             │ Protects shared state such as msgq, capq, vectorData, vectorInit,            │
-│                   │ and event counters\&.                                                          │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ cmd_mu            │ Guards the pending command queue used during transitional states             │
-│                   │ (like bg_run start/stop)\&.                                                    │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ bg_mu             │ Synchronizes access to background-thread state variables                     │
-│                   │ (bg_started, bg_ended, state)\&.                                               │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ exit_mu           │ Protects exited flag and coordinates teardown with                           │
-│                   │ ControlledExitCallback\&.                                                      │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ cond              │ Signals changes in event counters and is used by waitevent to                │
-│                   │ sleep until events fire\&.                                                     │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ bg_cv             │ Used by BGThreadRunningCallback to notify that background                    │
-│                   │ thread has started or ended\&.                                                 │
-├───────────────────┼──────────────────────────────────────────────────────────────────────────────┤
-│ exit_cv           │ Used to signal that ngspice has exited, waking InstDeleteProc\&.               │
-└───────────────────┴──────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────┬────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Mutex / Condition │ Purpose                                                                                    │
+├───────────────────┼────────────────────────────────────────────────────────────────────────────────────────────┤
+│ mutex             │ Protects shared state such as msgq, capq, vectorData, vectorInit, and event counters\&.      │
+│ cmd_mu            │ Guards the pending command queue used during transitional states (like bg_run start/stop)\&. │
+│ bg_mu             │ Synchronizes access to background-thread state variables (bg_started, bg_ended, state)\&.    │
+│ exit_mu           │ Protects exited flag and coordinates teardown with ControlledExitCallback\&.                 │
+│ cond              │ Signals changes in event counters and is used by waitevent to sleep until events fire\&.     │
+│ bg_cv             │ Used by BGThreadRunningCallback to notify that background thread has started or ended\&.     │
+│ exit_cv           │ Used to signal that ngspice has exited, waking InstDeleteProc\&.                             │
+└───────────────────┴────────────────────────────────────────────────────────────────────────────────────────────┘
+
 .fi
-.RE
 .PP
 ngspice callbacks are invoked from its internal simulation threads, never from Tcl\&. These threads are not
 allowed to manipulate Tcl objects directly; instead, they enqueue Tcl events via Tcl_QueueEvent\&. The event

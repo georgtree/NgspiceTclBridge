@@ -1,198 +1,221 @@
 # NgspiceTclBridge - drive ngspice (shared library) from Tcl
 
-`ngspicetclbridge` is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small, thread-safe
-command API for loading circuits, running analyses in the ngspice background thread, and receiving data/messages/events
-back into Tcl.
+`ngspicetclbridge` is a Tcl C extension that embeds ngspice as a shared library. It provides commands for loading
+circuits, running analyses in ngspice's background thread, and receiving data, messages and events through Tcl's event
+loop.
 
-It targets Tcl 9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.
+The package targets Tcl 9 and includes a dynamic-loading portability layer for Linux, macOS and Windows.
 
 ## What it gives you (at a glance)
 
-- Create one or more ngspice instances inside Tcl.
-- Issue ngspice commands (e.g. bg_run, circbyline ...).
-- Wait for events (send_stat, send_data, etc.) with optional timeouts.
-- Collect messages from ngspice stdout/stderr.
-- Fetch vector metadata and values (both asynchronously collected and on-demand).
+- Create simulator handles and issue ngspice commands.
+- Load circuits, run analyses and wait for events with optional timeouts.
+- Collect ngspice stdout/stderr messages and query vector metadata.
+- Read simulation results as Tcl lists or, optionally, real and complex RBC vectors.
+- Stream results into live RBC vectors for graph bindings, or create independent snapshots.
 
-All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread.
+Ngspice callbacks enqueue work for the Tcl thread. Keep the Tcl event loop running to process messages, events and live
+vector updates. The `ngspicetclbridge::run` helper waits for completion and processes events for synchronous use.
 
 ## Building & requirements
 
-Requirements:
+For building, you need Tcl development files, a C compiler and make. The ngspice shared-library interface header is
+included in the source tree. At runtime, you need:
 
-- ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice
-  interface (sharedspice.h).
-- Tcl headers/libs (9.0).
+- An ngspice shared library, such as `libngspice.so`, `libngspice.dylib` or `ngspice.dll`.
+- [argparse](https://github.com/georgtree/argparse) for the Tcl helper procedures.
+- Optionally, RBC for vector output (see below).
 
-To install, run following commands:
-- `git clone https://github.com/georgtree/NgspiceTclBridge.git`
-- `./configure`
-- `sudo make install`
+```sh
+git clone https://github.com/georgtree/NgspiceTclBridge.git
+cd NgspiceTclBridge
+./configure
+make
+sudo make install
+```
 
-During installation manpages are also installed.
+Use `--with-tcl=/path/to/tcl/lib` to select the directory containing the desired `tclConfig.sh`.  Ensure Tcl packages
+are discoverable through `auto_path` or `TCLLIBPATH`. Pass the ngspice shared library's filename when creating a
+simulator handle; it is loaded at runtime.
 
-For test package in place run `make test`.
-
-For package uninstall run `sudo make uninstall`.
+For Windows, build from an [MSYS2 UCRT64](https://www.msys2.org/) shell with a compatible Tcl and ngspice DLL.
 
 ## Documentation
 
-Documentation could be found [here](https://georgtree.github.io/NgspiceTclBridge/).
+See the [online documentation](https://georgtree.github.io/NgspiceTclBridge/) for the command reference, examples,
+troubleshooting and implementation notes.
 
-## Notes
+The detailed RBC guide is maintained in [docs/rbcBindings.ruff](docs/rbcBindings.ruff) and included in the generated
+documentation as **RBC vectors support**. It covers live updates, snapshots, ownership, naming, namespaces, replacement,
+read-only destinations and graph tests.
 
-The commands that are subcommand to the simulator command, like `$s1 command bg_run` are considered low level
-and communicate/interact directly with the simulator. On the other side, commands that accept simulator as a
-parameter are considered as "helper" commands, built on top of low-level commands.
-
-## Warnings
-
-This library should be considere semi-stable now. It works well for **single** loading of shared library per process,
-without unloading and loading again. It also works with multiple unloadings (destroying) and loadings of the same
-library, but I've encountered a few possible memory corruption cases. I am trying my best to eliminate them, but I am
-not in full control of Ngspice shared library behaviour.
-
-One of the instances I've encountered is the running two circuit in sequence, with pattern load circuit->run->load
-circuit->run, and then try destroying the instance. This could lead to segmentation violation, unless the command
-`remcirc` for unloading previous circuit is issued before loading new circuit. It is done automatically now if you
-previously loaded the circuit with `circuit` command. But in case you want to load circuit with command `circbyline`,
-you need to issue `remcirc` command yourself.
+Handle subcommands, such as `$sim command bg_run`, communicate directly with the simulator.  Namespace procedures, such
+as `ngspicetclbridge::run $sim`, are higher-level helpers.
 
 ## Quick start (synchronous operation)
 
-Package loading and initialization:
-
-``` tcl
+```tcl
 package require ngspicetclbridge
 
-# Path to your ngspice shared library
-set ngspiceLibPath /path/to/libngspice.so
+# Use the full filename of your ngspice shared library.
+set sim [::ngspicetclbridge::new /path/to/libngspice.so]
+set circuit [split {Resistor divider
+v1 in 0 1
+r1 in out 1e3
+r2 out 0 2e3
+.dc v1 0 5 0.1
+.save all
+.end} \n]
 
-# Create a new instance bound to a Tcl command
-set sim [ngspicetclbridge::new $ngspiceLibPath]
-```
+$sim circuit $circuit
+::ngspicetclbridge::run $sim
 
-To feed a circuit one line at a time via ngspice’s circbyline:
+# Dictionary mapping ngspice signal names to sample lists.
+set signals [$sim vectors]
+puts [dict get $signals v(out)]
 
-``` tcl
-set resDivCircuit {
-    Resistor divider
-    v1 in 0 1
-    r1 in out 1e3
-    r2 out 0 2e3
-    .dc v1 0 5 0.1
-    .save all
-    .end
-}
-```
-
-Pass resistor divider circuit to Ngspice, and start the run (in background thread), and wait for completion:
-
-``` tcl
-$sim circuit [split $resDivCircuit \n]
-run $sim
-```
-
-Get vector data dictionary saved in internal buffer:
-
-``` tcl
-$sim vectors
-```
-
-Destroy instance of simulator (removes instance command, frees internal storages and simulator context)
-
-``` tcl
 $sim destroy
 ```
 
-If you want to continue work with current simulator instance, you need to clear internal messages storage
-with next commands:
+The `circuit` subcommand loads a list of circuit lines and handles removal of the previous circuit. When reusing a
+handle, bridge vector storage resets for a new simulation. Clear retained messages and event counters explicitly when
+needed:
 
-``` tcl
-$s1 messages -clear
+```tcl
+$sim messages -clear
+$sim eventcounts -clear
 ```
 
-Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data.
+These commands apply while the handle is still alive. The `run` helper also destroys previous ngspice plots by default;
+use `run -nocleanup $sim` to retain them.
 
-## Troubleshooting
+## Optional RBC vector output
 
-- `waitevent` **always times out**: make sure you actually started the background run (`$sim command bg_run`) and you
-  allow the Tcl event loop to process events (update) between waits when appropriate.
+Enable RBC support when configuring:
 
-- **Circuit is not loaded**: ensure your circuit issues `.end` directive.
+```sh
+./configure --with-tcl=/path/to/tcl/lib --with-rbc=/path/to/rbc
+make
+make install
+```
 
-- **Complex data surprises**: if you expected real data but get `{re im}` pairs, your vector is complex per
-  ngspice. Handle both cases in your Tcl code if needed.
+Use Tcl 9 and RBC 0.8.1 or later headers and runtime. `--with-rbc` accepts an RBC source tree, installed header
+directory or installation prefix containing `rbcVector.h`, `rbcDecls.h` and `rbcStubLib.c`. The bridge uses RBC stubs
+and loads `rbc::vector` only when vector output is requested. The default build has no RBC dependency; list-only use of
+an enabled build also works without RBC installed.
 
-- **Multiple runs**: clear old event data between runs if you want pristine event counters and messages buffer:
-  `$sim messages -clear` and  `$sim eventcounts -clear`. Data buffer and saved vectors resetted after run of
-  the new simulation to prevent data mixing.
+Set `-output vector` when creating a handle to receive live vectors from `$sim vectors`.  Alternatively, request
+independent snapshots after a simulation, including from a list-output handle:
 
-## Checking callback memory ownership
+```tcl
+# After a run, before destroying $sim:
+set waves [::ngspicetclbridge::readVecsAsync \
+    -output vector -namespace ::results -names #auto $sim]
+set output [dict get $waves v(out)]
+puts [$output length]
 
-`make test-memory` runs a standalone C regression against the bridge's actual `SEND_DATA` event handler.
-It requires Tcl headers and its link library, but does not load ngspice or require argparse/extexpr.
-The same check runs before the existing suite with `make test`. For an existing build directory, regenerate
-its Makefile with `./config.status` after applying this change.
+# Snapshots belong to the caller and survive simulator destruction.
+::rbc::vector destroy {*}[dict values $waves]
+```
 
-The test performs 64 repeated real/complex data cycles, retaining snapshots while additional samples arrive.
-It verifies sample values, snapshot independence, and that temporary string/list objects are either released
-or owned after each batch. This checks object ownership rather than RSS, which can remain elevated because
-allocators retain freed memory for reuse.
+The dictionary retains the original signal names as keys and returns fully qualified RBC vector names as values. `#auto`
+creates fresh vectors in the selected namespace. Live vectors and snapshots have different lifetimes; see [the RBC
+guide](docs/rbcBindings.ruff) for the full ownership and naming rules.
 
-The callback now releases temporary dictionary keys and complex-sample containers after insertion. Existing
-keys do not adopt newly allocated equal key objects; complex list append retains the elements rather than
-their temporary container. Both otherwise remain leaked even after clearing the bridge's vector dictionary.
-The fix preserves the existing command interface and sample representation.
+## Testing
+
+The ordinary Tcl suite requires `argparse`, `extexpr` and a real ngspice shared library.  Set `NGSPICE_DLL` to its
+**directory**, not its filename:
+
+```sh
+# Linux: directory containing libngspice.so
+NGSPICE_DLL=/usr/local/lib make test
+
+# Windows / MSYS2: directory containing ngspice.dll
+NGSPICE_DLL=C:/Spice64/bin make test
+```
+
+`make test` also runs the standalone C callback-ownership regression. Run it separately with `make test-memory`; it
+requires Tcl headers and the Tcl link library, but no ngspice, argparse or extexpr. It checks real/complex sample
+ownership and snapshot independence rather than RSS, which can remain elevated when allocators retain freed memory.
+
+Optional RBC suites have separate targets: `test-rbc`, `test-rbc-graph` and `test-rbc-graph-real`. Their dependencies,
+fixture behavior and real-library configuration are documented in [the RBC guide](docs/rbcBindings.ruff); they are not
+part of ordinary `make test`.
 
 ## Installation layout and removal
 
-Installation follows the rbc-tk9 layout and honors the directories selected by `configure`:
+Install and uninstall targets honor `--prefix`, `--exec-prefix`, standard directory options and `DESTDIR`. The default
+layout is:
 
-- The package library, Tcl scripts and `pkgIndex.tcl` go together in `$(libdir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)`.
-- Any public headers and stub client sources go in `$(includedir)`; executable binaries go in `$(bindir)`.
-- Manpages go in `$(mandir)/mann`.
-- HTML documentation, its image/static resources, and `LICENSE` go in `$(datadir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)/doc`.
+| Files | Destination |
+| --- | --- |
+| Runtime library, Tcl interface and `pkgIndex.tcl` | `$(libdir)/ngspicetclbridge$(PACKAGE_VERSION)` |
+| Public C headers | `$(includedir)` |
+| Manpages | `$(mandir)/mann` |
+| HTML documentation, assets and license | `$(datadir)/ngspicetclbridge$(PACKAGE_VERSION)/doc` |
 
-Use `--prefix`, `--libdir`, `--includedir`, `--datadir` and `--mandir` at configure time to change these locations.
-All install and uninstall targets honor `DESTDIR` for staging:
+For version 0.5, the package directory is `ngspicetclbridge0.5`. Set both `--prefix` and `--exec-prefix` when relocating
+the complete installation:
 
 ```sh
-./configure --prefix=/your/prefix
+./configure --with-tcl=/path/to/tcl/lib \
+    --prefix=/desired/prefix --exec-prefix=/desired/prefix
 make
-make install DESTDIR=/your/staging/root
-make uninstall DESTDIR=/your/staging/root
+make install DESTDIR=/temporary/staging
+make uninstall DESTDIR=/temporary/staging
 ```
 
-`make uninstall` runs `uninstall-binaries`, `uninstall-libraries` and `uninstall-doc`. It removes the package-owned
-runtime directory, but removes only this package's named files from shared binary, include and documentation paths.
-Unrelated documentation files are retained; empty documentation directories are removed. Keep the configured build
-and source tree to uninstall the corresponding installation, and use the same path overrides for install and uninstall.
+`make uninstall` removes the package runtime directory and its installed headers, manpages and documentation. Unrelated
+documentation files are retained; empty documentation directories are removed. Keep the corresponding source and
+configured build directory, and use the same path overrides and `DESTDIR` for installation and removal.
 
-`DOC_INSTALL_DIR` can override the complete HTML destination. As in rbc-tk9, its default already includes `DESTDIR`;
-when overriding it explicitly, include the staging root yourself if needed.
+`DOC_INSTALL_DIR` overrides the complete HTML destination. Its default includes `DESTDIR`; an explicit override must
+include the staging directory when staging an installation.
 
 ## Installation archives
 
-`make dist` follows rbc-tk9: it builds the package, stages `make install` under the build directory, and creates
-`dist/$(PACKAGE_NAME)$(PACKAGE_VERSION).tar.gz`. `make dist-zip` creates the same payload as a ZIP file as well.
-`make dist-clean` removes this package's staging directory and both archives.
+`make dist` builds the package, stages `make install` and creates `dist/ngspicetclbridge0.5.tar.gz` in the build
+directory. `make dist-zip` also creates `dist/ngspicetclbridge0.5.zip` with the same payload.
+
+These are platform-specific installation archives, not source archives. Extract their contents into the desired
+installation prefix. The payload follows the configured `lib`, `include` and `share` layout without an enclosing package
+directory. Tests, build files and uninstalled examples are excluded.
+
+All configured installation directories must be beneath `prefix`. Custom subdirectories are preserved; `DESTDIR` is not
+included in archive paths. Staging does not write to the configured system prefix. `DIST_ROOT` overrides the
+staging/output directory and `DIST_NAME` overrides the archive basename, which must be a single directory name.
+
+`make dist-clean` removes the staging tree and archives. Run it separately from `dist` and `dist-zip`, not in the same
+parallel make invocation.
+
+## Regenerating documentation
+
+`make doc` regenerates documentation explicitly. Install and archive targets use the existing files in `docs` and do not
+require documentation tools.
+
+Generation requires Ruff!, Tcllib (`fileutil`), argparse and Sphinx (`sphinx-build` on `PATH`).  Diagram generation uses
+ditaa. Use `TCLLIBPATH` to locate Tcl dependencies and `DOCFLAGS` to pass Ruff options:
 
 ```sh
-make -j4 dist
-make dist-zip
+make doc TCLLIBPATH="/path/to/ruff /path/to/tcllib /path/to/argparse"
+./config.status --recheck && ./config.status
 ```
 
-These are platform-specific installation archives, not source distributions. Their contents are relative to the
-configured installation prefix: normally `lib/`, `include/`, and `share/`, without an enclosing package directory.
-Extract or merge the archive contents into the desired prefix. The payload uses the same install targets as normal
-installation, including the built library, Tcl runtime files, public headers, manpages, HTML resources and license.
-Tests, build files and examples that are not installed by `make install` are not included.
+Generated HTML and manpages are written into the source `docs` directory, including for out-of-tree builds. Re-run
+configuration after generation, as shown above, so newly generated HTML and static assets are included in the configured
+install list. Check the generation output for errors before installing or creating archives.
 
-Configured installation directories must be below `prefix`; `dist` reports an error if one is outside it.
-When using `--with-tcl` and a custom prefix, set `--exec-prefix` to the same prefix if TEA would otherwise inherit
-Tcl's execution prefix, for example `sh ./configure --prefix=/opt/mypackages --exec-prefix=/opt/mypackages`. Custom
-subdirectories inside that prefix are preserved. `DESTDIR` is not included in archive paths. The staging install does
-not write to the configured system prefix. `DIST_ROOT` and `DIST_NAME` may be overridden to choose the archive output
-directory and name; `DIST_NAME` must be a single directory name. Run `dist-clean` separately, not alongside `dist`
-or `dist-zip` in the same parallel make invocation.
+## Notes and troubleshooting
+
+- **Library lifetime:** repeated unloading and reloading of ngspice has historically exposed possible memory
+  corruption. Prefer reusing a simulator handle where practical.
+- **Circuit replacement:** the `circuit` subcommand removes the previous circuit automatically.  If you load lines
+  yourself through `command circbyline`, issue `command remcirc` before loading a replacement circuit. Always include
+  `.end`.
+- **Event timeouts:** make sure the background run has started and the Tcl event loop can process its callbacks. Use the
+  `run` helper for synchronous operation.
+- **Complex results:** list output represents complex samples as `{re im}` pairs; vector output uses complex RBC
+  vectors.
+- **Repeated runs:** clear retained messages and event counters when needed. Bridge data buffers reset for a new
+  simulation; caller-owned RBC snapshots still require explicit cleanup.

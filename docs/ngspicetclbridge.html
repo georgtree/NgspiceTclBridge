@@ -42,153 +42,213 @@
             
   <section id="ngspicetclbridge-drive-ngspice-shared-library-from-tcl">
 <span id="r-ngspicetclbridge-drive-ngspice-shared-library-from-tcl"></span><span id="r-ngspicetclbridge202d20drive20ngspice2028shared20library2920from20tcl"></span><h1>NgspiceTclBridge - drive ngspice (shared library) from Tcl<a class="headerlink" href="#ngspicetclbridge-drive-ngspice-shared-library-from-tcl" title="Link to this heading">¶</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">ngspicetclbridge</span></code> is a Tcl C extension that embeds Ngspice (built as a shared library) and exposes a small,
-thread-safe command API for loading circuits, running analyses in the ngspice background thread, and receiving
-data/messages/events back into Tcl.</p>
-<p>It targets Tcl 9.0 and works on Linux/macOS/Windows. Dynamic loading is abstracted via a tiny portability layer.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ngspicetclbridge</span></code> is a Tcl C extension that embeds ngspice as a shared library. It provides commands for loading
+circuits, running analyses in ngspice’s background thread, and receiving data, messages and events through Tcl’s event
+loop.</p>
+<p>The package targets Tcl 9 and includes a dynamic-loading portability layer for Linux, macOS and Windows.</p>
 <section id="what-it-gives-you-at-a-glance">
 <span id="r-what-it-gives-you-at-a-glance"></span><span id="r-what20it20gives20you2028at20a20glance29"></span><h2>What it gives you (at a glance)<a class="headerlink" href="#what-it-gives-you-at-a-glance" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>Create one or more ngspice instances inside Tcl.</p></li>
-<li><p>Issue ngspice commands (e.g. bg_run, circbyline …).</p></li>
-<li><p>Wait for events (send_stat, send_data, etc.) with optional timeouts.</p></li>
-<li><p>Collect messages from ngspice stdout/stderr.</p></li>
-<li><p>Fetch vector metadata and values (both asynchronously collected and on-demand).</p></li>
+<li><p>Create simulator handles and issue ngspice commands.</p></li>
+<li><p>Load circuits, run analyses and wait for events with optional timeouts.</p></li>
+<li><p>Collect ngspice stdout/stderr messages and query vector metadata.</p></li>
+<li><p>Read simulation results as Tcl lists or, optionally, real and complex RBC vectors.</p></li>
+<li><p>Stream results into live RBC vectors for graph bindings, or create independent snapshots.</p></li>
 </ul>
-<p>All Ngspice → Tcl crossings are deferred onto Tcl’s event loop, so you stay in the safe thread.</p>
+<p>Ngspice callbacks enqueue work for the Tcl thread. Keep the Tcl event loop running to process messages, events and live
+vector updates. The <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::run</span></code> helper waits for completion and processes events for synchronous use.</p>
 </section>
 <section id="building-requirements">
 <span id="r-building-requirements"></span><span id="r-building202620requirements"></span><h2>Building &amp; requirements<a class="headerlink" href="#building-requirements" title="Link to this heading">¶</a></h2>
-<p>Requirements:</p>
+<p>For building, you need Tcl development files, a C compiler and make. The ngspice shared-library interface header is
+included in the source tree. At runtime, you need:</p>
 <ul class="simple">
-<li><p>ngspice built as a shared library (e.g. libngspice.so, libngspice.dylib, or libngspice.dll) with the sharedspice interface (sharedspice.h).</p></li>
-<li><p>Tcl headers/libs (9.0).</p></li>
+<li><p>An ngspice shared library, such as <code class="docutils literal notranslate"><span class="pre">libngspice.so</span></code>, <code class="docutils literal notranslate"><span class="pre">libngspice.dylib</span></code> or <code class="docutils literal notranslate"><span class="pre">ngspice.dll</span></code>.</p></li>
+<li><p><a class="reference external" href="https://github.com/georgtree/argparse">argparse</a> for the Tcl helper procedures.</p></li>
+<li><p>Optionally, RBC for vector output (see below).</p></li>
 </ul>
-<p>To install, run following commands:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/georgtree/NgspiceTclBridge.git</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">./configure</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">make</span> <span class="pre">install</span></code></p></li>
-</ul>
-<p>During installation manpages are also installed.</p>
-<p>For test package in place run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>.</p>
-<p>For package uninstall run <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">make</span> <span class="pre">uninstall</span></code>.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/georgtree/NgspiceTclBridge.git
+<span class="nb">cd</span><span class="w"> </span>NgspiceTclBridge
+./configure
+make
+sudo<span class="w"> </span>make<span class="w"> </span>install
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">--with-tcl=/path/to/tcl/lib</span></code> to select the directory containing the desired <code class="docutils literal notranslate"><span class="pre">tclConfig.sh</span></code>.  Ensure Tcl packages
+are discoverable through <code class="docutils literal notranslate"><span class="pre">auto_path</span></code> or <code class="docutils literal notranslate"><span class="pre">TCLLIBPATH</span></code>. Pass the ngspice shared library’s filename when creating a
+simulator handle; it is loaded at runtime.</p>
+<p>For Windows, build from an <a class="reference external" href="https://www.msys2.org/">MSYS2 UCRT64</a> shell with a compatible Tcl and ngspice DLL.</p>
 </section>
 <section id="documentation">
 <span id="r-documentation"></span><h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
-<p>Documentation could be found <a class="reference external" href="https://georgtree.github.io/NgspiceTclBridge/">here</a>.</p>
-</section>
-<section id="notes">
-<span id="r-notes"></span><h2>Notes<a class="headerlink" href="#notes" title="Link to this heading">¶</a></h2>
-<p>The commands that are subcommand to the simulator command, like <code class="docutils literal notranslate"><span class="pre">$s1</span> <span class="pre">command</span> <span class="pre">bg_run</span></code> are considered low level
-and communicate/interact directly with the simulator. On the other side, commands that accept simulator as a
-parameter are considered as “helper” commands, built on top of low-level commands.</p>
-</section>
-<section id="warnings">
-<span id="r-warnings"></span><h2>Warnings<a class="headerlink" href="#warnings" title="Link to this heading">¶</a></h2>
-<p>This library should be considere semi-stable now. It works well for <strong>single</strong> loading of shared library per
-process, without unloading and loading again. It also works with multiple unloadings (destroying) and loadings of
-the same library, but I’ve encountered a few possible memory corruption cases. I am trying my best to eliminate
-them, but I am not in full control of Ngspice shared library behaviour.</p>
-<p>One of the instances I’ve encountered is the running two circuit in sequence, with pattern load circuit-&gt;run-&gt;load
-circuit-&gt;run, and then try destroying the instance. This could lead to segmentation violation, unless the command
-<code class="docutils literal notranslate"><span class="pre">remcirc</span></code> for unloading previous circuit is issued before loading new circuit. It is done automatically now if you
-previously loaded the circuit with <code class="docutils literal notranslate"><span class="pre">circuit</span></code> command. But in case you want to load circuit with command
-<code class="docutils literal notranslate"><span class="pre">circbyline</span></code>, you need to issue <code class="docutils literal notranslate"><span class="pre">remcirc</span></code> command yourself.</p>
+<p>See the <a class="reference external" href="https://georgtree.github.io/NgspiceTclBridge/">online documentation</a> for the command reference, examples,
+troubleshooting and implementation notes.</p>
+<p>The detailed RBC guide is maintained in <a class="reference external" href="docs/rbcBindings.ruff">docs/rbcBindings.ruff</a> and included in the generated
+documentation as <strong>RBC vectors support</strong>. It covers live updates, snapshots, ownership, naming, namespaces, replacement,
+read-only destinations and graph tests.</p>
+<p>Handle subcommands, such as <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">command</span> <span class="pre">bg_run</span></code>, communicate directly with the simulator.  Namespace procedures, such
+as <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::run</span> <span class="pre">$sim</span></code>, are higher-level helpers.</p>
 </section>
 <section id="quick-start-synchronous-operation">
 <span id="r-quick-start-synchronous-operation"></span><span id="r-quick20start2028synchronous20operation29"></span><h2>Quick start (synchronous operation)<a class="headerlink" href="#quick-start-synchronous-operation" title="Link to this heading">¶</a></h2>
-<p>Package loading and initialization:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>package require ngspicetclbridge
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nb">package</span><span class="w"> </span>require<span class="w"> </span>ngspicetclbridge
 
-# Path to your ngspice shared library
-set ngspiceLibPath /path/to/libngspice.so
+<span class="c"># Use the full filename of your ngspice shared library.</span>
+<span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="o">/</span>path<span class="o">/</span>to<span class="o">/</span>libngspice.so<span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>circuit<span class="w"> </span><span class="k">[</span><span class="nb">split</span><span class="w"> </span><span class="k">{</span><span class="nv">Resistor</span><span class="w"> </span>divider
+<span class="nv">v1</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">1</span>
+<span class="nv">r1</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span>out<span class="w"> </span><span class="mi">1</span>e3
+<span class="nv">r2</span><span class="w"> </span>out<span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">2</span>e3
+<span class="nv">.dc</span><span class="w"> </span>v1<span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mf">0.1</span>
+<span class="nv">.save</span><span class="w"> </span>all
+<span class="nv">.end</span><span class="k">}</span><span class="w"> </span><span class="o">\</span>n<span class="k">]</span>
 
-# Create a new instance bound to a Tcl command
-set sim [ngspicetclbridge::new $ngspiceLibPath]
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="nv">$circuit</span>
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>run<span class="w"> </span><span class="nv">$sim</span>
+
+<span class="c"># Dictionary mapping ngspice signal names to sample lists.</span>
+<span class="k">set</span><span class="w"> </span>signals<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">vectors</span><span class="k">]</span>
+<span class="nb">puts</span><span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$signals</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)]</span>
+
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">destroy</span>
 </pre></div>
 </div>
-<p>Pass resistor divider circuit to Ngspice, and start the run (in background thread), and wait for completion:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$sim circuit [split $resDivCircuit \n]
-run $sim
+<p>The <code class="docutils literal notranslate"><span class="pre">circuit</span></code> subcommand loads a list of circuit lines and handles removal of the previous circuit. When reusing a
+handle, bridge vector storage resets for a new simulation. Clear retained messages and event counters explicitly when
+needed:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">messages</span><span class="w"> </span><span class="o">-</span>clear
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">eventcounts</span><span class="w"> </span><span class="o">-</span>clear
 </pre></div>
 </div>
-<p>Get vector data dictionary saved in internal buffer:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$sim vectors
-</pre></div>
-</div>
-<p>Destroy instance of simulator (removes instance command, frees internal storages and simulator context)</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$sim destroy
-</pre></div>
-</div>
-<p>If you want to continue work with current simulator instance, you need to clear internal messages storage
-with next commands:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$s1 messages -clear
-</pre></div>
-</div>
-<p>Vector storage is resetted after run new simulation, so no need to explicitly frees vectors data.</p>
+<p>These commands apply while the handle is still alive. The <code class="docutils literal notranslate"><span class="pre">run</span></code> helper also destroys previous ngspice plots by default;
+use <code class="docutils literal notranslate"><span class="pre">run</span> <span class="pre">-nocleanup</span> <span class="pre">$sim</span></code> to retain them.</p>
 </section>
-<section id="checking-callback-memory-ownership">
-<span id="r-checking-callback-memory-ownership"></span><span id="r-checking20callback20memory20ownership"></span><h2>Checking callback memory ownership<a class="headerlink" href="#checking-callback-memory-ownership" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test-memory</span></code> runs a standalone C regression against the bridge’s actual <code class="docutils literal notranslate"><span class="pre">SEND_DATA</span></code> event handler.
-It requires Tcl headers and its link library, but does not load ngspice or require argparse/extexpr.
-The same check runs before the existing suite with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>. For an existing build directory, regenerate
-its Makefile with <code class="docutils literal notranslate"><span class="pre">./config.status</span></code> after applying this change.</p>
-<p>The test performs 64 repeated real/complex data cycles, retaining snapshots while additional samples arrive.
-It verifies sample values, snapshot independence, and that temporary string/list objects are either released
-or owned after each batch. This checks object ownership rather than RSS, which can remain elevated because
-allocators retain freed memory for reuse.</p>
-<p>The callback now releases temporary dictionary keys and complex-sample containers after insertion. Existing
-keys do not adopt newly allocated equal key objects; complex list append retains the elements rather than
-their temporary container. Both otherwise remain leaked even after clearing the bridge’s vector dictionary.
-The fix preserves the existing command interface and sample representation.</p>
+<section id="optional-rbc-vector-output">
+<span id="r-optional-rbc-vector-output"></span><span id="r-optional20rbc20vector20output"></span><h2>Optional RBC vector output<a class="headerlink" href="#optional-rbc-vector-output" title="Link to this heading">¶</a></h2>
+<p>Enable RBC support when configuring:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-tcl<span class="o">=</span>/path/to/tcl/lib<span class="w"> </span>--with-rbc<span class="o">=</span>/path/to/rbc
+make
+make<span class="w"> </span>install
+</pre></div>
+</div>
+<p>Use Tcl 9 and RBC 0.8.1 or later headers and runtime. <code class="docutils literal notranslate"><span class="pre">--with-rbc</span></code> accepts an RBC source tree, installed header
+directory or installation prefix containing <code class="docutils literal notranslate"><span class="pre">rbcVector.h</span></code>, <code class="docutils literal notranslate"><span class="pre">rbcDecls.h</span></code> and <code class="docutils literal notranslate"><span class="pre">rbcStubLib.c</span></code>. The bridge uses RBC stubs
+and loads <code class="docutils literal notranslate"><span class="pre">rbc::vector</span></code> only when vector output is requested. The default build has no RBC dependency; list-only use of
+an enabled build also works without RBC installed.</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">-output</span> <span class="pre">vector</span></code> when creating a handle to receive live vectors from <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">vectors</span></code>.  Alternatively, request
+independent snapshots after a simulation, including from a list-output handle:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="c"># After a run, before destroying $sim:</span>
+<span class="k">set</span><span class="w"> </span>waves<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>readVecsAsync<span class="w"> </span><span class="o">\</span>
+<span class="w">    </span><span class="nv">-output</span><span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>namespace<span class="w"> </span><span class="o">::</span>results<span class="w"> </span><span class="o">-</span>names<span class="w"> </span><span class="err">#</span>auto<span class="w"> </span><span class="nv">$sim</span><span class="k">]</span>
+<span class="k">set</span><span class="w"> </span>output<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$waves</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)]</span>
+<span class="nb">puts</span><span class="w"> </span><span class="k">[</span><span class="nv">$output</span><span class="w"> </span><span class="nv">length</span><span class="k">]</span>
+
+<span class="c"># Snapshots belong to the caller and survive simulator destruction.</span>
+<span class="o">::</span><span class="nv">rbc</span><span class="o">::</span>vector<span class="w"> </span>destroy<span class="w"> </span><span class="k">{</span><span class="o">*</span><span class="k">}[</span><span class="nb">dict</span><span class="w"> </span>values<span class="w"> </span><span class="nv">$waves</span><span class="k">]</span>
+</pre></div>
+</div>
+<p>The dictionary retains the original signal names as keys and returns fully qualified RBC vector names as values. <code class="docutils literal notranslate"><span class="pre">#auto</span></code>
+creates fresh vectors in the selected namespace. Live vectors and snapshots have different lifetimes; see <a class="reference external" href="docs/rbcBindings.ruff">the RBC
+guide</a> for the full ownership and naming rules.</p>
+</section>
+<section id="testing">
+<span id="r-testing"></span><h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">¶</a></h2>
+<p>The ordinary Tcl suite requires <code class="docutils literal notranslate"><span class="pre">argparse</span></code>, <code class="docutils literal notranslate"><span class="pre">extexpr</span></code> and a real ngspice shared library.  Set <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to its
+<strong>directory</strong>, not its filename:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Linux: directory containing libngspice.so</span>
+<span class="nv">NGSPICE_DLL</span><span class="o">=</span>/usr/local/lib<span class="w"> </span>make<span class="w"> </span><span class="nb">test</span>
+
+<span class="c1"># Windows / MSYS2: directory containing ngspice.dll</span>
+<span class="nv">NGSPICE_DLL</span><span class="o">=</span>C:/Spice64/bin<span class="w"> </span>make<span class="w"> </span><span class="nb">test</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code> also runs the standalone C callback-ownership regression. Run it separately with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test-memory</span></code>; it
+requires Tcl headers and the Tcl link library, but no ngspice, argparse or extexpr. It checks real/complex sample
+ownership and snapshot independence rather than RSS, which can remain elevated when allocators retain freed memory.</p>
+<p>Optional RBC suites have separate targets: <code class="docutils literal notranslate"><span class="pre">test-rbc</span></code>, <code class="docutils literal notranslate"><span class="pre">test-rbc-graph</span></code> and <code class="docutils literal notranslate"><span class="pre">test-rbc-graph-real</span></code>. Their dependencies,
+fixture behavior and real-library configuration are documented in <a class="reference external" href="docs/rbcBindings.ruff">the RBC guide</a>; they are not
+part of ordinary <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>.</p>
 </section>
 <section id="installation-layout-and-removal">
 <span id="r-installation-layout-and-removal"></span><span id="r-installation20layout20and20removal"></span><h2>Installation layout and removal<a class="headerlink" href="#installation-layout-and-removal" title="Link to this heading">¶</a></h2>
-<p>Installation follows the rbc-tk9 layout and honors the directories selected by <code class="docutils literal notranslate"><span class="pre">configure</span></code>:</p>
-<ul class="simple">
-<li><p>The package library, Tcl scripts and <code class="docutils literal notranslate"><span class="pre">pkgIndex.tcl</span></code> go together in <code class="docutils literal notranslate"><span class="pre">$(libdir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)</span></code>.</p></li>
-<li><p>Any public headers and stub client sources go in <code class="docutils literal notranslate"><span class="pre">$(includedir)</span></code>; executable binaries go in <code class="docutils literal notranslate"><span class="pre">$(bindir)</span></code>.</p></li>
-<li><p>Manpages go in <code class="docutils literal notranslate"><span class="pre">$(mandir)/mann</span></code>.</p></li>
-<li><p>HTML documentation, its image/static resources, and <code class="docutils literal notranslate"><span class="pre">LICENSE</span></code> go in <code class="docutils literal notranslate"><span class="pre">$(datadir)/$(PACKAGE_NAME)$(PACKAGE_VERSION)/doc</span></code>.</p></li>
-</ul>
-<p>Use <code class="docutils literal notranslate"><span class="pre">--prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">--libdir</span></code>, <code class="docutils literal notranslate"><span class="pre">--includedir</span></code>, <code class="docutils literal notranslate"><span class="pre">--datadir</span></code> and <code class="docutils literal notranslate"><span class="pre">--mandir</span></code> at configure time to change these locations.
-All install and uninstall targets honor <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code> for staging:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--prefix<span class="o">=</span>/your/prefix
+<p>Install and uninstall targets honor <code class="docutils literal notranslate"><span class="pre">--prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">--exec-prefix</span></code>, standard directory options and <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code>. The default
+layout is:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Files</p></th>
+<th class="head"><p>Destination</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Runtime library, Tcl interface and <code class="docutils literal notranslate"><span class="pre">pkgIndex.tcl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">$(libdir)/ngspicetclbridge$(PACKAGE_VERSION)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Public C headers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">$(includedir)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Manpages</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">$(mandir)/mann</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>HTML documentation, assets and license</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">$(datadir)/ngspicetclbridge$(PACKAGE_VERSION)/doc</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>For version 0.5, the package directory is <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge0.5</span></code>. Set both <code class="docutils literal notranslate"><span class="pre">--prefix</span></code> and <code class="docutils literal notranslate"><span class="pre">--exec-prefix</span></code> when relocating
+the complete installation:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-tcl<span class="o">=</span>/path/to/tcl/lib<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--prefix<span class="o">=</span>/desired/prefix<span class="w"> </span>--exec-prefix<span class="o">=</span>/desired/prefix
 make
-make<span class="w"> </span>install<span class="w"> </span><span class="nv">DESTDIR</span><span class="o">=</span>/your/staging/root
-make<span class="w"> </span>uninstall<span class="w"> </span><span class="nv">DESTDIR</span><span class="o">=</span>/your/staging/root
+make<span class="w"> </span>install<span class="w"> </span><span class="nv">DESTDIR</span><span class="o">=</span>/temporary/staging
+make<span class="w"> </span>uninstall<span class="w"> </span><span class="nv">DESTDIR</span><span class="o">=</span>/temporary/staging
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">uninstall</span></code> runs <code class="docutils literal notranslate"><span class="pre">uninstall-binaries</span></code>, <code class="docutils literal notranslate"><span class="pre">uninstall-libraries</span></code> and <code class="docutils literal notranslate"><span class="pre">uninstall-doc</span></code>. It removes the package-owned
-runtime directory, but removes only this package’s named files from shared binary, include and documentation paths.
-Unrelated documentation files are retained; empty documentation directories are removed. Keep the configured build
-and source tree to uninstall the corresponding installation, and use the same path overrides for install and
-uninstall.</p>
-<p><code class="docutils literal notranslate"><span class="pre">DOC_INSTALL_DIR</span></code> can override the complete HTML destination. As in rbc-tk9, its default already includes <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code>;
-when overriding it explicitly, include the staging root yourself if needed.</p>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">uninstall</span></code> removes the package runtime directory and its installed headers, manpages and documentation. Unrelated
+documentation files are retained; empty documentation directories are removed. Keep the corresponding source and
+configured build directory, and use the same path overrides and <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code> for installation and removal.</p>
+<p><code class="docutils literal notranslate"><span class="pre">DOC_INSTALL_DIR</span></code> overrides the complete HTML destination. Its default includes <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code>; an explicit override must
+include the staging directory when staging an installation.</p>
 </section>
 <section id="installation-archives">
 <span id="r-installation-archives"></span><span id="r-installation20archives"></span><h2>Installation archives<a class="headerlink" href="#installation-archives" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist</span></code> follows rbc-tk9: it builds the package, stages <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> under the build directory, and creates
-<code class="docutils literal notranslate"><span class="pre">dist/$(PACKAGE_NAME)$(PACKAGE_VERSION).tar.gz</span></code>. <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-zip</span></code> creates the same payload as a ZIP file as well.
-<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-clean</span></code> removes this package’s staging directory and both archives.</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>-j4<span class="w"> </span>dist
-make<span class="w"> </span>dist-zip
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist</span></code> builds the package, stages <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> and creates <code class="docutils literal notranslate"><span class="pre">dist/ngspicetclbridge0.5.tar.gz</span></code> in the build
+directory. <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-zip</span></code> also creates <code class="docutils literal notranslate"><span class="pre">dist/ngspicetclbridge0.5.zip</span></code> with the same payload.</p>
+<p>These are platform-specific installation archives, not source archives. Extract their contents into the desired
+installation prefix. The payload follows the configured <code class="docutils literal notranslate"><span class="pre">lib</span></code>, <code class="docutils literal notranslate"><span class="pre">include</span></code> and <code class="docutils literal notranslate"><span class="pre">share</span></code> layout without an enclosing package
+directory. Tests, build files and uninstalled examples are excluded.</p>
+<p>All configured installation directories must be beneath <code class="docutils literal notranslate"><span class="pre">prefix</span></code>. Custom subdirectories are preserved; <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code> is not
+included in archive paths. Staging does not write to the configured system prefix. <code class="docutils literal notranslate"><span class="pre">DIST_ROOT</span></code> overrides the
+staging/output directory and <code class="docutils literal notranslate"><span class="pre">DIST_NAME</span></code> overrides the archive basename, which must be a single directory name.</p>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-clean</span></code> removes the staging tree and archives. Run it separately from <code class="docutils literal notranslate"><span class="pre">dist</span></code> and <code class="docutils literal notranslate"><span class="pre">dist-zip</span></code>, not in the same
+parallel make invocation.</p>
+</section>
+<section id="regenerating-documentation">
+<span id="r-regenerating-documentation"></span><span id="r-regenerating20documentation"></span><h2>Regenerating documentation<a class="headerlink" href="#regenerating-documentation" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">doc</span></code> regenerates documentation explicitly. Install and archive targets use the existing files in <code class="docutils literal notranslate"><span class="pre">docs</span></code> and do not
+require documentation tools.</p>
+<p>Generation requires Ruff!, Tcllib (<code class="docutils literal notranslate"><span class="pre">fileutil</span></code>), argparse and Sphinx (<code class="docutils literal notranslate"><span class="pre">sphinx-build</span></code> on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>).  Diagram generation uses
+ditaa. Use <code class="docutils literal notranslate"><span class="pre">TCLLIBPATH</span></code> to locate Tcl dependencies and <code class="docutils literal notranslate"><span class="pre">DOCFLAGS</span></code> to pass Ruff options:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>doc<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/ruff /path/to/tcllib /path/to/argparse&quot;</span>
+./config.status<span class="w"> </span>--recheck<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./config.status
 </pre></div>
 </div>
-<p>These are platform-specific installation archives, not source distributions. Their contents are relative to the
-configured installation prefix: normally <code class="docutils literal notranslate"><span class="pre">lib/</span></code>, <code class="docutils literal notranslate"><span class="pre">include/</span></code>, and <code class="docutils literal notranslate"><span class="pre">share/</span></code>, without an enclosing package directory.
-Extract or merge the archive contents into the desired prefix. The payload uses the same install targets as normal
-installation, including the built library, Tcl runtime files, public headers, manpages, HTML resources and license.
-Tests, build files and examples that are not installed by <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> are not included.</p>
-<p>Configured installation directories must be below <code class="docutils literal notranslate"><span class="pre">prefix</span></code>; <code class="docutils literal notranslate"><span class="pre">dist</span></code> reports an error if one is outside it.
-When using <code class="docutils literal notranslate"><span class="pre">--with-tcl</span></code> and a custom prefix, set <code class="docutils literal notranslate"><span class="pre">--exec-prefix</span></code> to the same prefix if TEA would otherwise inherit
-Tcl’s execution prefix, for example <code class="docutils literal notranslate"><span class="pre">sh</span> <span class="pre">./configure</span> <span class="pre">--prefix=/opt/mypackages</span> <span class="pre">--exec-prefix=/opt/mypackages</span></code>. Custom
-subdirectories inside that prefix are preserved. <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code> is not included in archive paths. The staging install
-does not write to the configured system prefix. <code class="docutils literal notranslate"><span class="pre">DIST_ROOT</span></code> and <code class="docutils literal notranslate"><span class="pre">DIST_NAME</span></code> may be overridden to choose the archive
-output directory and name; <code class="docutils literal notranslate"><span class="pre">DIST_NAME</span></code> must be a single directory name. Run <code class="docutils literal notranslate"><span class="pre">dist-clean</span></code> separately, not alongside
-<code class="docutils literal notranslate"><span class="pre">dist</span></code> or <code class="docutils literal notranslate"><span class="pre">dist-zip</span></code> in the same parallel make invocation.</p>
+<p>Generated HTML and manpages are written into the source <code class="docutils literal notranslate"><span class="pre">docs</span></code> directory, including for out-of-tree builds. Re-run
+configuration after generation, as shown above, so newly generated HTML and static assets are included in the configured
+install list. Check the generation output for errors before installing or creating archives.</p>
+</section>
+<section id="notes-and-troubleshooting">
+<span id="r-notes-and-troubleshooting"></span><span id="r-notes20and20troubleshooting"></span><h2>Notes and troubleshooting<a class="headerlink" href="#notes-and-troubleshooting" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Library lifetime:</strong> repeated unloading and reloading of ngspice has historically exposed possible memory corruption. Prefer reusing a simulator handle where practical.</p></li>
+<li><p><strong>Circuit replacement:</strong> the <code class="docutils literal notranslate"><span class="pre">circuit</span></code> subcommand removes the previous circuit automatically.  If you load lines yourself through <code class="docutils literal notranslate"><span class="pre">command</span> <span class="pre">circbyline</span></code>, issue <code class="docutils literal notranslate"><span class="pre">command</span> <span class="pre">remcirc</span></code> before loading a replacement circuit. Always include <code class="docutils literal notranslate"><span class="pre">.end</span></code>.</p></li>
+<li><p><strong>Event timeouts:</strong> make sure the background run has started and the Tcl event loop can process its callbacks. Use the <code class="docutils literal notranslate"><span class="pre">run</span></code> helper for synchronous operation.</p></li>
+<li><p><strong>Complex results:</strong> list output represents complex samples as <code class="docutils literal notranslate"><span class="pre">{re</span> <span class="pre">im}</span></code> pairs; vector output uses complex RBC vectors.</p></li>
+<li><p><strong>Repeated runs:</strong> clear retained messages and event counters when needed. Bridge data buffers reset for a new simulation; caller-owned RBC snapshots still require explicit cleanup.</p></li>
+</ul>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
@@ -208,12 +268,13 @@ output directory and name; <code class="docutils literal notranslate"><span clas
 <li><a class="reference internal" href="#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
 <li><a class="reference internal" href="#building-requirements">Building &amp; requirements</a></li>
 <li><a class="reference internal" href="#documentation">Documentation</a></li>
-<li><a class="reference internal" href="#notes">Notes</a></li>
-<li><a class="reference internal" href="#warnings">Warnings</a></li>
 <li><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
-<li><a class="reference internal" href="#checking-callback-memory-ownership">Checking callback memory ownership</a></li>
+<li><a class="reference internal" href="#optional-rbc-vector-output">Optional RBC vector output</a></li>
+<li><a class="reference internal" href="#testing">Testing</a></li>
 <li><a class="reference internal" href="#installation-layout-and-removal">Installation layout and removal</a></li>
 <li><a class="reference internal" href="#installation-archives">Installation archives</a></li>
+<li><a class="reference internal" href="#regenerating-documentation">Regenerating documentation</a></li>
+<li><a class="reference internal" href="#notes-and-troubleshooting">Notes and troubleshooting</a></li>
 </ul>
 </li>
 </ul>
