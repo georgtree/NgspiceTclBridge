@@ -195,6 +195,16 @@ commands. Real/complex types and values are preserved. Snapshot vectors are call
 destruction; release them with <code class="docutils literal notranslate"><span class="pre">::rbc::vector</span> <span class="pre">destroy</span></code>.  Live <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">vectors</span></code> bindings keep their existing
 names, identity and handle-owned lifetime.  Bulk snapshots still read one vector at a time: if a later read
 fails, earlier snapshots remain in the destination namespace, as with explicit names.</p>
+</section>
+<section id="namespace-precedence-for-snapshots">
+<span id="r-rbcbindings-namespace-precedence-for-snapshots"></span><span id="r-3a3arbcbindingsqznamespace20precedence20for20snapshots"></span><h2>Namespace precedence for snapshots<a class="headerlink" href="#namespace-precedence-for-snapshots" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> and <code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code> select destinations in this order: per-call <code class="docutils literal notranslate"><span class="pre">-namespace</span></code>, explicit handle
+namespace, then the read caller’s namespace. Relative namespace options resolve against their own caller;
+missing parents are created. A per-call override requires vector output and never changes handle defaults
+or live streaming destinations. Empty namespaces are rejected.</p>
+<p>Relative <code class="docutils literal notranslate"><span class="pre">-name</span></code> and <code class="docutils literal notranslate"><span class="pre">-names</span></code> destinations, omitted signal-derived names, and <code class="docutils literal notranslate"><span class="pre">#auto</span></code> use that selection.
+Fully qualified destinations override it; their parent namespace must already exist. RBC expands a final
+<code class="docutils literal notranslate"><span class="pre">#auto</span></code> component, including in a fully qualified name. <code class="docutils literal notranslate"><span class="pre">auto</span></code> without # is an ordinary name.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
@@ -218,6 +228,7 @@ fails, earlier snapshots remain in the destination namespace, as with explicit n
 </li>
 <li><a class="reference internal" href="#read-only-destinations">Read-only destinations</a></li>
 <li><a class="reference internal" href="#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
+<li><a class="reference internal" href="#namespace-precedence-for-snapshots">Namespace precedence for snapshots</a></li>
 </ul>
 </li>
 </ul>

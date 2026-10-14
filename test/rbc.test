@@ -522,4 +522,25 @@ test rbc-readonly-clear-pending {rejected clear does not discard queued producer
     list $code [lmap v [dict values [$s vectors]] {$v length}]
 } -cleanup {clean $s} -result {1 {4 4 4}}
 
+test rbc-namespace-qualified-auto {absolute #auto overrides per-call namespace without changing defaults} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    namespace eval ::snap::absolute {}
+    set d [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap::selected \
+        -names {time ::snap::absolute::#auto v(out) auto} $s]
+    set inherited [$s asyncvector time -output vector -name #auto]
+    list [namespace qualifiers [dict get $d time]] [dict get $d v(out)] [dict get $d v(1)] \
+        [namespace qualifiers $inherited] [expr {[namespace tail [dict get $d time]] ne "#auto"}]
+} -cleanup {clean $s} -result {::snap::absolute ::snap::selected::auto ::snap::selected::v(1) ::live 1}
+
+test rbc-namespace-root {root destination and missing absolute parent} -constraints rbc -body {
+    set s [newSim]
+    begin $s
+    set v [$s asyncvector time -output vector -namespace :: -name #auto]
+    set root [namespace qualifiers $v]
+    ::rbc::vector destroy $v
+    set code [catch {$s asyncvector time -output vector -namespace ::snap::selected -name ::snap::absent::v}]
+    list $root $code [namespace exists ::snap::absent]
+} -cleanup {clean $s} -result {{} 1 0}
+
 finishTests

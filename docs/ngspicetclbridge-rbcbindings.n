@@ -190,6 +190,16 @@ commands\&. Real/complex types and values are preserved\&. Snapshot vectors are 
 destruction; release them with ::rbc::vector destroy\&.  Live $sim vectors bindings keep their existing
 names, identity and handle-owned lifetime\&.  Bulk snapshots still read one vector at a time: if a later read
 fails, earlier snapshots remain in the destination namespace, as with explicit names\&.
+.SH "NAMESPACE PRECEDENCE FOR SNAPSHOTS"
+.PP
+asyncvector and readVecsAsync select destinations in this order: per-call -namespace, explicit handle
+namespace, then the read caller's namespace\&. Relative namespace options resolve against their own caller;
+missing parents are created\&. A per-call override requires vector output and never changes handle defaults
+or live streaming destinations\&. Empty namespaces are rejected\&.
+.PP
+Relative -name and -names destinations, omitted signal-derived names, and #auto use that selection\&.
+Fully qualified destinations override it; their parent namespace must already exist\&. RBC expands a final
+#auto component, including in a fully qualified name\&. auto without # is an ordinary name\&.
 
 
 .SH SEE ALSO
