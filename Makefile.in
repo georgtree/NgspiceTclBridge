@@ -141,7 +141,7 @@ shell: binaries libraries
 test: binaries libraries test-memory
 	$(TCLSH) `@CYGPATH@ $(srcdir)/test/all.tcl` $(TESTFLAGS) \
 	    -load "package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
-		[list load `@CYGPATH@ $(PKG_LIB_FILE)` [string totitle $(PACKAGE_NAME)]]"
+		[list apply {{binary script} {load \$$binary; source \$$script}} [file normalize `@CYGPATH@ $(PKG_LIB_FILE)`] [file normalize $(srcdir)/ngspicetclbridge.tcl]]"
 
 # Standalone ownership regression: no ngspice library, argparse or extexpr required.
 MEMORY_TEST = bridge-memory-test$(EXEEXT)
@@ -232,7 +232,7 @@ gdb-test: binaries libraries
 	    --args $(TCLSH_PROG) `@CYGPATH@ $(srcdir)/test/all.tcl` \
 	    $(TESTFLAGS) -singleproc 1 \
 	    -load "package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
-		[list load `@CYGPATH@ $(PKG_LIB_FILE)` [string totitle $(PACKAGE_NAME)]]"
+		[list apply {{binary script} {load \$$binary; source \$$script}} [file normalize `@CYGPATH@ $(PKG_LIB_FILE)`] [file normalize $(srcdir)/ngspicetclbridge.tcl]]"
 
 valgrind: binaries libraries
 	$(TCLSH_ENV) $(PKG_ENV) $(VALGRIND) $(VALGRINDARGS) $(TCLSH_PROG) \

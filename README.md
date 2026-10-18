@@ -23,7 +23,7 @@ For building, you need Tcl development files, a C compiler and make. The ngspice
 included in the source tree. At runtime, you need:
 
 - An ngspice shared library, such as `libngspice.so`, `libngspice.dylib` or `ngspice.dll`.
-- [argparse](https://github.com/georgtree/argparse) for the Tcl helper procedures.
+- [argparse](https://github.com/georgtree/argparse) 0.65 or later for all public commands; Tcllib (`textutil::adjust`) is also required.
 - Optionally, RBC for vector output (see below).
 
 ```sh
@@ -148,12 +148,12 @@ part of ordinary `make test`.
 Install and uninstall targets honor `--prefix`, `--exec-prefix`, standard directory options and `DESTDIR`. The default
 layout is:
 
-| Files | Destination |
-| --- | --- |
-| Runtime library, Tcl interface and `pkgIndex.tcl` | `$(libdir)/ngspicetclbridge$(PACKAGE_VERSION)` |
-| Public C headers | `$(includedir)` |
-| Manpages | `$(mandir)/mann` |
-| HTML documentation, assets and license | `$(datadir)/ngspicetclbridge$(PACKAGE_VERSION)/doc` |
+| Files                                             | Destination                                         |
+|---------------------------------------------------|-----------------------------------------------------|
+| Runtime library, Tcl interface and `pkgIndex.tcl` | `$(libdir)/ngspicetclbridge$(PACKAGE_VERSION)`      |
+| Public C headers                                  | `$(includedir)`                                     |
+| Manpages                                          | `$(mandir)/mann`                                    |
+| HTML documentation, assets and license            | `$(datadir)/ngspicetclbridge$(PACKAGE_VERSION)/doc` |
 
 For version 0.5, the package directory is `ngspicetclbridge0.5`. Set both `--prefix` and `--exec-prefix` when relocating
 the complete installation:
@@ -220,21 +220,27 @@ install list. Check the generation output for errors before installing or creati
 - **Repeated runs:** clear retained messages and event counters when needed. Bridge data buffers reset for a new
   simulation; caller-owned RBC snapshots still require explicit cleanup.
 
-## Package defaults
+# Interactive help
 
-Set representation and collision defaults once after loading the package:
+All public methods have interactive help. To get information about command and its arguments call it with `-help`
+switch:
 
 ```tcl
 package require ngspicetclbridge
-::ngspicetclbridge::configure -output vector -ifexists replace
+ngspicetclbridge::run -help
 ```
 
-New handles inherit output and collision defaults unless their creation call supplies `-output` or `-ifexists` explicitly. Existing
-handles keep their settings; per-read overrides still take precedence.
+```text
+Run a simulation and wait for completion.. Can accepts unambiguous prefixes
+instead of switches names. Allows switches to appear after parameters.
+    Switches:
+        -nocleanup - Boolean. If provided, results from previous run are
+            retained.
+        -help - Help switch, when provided, forces ignoring all other switches
+            and parameters, prints the help message to stdout, and returns up to 1
+            levels above the current level.
+    Parameters:
+        sim - Simulator handle that is returned by ngspicetclbridge::new.
+```
 
-Use `::ngspicetclbridge::configure` to query all settings, or `::ngspicetclbridge::configure -output` to query one.
-The all-settings dictionary can be restored with `::ngspicetclbridge::configure {*}$saved`.
-Initial representation defaults remain `list`; the initial `-ifexists` policy is `error`. Invalid requests and unavailable vector support leave settings unchanged.
-Configuration belongs to the current Tcl interpreter. The command is public but **not namespace-exported**,
-so wildcard imports cannot introduce a `configure` collision. Namespace selection and naming are unchanged. `-ifexists replace` still requires a compatible, writable destination.
-The collision setting affects vector output only and can be configured even in a build without RBC.
+Best to do it in interactive console, see [tkcon](https://github.com/bohagan1/TkCon)

@@ -50,7 +50,8 @@ handle for interacting with that specific ngspice context. This provides natural
 <span class="nv">$s</span><span class="w"> </span><span class="nv">waitevent</span><span class="w"> </span>bg_running<span class="w"> </span><span class="o">-</span>n<span class="w"> </span><span class="mi">2</span>
 </pre></div>
 </div>
-<p>Every <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">...</span></code> invocation calls into the same underlying C function, <code class="docutils literal notranslate"><span class="pre">InstObjCmd</span></code>, which dispatches individual
+<p>Every <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">...</span></code> invocation passes through <code class="docutils literal notranslate"><span class="pre">HandleCmd</span></code> to the Tcl argument wrapper, then through <code class="docutils literal notranslate"><span class="pre">NativeCall</span></code>
+to <code class="docutils literal notranslate"><span class="pre">InstObjCmd</span></code>, which dispatches individual
 subcommands.</p>
 <section id="command-creation">
 <span id="r-notes-and-internals-command-creation"></span><span id="r-3a3anotes20and20internalsqzcommand20creation"></span><h3>Command creation<a class="headerlink" href="#command-creation" title="Link to this heading">¶</a></h3>
@@ -818,10 +819,27 @@ safely:</p>
 </ul>
 <p>This allows ngspicetclbridge to load any compatible ngspice shared library at runtime, regardless of platform
 or path encoding, ensuring consistent behavior and portability across Tcl environments.</p>
+</section>
+</section>
+<section id="tcl-and-c-interface-boundary">
+<span id="r-notes-and-internals-tcl-and-c-interface-boundary"></span><span id="r-3a3anotes20and20internalsqztcl20and20c20interface20boundary"></span><h2>Tcl and C interface boundary<a class="headerlink" href="#tcl-and-c-interface-boundary" title="Link to this heading">¶</a></h2>
+<p>Public argument parsing, interactive help and command documentation live in the
+package’s Tcl source. Wrappers pass normalized dictionaries to private native
+commands. The native engine keeps semantic checks, data buffers, event handling
+and RBC publication; numeric samples are not copied through Tcl merely to parse
+options.</p>
+<p>Each returned handle remains a native command and owns its original deletion
+callback. It dispatches to the real SIM Tcl procedures, which call the native
+engine in the original caller’s frame. Renaming or deleting the handle therefore
+retains the existing ownership rules, and relative namespaces still resolve
+against the caller. No second TclOO object or hidden lifetime-owning handle is
+introduced.</p>
+<p>Wrappers call the fixed native argparse directly with -helplevel 1. Help prints
+and returns from the current wrapper without running its native operation. The
+argparse help-return fix is required; no local compatibility helper is used.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
-</section>
 </section>
 
 
@@ -895,6 +913,7 @@ or path encoding, ensuring consistent behavior and portability across Tcl enviro
 <li><a class="reference internal" href="#id5">Summary</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>
 </ul>
 </li>
 </ul>

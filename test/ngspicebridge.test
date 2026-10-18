@@ -501,21 +501,20 @@ test test-21 {wrong arguments to plot command} -setup {
     run $s1
     catch {$s1 plot 1} errorStr
     return $errorStr
-} -result {unknown option: 1 (expected -all)} -cleanup {
+} -result {too many arguments} -cleanup {
     $s1 destroy
     unset s1 errorStr
 }
 
-test test-22 {wrong arguments to plot command} -setup {
+test test-22 {unambiguous prefix for the plot vector option} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $resDivCircuit
 } -body {
     run $s1
-    catch {$s1 plot -vec out} errorStr
-    return $errorStr
-} -result {unknown option: -vec (expected -vecs)} -cleanup {
+    expr {[$s1 plot -vec [$s1 plot]] eq [$s1 plot -vecs [$s1 plot]]}
+} -result 1 -cleanup {
     $s1 destroy
-    unset s1 errorStr
+    unset s1
 }
 
 test test-23 {wrong arguments to plot command} -setup {
@@ -525,7 +524,7 @@ test test-23 {wrong arguments to plot command} -setup {
     run $s1
     catch {$s1 plot -vecs out out} errorStr
     return $errorStr
-} -match glob -result {wrong # args: should be "::ngspicetclbridge::s* plot ?-all?|?-vecs plotname?"} -cleanup {
+} -match glob -result {too many arguments} -cleanup {
     $s1 destroy
     unset s1 errorStr
 }
@@ -615,10 +614,10 @@ test test-29 {run long simulation and exit with error due to wrong subcommand be
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
-    catch {$s1 waitevent bg_running 50000 -n 3} errorStr
+    catch {$s1 waitevent bg_running 50000 -n 0} errorStr
     update
     return $errorStr
-} -match glob -result {wrong # args: should be "::ngspicetclbridge::s* waitevent name ?-n N? ?timeout_ms?"} -cleanup {
+} -match glob -result {-n value "0" fails validation: $arg > 0} -cleanup {
     $s1 destroy
     unset s1 errorStr
 }
@@ -932,7 +931,7 @@ test test-44 {check inputpath command with wrong number of arguments} -setup {
 } -body {
     catch {$s1 inputpath} errorStr
     return $errorStr
- } -match glob -result {wrong # args: should be "::ngspicetclbridge::s* inputpath -current|path"} -cleanup {
+ } -match glob -result {specify either -current or a path} -cleanup {
     $s1 destroy
     unset s1 errorStr
 }
@@ -961,42 +960,42 @@ test test-47 {initialization switches can be combined} -body {
 test test-48 {} -body {
     catch {ngspicetclbridge::new -spin $ngspiceLibPath} errorStr
     return $errorStr
-} -result {unexpected argument: -spin} -cleanup {
+} -result {bad switch "-spin": must be -ifexists, -namespace, -noinit, -nospiceinit, -nospinit, or -output} -cleanup {
     unset errorStr
 }
 
 test test-49 {} -body {
     catch {ngspicetclbridge::new $ngspiceLibPath -spin} errorStr
     return $errorStr
-} -result {unexpected argument: -spin} -cleanup {
+} -result {bad switch "-spin": must be -ifexists, -namespace, -noinit, -nospiceinit, -nospinit, or -output} -cleanup {
     unset errorStr
 }
 
 test test-50 {} -constraints unix -body {
     catch {ngspicetclbridge::new -spin} errorStr
     return $errorStr
-} -result {unexpected argument: -spin} -cleanup {
+} -result {bad switch "-spin": must be -ifexists, -namespace, -noinit, -nospiceinit, -nospinit, or -output} -cleanup {
     unset errorStr
 }
 
 test test-50.1 {} -constraints win -body {
     catch {ngspicetclbridge::new -spin} errorStr
     return $errorStr
-} -result {unexpected argument: -spin} -cleanup {
+} -result {bad switch "-spin": must be -ifexists, -namespace, -noinit, -nospiceinit, -nospinit, or -output} -cleanup {
     unset errorStr
 }
 
 test test-51 {} -body {
     catch {ngspicetclbridge::new -nospinit} errorStr
     return $errorStr
-} -result {wrong # args: should be "ngspicetclbridge::new libpath ?-noinit|-nospinit|-nospiceinit? ?-output list|vector? ?-ifexists error|replace? ?-namespace name?"} -cleanup {
+} -result {missing required parameter: libpath} -cleanup {
     unset errorStr
 }
 
 test test-52 {} -body {
     catch {ngspicetclbridge::new} errorStr
     return $errorStr
-} -result {wrong # args: should be "ngspicetclbridge::new libpath ?-noinit|-nospinit|-nospiceinit? ?-output list|vector? ?-ifexists error|replace? ?-namespace name?"} -cleanup {
+} -result {missing required parameter: libpath} -cleanup {
     unset errorStr
 }
 
@@ -1006,8 +1005,9 @@ test test-53 {check getCircuit command} -setup {
 } -body {
     getCircuit $s1 
 } -result {{* expanded deck of resistor divider} {* resistor divider} {v1 in 0 1} {r1 in out 1e3} {r2 out 0 2e3} {.dc\
-    v1 0 5 0.1} .end} -cleanup { $s1 destroy
-    unset s1
+    v1 0 5 0.1} .end} -cleanup {
+        $s1 destroy
+        unset s1
 }
 
 test test-54 {check getCircuit command} -setup {
@@ -1016,7 +1016,10 @@ test test-54 {check getCircuit command} -setup {
 } -body {
     getCircuit -logical $s1 
 } -result {{resistor divider} {1 : resistor divider} {2 : .global gnd} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out\
-    0 2e3} {6 : .dc v1 0 5 0.1} {7 : .save all} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+    0 2e3} {6 : .dc v1 0 5 0.1} {7 : .save all} {9 : .end}} -cleanup {
+        $s1 destroy
+        unset s1
+}
 
 test test-55 {check getCircuit command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
@@ -1024,7 +1027,10 @@ test test-55 {check getCircuit command} -setup {
 } -body {
     getCircuit -physical $s1 
 } -result {{resistor divider} {1 : resistor divider} {2 : .global gnd} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out\
-    0 2e3} {6 : .dc v1 0 5 0.1} {7 : .save all} {8 : *end} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+    0 2e3} {6 : .dc v1 0 5 0.1} {7 : .save all} {8 : *end} {9 : .end}} -cleanup {
+        $s1 destroy
+        unset s1
+}
 
 test test-56 {check getCircuit command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
@@ -1032,7 +1038,10 @@ test test-56 {check getCircuit command} -setup {
 } -body {
     getCircuit -deck $s1 
 } -result {{resistor divider} {.global gnd} {v1 in 0 1} {r1 in out 1e3} {r2 out 0 2e3} {.dc v1 0 5 0.1} {.save all}\
-    *end .end} -cleanup { $s1 destroy unset s1 }
+    *end .end} -cleanup {
+        $s1 destroy
+        unset s1
+}
 
 test test-57 {check getCircuit command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
@@ -1040,7 +1049,10 @@ test test-57 {check getCircuit command} -setup {
 } -body {
     getCircuit -expand $s1 
 } -result {{resistor divider} {1 : resistor divider} {3 : v1 in 0 1} {4 : r1 in out 1e3} {5 : r2 out 0 2e3} {6 : .dc v1\
-    0 5 0.1} {9 : .end}} -cleanup { $s1 destroy unset s1 }
+    0 5 0.1} {9 : .end}} -cleanup {
+        $s1 destroy
+        unset s1
+}
 
 test test-58 {check getCircuit command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
@@ -1178,7 +1190,7 @@ test test-69 {test passing circuit as a whole string, not list} -setup {
 } -body {
     catch {$s1 circuit} errorStr
     return $errorStr
-} -match glob -result {wrong # args: should be "::ngspicetclbridge::s* circuit ?-string? value"} -cleanup {
+} -match glob -result {missing required parameter: value} -cleanup {
     $s1 destroy
     unset s1 errorStr
 }
@@ -1188,7 +1200,7 @@ test test-70 {test passing circuit as a whole string, not list} -setup {
 } -body {
     catch {$s1 circuit -strings $resDivCircuitNotSplitted} errorStr
     return $errorStr
-} -result {unknown option: -strings (expected -string)} -cleanup {
+} -result {bad switch "-strings": must be -string} -cleanup {
     $s1 destroy
     unset s1 errorStr
 }

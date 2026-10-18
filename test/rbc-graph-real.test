@@ -23,6 +23,7 @@ if {![string is integer -strict $timeoutMilliseconds] || $timeoutMilliseconds <=
 }
 set ngspiceLibrary [file normalize $ngspiceLibrary]
 load [file normalize $bridgeLibrary] Ngspicetclbridge
+source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
 
 # This explicitly requested test fails if its required packages/display are missing.
 package require tcltest

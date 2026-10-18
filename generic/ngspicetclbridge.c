@@ -1,16 +1,149 @@
 #include "ngspicetclbridge.h"
 
-/* Package defaults are interpreter-local, independent of command/handle lifetime.
- * Setters validate the entire request, including RBC availability, before committing. */
-typedef struct PackageDefaults {
-    int output, replace;
-} PackageDefaults;
+//***  Arg function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * Arg --
+ *
+ *      Retrieves a value from a normalized argument dictionary.
+ *
+ * Parameters:
+ *      Tcl_Obj *args  - Argument dictionary, previously validated by CheckArgs.
+ *      const char *key - Dictionary key without a leading dash.
+ *
+ * Results:
+ *      Returns a borrowed pointer to the value, or NULL if the key is absent.
+ *      The caller must retain the value explicitly if it outlives the dictionary.
+ *
+ * Side Effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static Tcl_Obj *Arg(Tcl_Obj *args, const char *key) {
+    Tcl_Obj *value = NULL, *name = Tcl_NewStringObj(key, -1);
+    Tcl_IncrRefCount(name);
+    Tcl_DictObjGet(NULL, args, name, &value);
+    Tcl_DecrRefCount(name);
+    return value;
+}
 
+//***  CheckArgs function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * CheckArgs --
+ *
+ *      Validates the native argument dictionary and optionally checks for a required key.
+ *      This check also protects native commands invoked directly without the Tcl wrappers.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp   - Interpreter used for error reporting.
+ *      Tcl_Obj *args        - Object to validate as an argument dictionary.
+ *      const char *required - Required key, or NULL to check only dictionary validity.
+ *
+ * Results:
+ *      Returns TCL_OK if the dictionary is valid and the required key is present.
+ *      Returns TCL_ERROR otherwise. Presence is checked independently of the value's contents.
+ *
+ * Side Effects:
+ *      Sets the interpreter result on failure.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int CheckArgs(Tcl_Interp *interp, Tcl_Obj *args, const char *required) {
+    Tcl_Size size;
+    if (Tcl_DictObjSize(interp, args, &size) != TCL_OK) return TCL_ERROR;
+    if (required && !Arg(args, required)) {
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing native argument: %s", required));
+        return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+//***  Modes function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * Modes --
+ *
+ *      Decodes optional output and collision-policy settings from a normalized argument dictionary.
+ *      Omitted settings retain the values supplied by the caller.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter used for error reporting.
+ *      Tcl_Obj *args      - Validated argument dictionary.
+ *      int *output        - Input/output representation: 0 for list, 1 for vector.
+ *      int *replace       - Input/output collision policy: 0 for error, 1 for replace.
+ *
+ * Results:
+ *      Returns TCL_OK on success or TCL_ERROR if a supplied setting is invalid.
+ *
+ * Side Effects:
+ *      Updates the supplied settings as they are decoded and sets the interpreter result on failure.
+ *      An earlier setting may already have changed if a later setting is invalid.
+ *      Does not load RBC or modify package defaults.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int Modes(Tcl_Interp *interp, Tcl_Obj *args, int *output, int *replace) {
+    static const char *modes[] = {"list", "vector", NULL};
+    static const char *policies[] = {"error", "replace", NULL};
+    Tcl_Obj *value = Arg(args, "output");
+    if (value && Tcl_GetIndexFromObj(interp, value, modes, "output", TCL_EXACT, output) != TCL_OK)
+        return TCL_ERROR;
+    value = Arg(args, "ifexists");
+    if (value && Tcl_GetIndexFromObj(interp, value, policies, "collision policy", TCL_EXACT, replace) != TCL_OK)
+        return TCL_ERROR;
+    return TCL_OK;
+}
+
+//***  DeletePackageDefaults function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * DeletePackageDefaults --
+ *
+ *      Releases package defaults registered as interpreter-associated data.
+ *
+ * Parameters:
+ *      void *data         - PackageDefaults allocation owned by the interpreter.
+ *      Tcl_Interp *interp - Interpreter deleting the associated data; unused.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Frees the defaults allocation.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static void DeletePackageDefaults(void *data, Tcl_Interp *interp) {
     (void)interp;
     Tcl_Free((char *)data);
 }
 
+//***  GetPackageDefaults function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * GetPackageDefaults --
+ *
+ *      Retrieves interpreter-local package defaults, creating them on first use.
+ *      Initial defaults are list output and the error collision policy.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter owning the package defaults.
+ *
+ * Results:
+ *      Returns a borrowed pointer to the interpreter-owned PackageDefaults structure.
+ *
+ * Side Effects:
+ *      On first use, allocates the defaults and registers DeletePackageDefaults as their cleanup callback.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static PackageDefaults *GetPackageDefaults(Tcl_Interp *interp) {
     PackageDefaults *defaults = (PackageDefaults *)Tcl_GetAssocData(interp, "ngspicetclbridge::defaults", NULL);
     if (!defaults) {
@@ -21,6 +154,26 @@ static PackageDefaults *GetPackageDefaults(Tcl_Interp *interp) {
     return defaults;
 }
 
+//***  PackageDefaultsDict function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * PackageDefaultsDict --
+ *
+ *      Creates a Tcl dictionary describing the current package defaults.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp              - Interpreter passed to dictionary operations.
+ *      const PackageDefaults *defaults - Defaults to represent.
+ *
+ * Results:
+ *      Returns a new dictionary with reference count zero, containing the -output and -ifexists settings.
+ *
+ * Side Effects:
+ *      Allocates Tcl objects for the dictionary and its entries.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static Tcl_Obj *PackageDefaultsDict(Tcl_Interp *interp, const PackageDefaults *defaults) {
     Tcl_Obj *result = Tcl_NewDictObj();
     Tcl_DictObjPut(interp, result, Tcl_NewStringObj("-output", -1),
@@ -30,50 +183,63 @@ static Tcl_Obj *PackageDefaultsDict(Tcl_Interp *interp, const PackageDefaults *d
     return result;
 }
 
+//***  ConfigureCmd function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * ConfigureCmd --
+ *
+ *      Implements the native backend for querying and updating interpreter-local package defaults.
+ *      Updates are validated before being committed and do not change existing handles.
+ *
+ * Parameters:
+ *      void *clientData     - Unused command client data.
+ *      Tcl_Interp *interp   - Interpreter owning the defaults and receiving the result.
+ *      Tcl_Size objc        - Number of command arguments; must be three.
+ *      Tcl_Obj *const objv[] - Command arguments:
+ *                                  objv[0] = native command name
+ *                                  objv[1] = query key, or an empty string
+ *                                  objv[2] = normalized settings dictionary
+ *
+ * Results:
+ *      Returns TCL_OK with the queried value or the complete settings dictionary.
+ *      Returns TCL_ERROR on invalid arguments, an unknown query key, or unavailable vector support.
+ *
+ * Side Effects:
+ *      Creates package defaults on first use.
+ *      With an empty query key, applies supplied settings after validation.
+ *      May initialize RBC when updating defaults to use vector output.
+ *      Sets the interpreter result.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static int ConfigureCmd(void *clientData, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
-    static const char *options[] = {"-output", "-ifexists", NULL};
-    static const char *modes[] = {"list", "vector", NULL};
-    static const char *policies[] = {"error", "replace", NULL};
-    PackageDefaults *defaults = GetPackageDefaults(interp);
-    PackageDefaults candidate = *defaults;
-    int option, mode;
     (void)clientData;
-    if (objc == 2) {
-        if (Tcl_GetIndexFromObj(interp, objv[1], options, "option", TCL_EXACT, &option) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        if (option == 1) {
-            Tcl_SetObjResult(interp, Tcl_NewStringObj(policies[defaults->replace], -1));
-            return TCL_OK;
-        }
-        mode = defaults->output;
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(modes[mode], -1));
-        return TCL_OK;
-    }
-    if (objc % 2 == 0) {
-        Tcl_WrongNumArgs(interp, 1, objv, "?option? ?value option value ...?");
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "query dictionary");
         return TCL_ERROR;
     }
-    for (Tcl_Size i = 1; i < objc; i += 2) {
-        if (Tcl_GetIndexFromObj(interp, objv[i], options, "option", TCL_EXACT, &option) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        if (option == 1) {
-            if (Tcl_GetIndexFromObj(interp, objv[i + 1], policies, "collision policy", TCL_EXACT, &mode) != TCL_OK) {
-                return TCL_ERROR;
-            }
-            candidate.replace = mode;
+    if (CheckArgs(interp, objv[2], NULL) != TCL_OK) return TCL_ERROR;
+    PackageDefaults *defaults = GetPackageDefaults(interp), candidate = *defaults;
+    const char *query = Tcl_GetString(objv[1]);
+    if (*query) {
+        if (strcmp(query, "output") == 0) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(defaults->output ? "vector" : "list", -1));
+        } else if (strcmp(query, "ifexists") == 0) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(defaults->replace ? "replace" : "error", -1));
         } else {
-            if (Tcl_GetIndexFromObj(interp, objv[i + 1], modes, "mode", TCL_EXACT, &mode) != TCL_OK) {
-                return TCL_ERROR;
-            }
-            candidate.output = mode;
-        }
-    }
-    if (objc > 1) {
-        if ((candidate.output) && BridgeRbcInit(interp) != TCL_OK) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown configuration key", -1));
             return TCL_ERROR;
         }
+        return TCL_OK;
+    }
+    if (Modes(interp, objv[2], &candidate.output, &candidate.replace) != TCL_OK) {
+        return TCL_ERROR;
+    }        
+    if (Arg(objv[2], "output") || Arg(objv[2], "ifexists")) {
+        if (candidate.output && BridgeRbcInit(interp) != TCL_OK) {
+            return TCL_ERROR;
+        }            
         *defaults = candidate;
     }
     Tcl_SetObjResult(interp, PackageDefaultsDict(interp, defaults));
@@ -2134,79 +2300,45 @@ static void InstDeleteProc(void *cdata) {
     Tcl_EventuallyFree((ClientData)ctx, InstFreeProc);
 }
 //** command registering function
-//***  OutputOption function
-/*
- *----------------------------------------------------------------------------------------------------------------------
- * OutputOption -- Parse the shared output and collision policy options without loading RBC.
- * Results: TCL_OK, or TCL_ERROR with a diagnostic.
- *----------------------------------------------------------------------------------------------------------------------
- */
-static int OutputOption(Tcl_Interp *interp, const char *option, Tcl_Obj *value, int *output, int *replace) {
-    const char *text = Tcl_GetString(value);
-    if (strcmp(option, "-output") == 0) {
-        if (strcmp(text, "list") == 0) {
-            *output = 0;
-            return TCL_OK;
-        }
-        if (strcmp(text, "vector") == 0) {
-            *output = 1;
-            return TCL_OK;
-        }
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("-output must be list or vector", -1));
-    } else {
-        if (strcmp(text, "error") == 0) {
-            *replace = 0;
-            return TCL_OK;
-        }
-        if (strcmp(text, "replace") == 0) {
-            *replace = 1;
-            return TCL_OK;
-        }
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("-ifexists must be error or replace", -1));
-    }
-    return TCL_ERROR;
-}
-
 static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option);
 
 //***  AsyncVector function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * AsyncVector -- Return a list or an independent, caller-owned RBC snapshot of a simulator vector.
- * Copy the numeric storage while ngspice's realloc lock is held, then release the lock before creating Tcl/RBC output.
- * An optional namespace override is resolved against the caller and created without changing the handle default.
- * Results: TCL_OK with the historical list representation or the fully qualified RBC name; TCL_ERROR on failure.
+ *
+ * AsyncVector --
+ *
+ *      Copies a named ngspice vector into a Tcl list or an independent RBC snapshot.
+ *      Copies numeric storage under ngspice's realloc lock, then releases the lock before creating Tcl/RBC output.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context, preserved by the caller.
+ *      Tcl_Obj *args       - Normalized dictionary containing source and optional output, ifexists, name, and namespace.
+ *
+ * Results:
+ *      Returns TCL_OK with a list or fully qualified RBC vector name.
+ *      Returns TCL_ERROR on invalid arguments, missing data, allocation failure, or destination/publication failure.
+ *
+ * Side Effects:
+ *      Allocates a numeric snapshot and releases it or transfers ownership to the snapshot publisher.
+ *      May initialize RBC, create destination namespaces, and create or replace an RBC vector.
+ *      Sets the interpreter result and temporarily marks output as busy during RBC publication.
+ *
+ * Notes:
+ *      Complex list samples are real/imaginary pairs. RBC snapshots belong to the caller and outlive the handle.
+ *      Per-call namespace and output options do not change the handle defaults or live bindings.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
-static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]) {
+static int AsyncVector(NgSpiceContext *ctx, Tcl_Obj *args) {
     Tcl_Interp *interp = ctx->interp;
     int output = ctx->outputVectors, replace = ctx->replaceVectors;
-    Tcl_Obj *source = NULL, *destination = NULL, *namespaceOption = NULL;
-    for (Tcl_Size i = 2; i < objc; i++) {
-        const char *opt = Tcl_GetString(objv[i]);
-        if (strcmp(opt, "-output") == 0 || strcmp(opt, "-ifexists") == 0 || strcmp(opt, "-name") == 0 ||
-            strcmp(opt, "-namespace") == 0) {
-            if (++i == objc) {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing value for %s", opt));
-                return TCL_ERROR;
-            }
-            if (strcmp(opt, "-name") == 0) {
-                destination = objv[i];
-            } else if (strcmp(opt, "-namespace") == 0) {
-                namespaceOption = objv[i];
-            } else if (OutputOption(interp, opt, objv[i], &output, &replace) != TCL_OK) {
-                return TCL_ERROR;
-            }
-        } else if (!source && opt[0] != '-') {
-            source = objv[i];
-        } else {
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unexpected argument: %s", opt));
-            return TCL_ERROR;
-        }
-    }
-    if (!source || ((destination || namespaceOption) && !output)) {
-        Tcl_WrongNumArgs(interp, 2, objv,
-                         "name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?");
+    if (CheckArgs(interp, args, "source") != TCL_OK || Modes(interp, args, &output, &replace) != TCL_OK)
+        return TCL_ERROR;
+    Tcl_Obj *source = Arg(args, "source"), *destination = Arg(args, "name");
+    Tcl_Obj *namespaceOption = Arg(args, "namespace");
+    if ((destination || namespaceOption) && !output) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("-name and -namespace require -output vector", -1));
         return TCL_ERROR;
     }
     const char *rawName = Tcl_GetString(source);
@@ -2295,23 +2427,23 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
  *
  * InstObjCmd --
  *
- *      Object command procedure for a single ngspice bridge instance. This is the Tcl command that scripts call
- *      (e.g. "::ngspicetclbridge::s1 ..."). Each subcommand here operates on the same NgSpiceContext and its associated
- *      libngspice state.
+ *      Native implementation for a single ngspice bridge instance, called by NativeCall after Tcl argument parsing.
+ *      Each operation uses the same NgSpiceContext and its associated libngspice state. The public handle command
+ *      enters HandleCmd instead of calling this function directly.
  *
  * Parameters:
  *      ClientData cdata      - pointer to the NgSpiceContext for this instance
  *      Tcl_Interp *interp    - target interpreter
- *      Tcl_Size objc         - number of arguments
+ *      Tcl_Size objc         - number of arguments; must be three, validated by NativeCall
  *      Tcl_Obj *const objv[] - argv-style list of Tcl_Objs:
  *                                  objv[0] = instance command name
  *                                  objv[1] = subcommand
- *                                  objv[2+] = subcommand args (if any)
+ *                                  objv[2] = normalized argument dictionary
  *
  * Results:
  *      TCL_OK or TCL_ERROR. On success, some subcommands also set a Tcl result.
  *
- * Supported Subcommands:
+ * Supported Subcommands (public Tcl syntax):
  *
  *
  *   command ?-capture? string
@@ -2400,6 +2532,7 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Size objc, Tcl_Obj *const objv[]
  *      - Does NOT destroy the instance or stop ngspice.
  *
  * Notes / Side Effects:
+ *      - Preserves the context until the operation returns, including across callbacks and handle deletion.
  *      - Most subcommands grab ctx->mutex and related sync primitives.
  *      - We call directly into libngspice (ctx->ngSpice_*).
  *      - We manage Tcl refcounts on ctx->vectorData / ctx->vectorInit.
@@ -2411,11 +2544,8 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     int code = TCL_OK;
     NgSpiceContext *ctx = (NgSpiceContext *)cdata;
     Tcl_Preserve((ClientData)ctx);
-    if (objc < 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "subcommand ?args?");
-        code = TCL_ERROR;
-        goto done;
-    }
+    (void)objc;
+    Tcl_Obj *args = objv[2];
     const char *sub = Tcl_GetString(objv[1]);
     if (ctx->outputBusy && strcmp(sub, "destroy") != 0) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("vector output update is in progress", -1));
@@ -2423,26 +2553,9 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "command") == 0) {
-        int do_capture = 0;
-        int argi = 2;
-        if (objc == 4) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-capture") == 0) {
-                do_capture = 1;
-                argi = 3;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -capture)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        } else if (objc != 3) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-capture? string");
-            code = TCL_ERROR;
-            goto done;
-        } else {
-            /* No action required: all valid cases handled above (MISRA 15.7) */
-        }
-        const char *cmd = Tcl_GetString(objv[argi]);
+        if (CheckArgs(interp, args, "string") != TCL_OK) {code = TCL_ERROR; goto done;}
+        int do_capture = Arg(args, "capture") != NULL;
+        const char *cmd = Tcl_GetString(Arg(args, "string"));
         Tcl_MutexLock(&ctx->bg_mu);
         NgState st = ctx->state;
         Tcl_MutexUnlock(&ctx->bg_mu);
@@ -2537,29 +2650,15 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "circuit") == 0) {
-        int split_string = 0;
-        if (objc == 4) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-string") == 0) {
-                split_string = 1;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -string)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        }
-        if ((objc < 3) || (objc > 4)) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-string? value");
-            code = TCL_ERROR;
-            goto done;
-        }
+        if (CheckArgs(interp, args, "value") != TCL_OK) {code = TCL_ERROR; goto done;}
+        int split_string = Arg(args, "string") != NULL;
         Tcl_Size cirLinesListLen;
         char **circuit;
         if (split_string == 1) {
-            circuit = splitStringByNewline(Tcl_GetString(objv[3]), &cirLinesListLen);
+            circuit = splitStringByNewline(Tcl_GetString(Arg(args, "value")), &cirLinesListLen);
         } else {
             Tcl_Obj **cirLinesElems;
-            if (Tcl_ListObjGetElements(interp, objv[2], &cirLinesListLen, &cirLinesElems) != TCL_OK) {
+            if (Tcl_ListObjGetElements(interp, Arg(args, "value"), &cirLinesListLen, &cirLinesElems) != TCL_OK) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("error getting circuit list", -1));
                 code = TCL_ERROR;
                 goto done;
@@ -2582,61 +2681,30 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "inputpath") == 0) {
-        const char *resPath;
-        if (objc == 3) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-current") == 0) {
-                resPath = ctx->ngCM_Input_Path(NULL);
-                Tcl_SetObjResult(interp, Tcl_NewStringObj(resPath, -1));
-                code = TCL_OK;
-                goto done;
-            } else {
-                resPath = ctx->ngCM_Input_Path(opt);
-                Tcl_SetObjResult(interp, Tcl_NewStringObj(resPath, -1));
-                code = TCL_OK;
-                goto done;
-            }
-        } else {
-            Tcl_WrongNumArgs(interp, 2, objv, "-current|path");
-            code = TCL_ERROR;
-            goto done;
-        }
+        if (!Arg(args, "current") && CheckArgs(interp, args, "path") != TCL_OK) {code = TCL_ERROR; goto done;}
+        const char *path = ctx->ngCM_Input_Path(Arg(args, "current") ? NULL : Tcl_GetString(Arg(args, "path")));
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(path ? path : "", -1));
+        goto done;
     }
     if (strcmp(sub, "waitevent") == 0) {
         int which;
-        uint64_t need = 1;
+        Tcl_WideInt requested = 1;
         long timeout_ms = 0;
-        int i = 2;
-        if (objc <= i) {
-            Tcl_WrongNumArgs(interp, 2, objv, "name ?-n N? ?timeout_ms?");
-            code = TCL_ERROR;
-            goto done;
+        if (CheckArgs(interp, args, "event") != TCL_OK) {code = TCL_ERROR; goto done;}
+        if (NameToEvtId(Arg(args, "event"), &which) != TCL_OK) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown event: %s", Tcl_GetString(Arg(args, "event"))));
+            code = TCL_ERROR; goto done;
         }
-        if (NameToEvtId(objv[i++], &which) != TCL_OK) {
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown event: %s", Tcl_GetString(objv[i - 1])));
-            code = TCL_ERROR;
-            goto done;
+        if (Arg(args, "n") && Tcl_GetWideIntFromObj(interp, Arg(args, "n"), &requested) != TCL_OK) {
+            code = TCL_ERROR; goto done;
         }
-        if ((i < objc) && (strcmp(Tcl_GetString(objv[i]), "-n") == 0)) {
-            if (((i + 1) >= objc) || (Tcl_GetWideIntFromObj(interp, objv[i + 1], (Tcl_WideInt *)&need) != TCL_OK) ||
-                (need < (uint64_t)1)) {
-                Tcl_SetObjResult(interp, Tcl_NewStringObj("expected positive integer after -n", -1));
-                code = TCL_ERROR;
-                goto done;
-            }
-            i += 2;
+        if (requested < 1) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("expected positive integer after -n", -1));
+            code = TCL_ERROR; goto done;
         }
-        if (i < objc) {
-            if (Tcl_GetLongFromObj(interp, objv[i], &timeout_ms) != TCL_OK) {
-                code = TCL_ERROR;
-                goto done;
-            }
-            i++;
-        }
-        if (i != objc) {
-            Tcl_WrongNumArgs(interp, 2, objv, "name ?-n N? ?timeout_ms?");
-            code = TCL_ERROR;
-            goto done;
+        uint64_t need = (uint64_t)requested;
+        if (Arg(args, "timeout") && Tcl_GetLongFromObj(interp, Arg(args, "timeout"), &timeout_ms) != TCL_OK) {
+            code = TCL_ERROR; goto done;
         }
         int reached;
         uint64_t count;
@@ -2656,23 +2724,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "vectors") == 0) {
-        int do_clear = 0;
-        if (objc == 3) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-clear") == 0) {
-                do_clear = 1;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -clear)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        } else if (objc != 2) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
-            code = TCL_ERROR;
-            goto done;
-        } else {
-            /* No action required: all valid cases handled above (MISRA 15.7) */
-        }
+        int do_clear = Arg(args, "clear") != NULL;
         if (ctx->outputVectors) {
             if (ctx->vectorError) {
                 Tcl_SetObjResult(interp, ctx->vectorError);
@@ -2716,55 +2768,24 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "plot") == 0) {
-        if (objc == 2) {
-            Tcl_Obj *currentPlot = Tcl_NewStringObj(ctx->ngSpice_CurPlot(), -1);
-            Tcl_SetObjResult(interp, currentPlot);
-            code = TCL_OK;
-            goto done;
-        } else if (objc == 3) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-all") == 0) {
-                char **plots = ctx->ngSpice_AllPlots();
-                Tcl_Obj *plotsNamesList = Tcl_NewListObj(0, NULL);
-                for (Tcl_Size i = 0; plots[i] != NULL; ++i) {
-                    Tcl_ListObjAppendElement(interp, plotsNamesList, Tcl_NewStringObj(plots[i], -1));
-                }
-                Tcl_SetObjResult(interp, plotsNamesList);
-                code = TCL_OK;
-                goto done;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -all)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        } else if (objc == 4) {
-            const char *opt = Tcl_GetString(objv[2]);
-            char *arg = Tcl_GetString(objv[3]);
-            if (strcmp(opt, "-vecs") == 0) {
-                char **vecsNames = ctx->ngSpice_AllVecs(arg);
-                Tcl_Obj *vecsNamesList = Tcl_NewListObj(0, NULL);
-                for (Tcl_Size i = 0; vecsNames[i] != NULL; ++i) {
-                    Tcl_ListObjAppendElement(interp, vecsNamesList, Tcl_NewStringObj(vecsNames[i], -1));
-                }
-                Tcl_SetObjResult(interp, vecsNamesList);
-                code = TCL_OK;
-                goto done;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -vecs)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
+        if (!Arg(args, "all") && !Arg(args, "vecs")) {
+            const char *plot = ctx->ngSpice_CurPlot();
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(plot ? plot : "", -1));
         } else {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-all?|?-vecs plotname?");
-            code = TCL_ERROR;
-            goto done;
+            char **names = Arg(args, "all") ? ctx->ngSpice_AllPlots() :
+                ctx->ngSpice_AllVecs(Tcl_GetString(Arg(args, "vecs")));
+            Tcl_Obj *result = Tcl_NewListObj(0, NULL);
+            for (Tcl_Size i = 0; names && names[i]; i++)
+                Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(names[i], -1));
+            Tcl_SetObjResult(interp, result);
         }
+        goto done;
     }
     if (strcmp(sub, "asyncvector") == 0) {
-        if (objc == 4 && strcmp(Tcl_GetString(objv[2]), "-info") == 0) {
-            const char *opt = Tcl_GetString(objv[2]);
-            const char *vecname = Tcl_GetString(objv[3]);
-            if (strcmp(opt, "-info") == 0) {
+        if (CheckArgs(interp, args, "source") != TCL_OK) {code = TCL_ERROR; goto done;}
+        if (Arg(args, "info")) {
+            const char *vecname = Tcl_GetString(Arg(args, "source"));
+            {
                 ctx->ngSpice_LockRealloc();
                 /* cppcheck-suppress misra-c2012-17.3 */
                 pvector_info vinfo = ctx->ngGet_Vec_Info((char *)vecname);
@@ -2864,22 +2885,13 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                 Tcl_SetObjResult(interp, info);
                 code = TCL_OK;
                 goto done;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -info)", opt));
-                code = TCL_ERROR;
-                goto done;
             }
         } else {
-            code = AsyncVector(ctx, objc, objv);
+            code = AsyncVector(ctx, args);
             goto done;
         }
     }
     if (strcmp(sub, "isrunning") == 0) {
-        if (objc > 2) {
-            Tcl_WrongNumArgs(interp, 1, objv, NULL);
-            code = TCL_ERROR;
-            goto done;
-        }
         if (ctx->destroying == 1) {
             code = TCL_OK;
             goto done;
@@ -2890,23 +2902,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "initvectors") == 0) {
-        int do_clear = 0;
-        if (objc == 3) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-clear") == 0) {
-                do_clear = 1;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -clear)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        } else if (objc != 2) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
-            code = TCL_ERROR;
-            goto done;
-        } else {
-            /* No action required: all valid cases handled above (MISRA 15.7) */
-        }
+        int do_clear = Arg(args, "clear") != NULL;
         if (!ctx->vectorInit) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("no init vector data", 1));
             code = TCL_ERROR;
@@ -2928,23 +2924,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "messages") == 0) {
-        int do_clear = 0;
-        if (objc == 3) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-clear") == 0) {
-                do_clear = 1;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -clear)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        } else if (objc != 2) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
-            code = TCL_ERROR;
-            goto done;
-        } else {
-            /* No action required: all valid cases handled above (MISRA 15.7) */
-        }
+        int do_clear = Arg(args, "clear") != NULL;
         if (do_clear == 1) {
             Tcl_MutexLock(&ctx->mutex);
             MsgQ_Clear(&ctx->msgq);
@@ -2964,23 +2944,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "eventcounts") == 0) {
-        int do_clear = 0;
-        if (objc == 3) {
-            const char *opt = Tcl_GetString(objv[2]);
-            if (strcmp(opt, "-clear") == 0) {
-                do_clear = 1;
-            } else {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option: %s (expected -clear)", opt));
-                code = TCL_ERROR;
-                goto done;
-            }
-        } else if (objc != 2) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?-clear?");
-            code = TCL_ERROR;
-            goto done;
-        } else {
-            /* No action required: all valid cases handled above (MISRA 15.7) */
-        }
+        int do_clear = Arg(args, "clear") != NULL;
         Tcl_MutexLock(&ctx->mutex);
         if (do_clear == 1) {
             memset(ctx->evt_counts, 0, sizeof(ctx->evt_counts));
@@ -3026,6 +2990,111 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
 done:
     Tcl_Release((ClientData)ctx);
     return code;
+}
+
+//***  HandleCmd function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * HandleCmd --
+ *
+ *      Forwards a public native handle invocation to the package's Tcl Dispatch procedure.
+ *      The original handle name and arguments are passed unchanged.
+ *
+ * Parameters:
+ *      void *data           - Native handle state; not accessed by this forwarding function.
+ *      Tcl_Interp *interp   - Interpreter in which to invoke Dispatch.
+ *      Tcl_Size objc        - Number of original command arguments.
+ *      Tcl_Obj *const objv[] - Original arguments, beginning with the handle command name.
+ *
+ * Results:
+ *      Returns the Tcl completion code from Dispatch and leaves its interpreter result intact.
+ *
+ * Side Effects:
+ *      Evaluates Tcl code in the current calling context.
+ *      Allocates and releases a temporary argument array and Dispatch command-name object.
+ *      The dispatched operation may modify or destroy the handle.
+ *
+ * Notes:
+ *      The public command retains its native client data and deletion callback.
+ *      Namespace preservation also depends on the Tcl wrappers forwarding calls in the caller's frame.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int HandleCmd(void *data, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
+    (void)data;
+    Tcl_Obj **call = (Tcl_Obj **)Tcl_Alloc((size_t)(objc + 1) * sizeof(*call));
+    call[0] = Tcl_NewStringObj("::ngspicetclbridge::Dispatch", -1);
+    Tcl_IncrRefCount(call[0]);
+    for (Tcl_Size i = 0; i < objc; i++) {
+        call[i + 1] = objv[i];
+    }        
+    int code = Tcl_EvalObjv(interp, objc + 1, call, TCL_EVAL_DIRECT);
+    Tcl_DecrRefCount(call[0]);
+    Tcl_Free((char *)call);
+    return code;
+}
+
+//***  NativeCall function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * NativeCall --
+ *
+ *      Validates a native handle and invokes its implementation with normalized arguments.
+ *      Calls the implementation directly without re-entering the public handle dispatcher.
+ *
+ * Parameters:
+ *      void *unused         - Unused command client data.
+ *      Tcl_Interp *interp   - Interpreter containing the handle and receiving the result.
+ *      Tcl_Size objc        - Number of command arguments; must be four.
+ *      Tcl_Obj *const objv[] - Command arguments:
+ *                                  objv[0] = native command name
+ *                                  objv[1] = handle command name
+ *                                  objv[2] = operation name
+ *                                  objv[3] = normalized argument dictionary
+ *
+ * Results:
+ *      Returns the completion code from the native implementation.
+ *      Returns TCL_ERROR if the argument count, dictionary, or handle is invalid.
+ *
+ * Side Effects:
+ *      Sets the interpreter result on validation failure.
+ *      Otherwise, side effects depend on the requested operation, which may destroy the handle.
+ *
+ * Notes:
+ *      Resolves the handle command and verifies that its command procedure is HandleCmd before
+ *      accessing its client data. Renamed native handles remain valid.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int NativeCall(void *unused, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
+    (void)unused;
+    if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 1, objv, "handle operation dictionary");
+        return TCL_ERROR;
+    }
+    if (CheckArgs(interp, objv[3], NULL) != TCL_OK) {
+        return TCL_ERROR;
+    }        
+    Tcl_Command token = Tcl_GetCommandFromObj(interp, objv[1]);
+    Tcl_CmdInfo info;
+    if (!token || !Tcl_GetCommandInfoFromToken(token, &info)
+#if TCL_MAJOR_VERSION >= 9
+        || info.objProc2 != HandleCmd
+#else
+        || info.objProc != HandleCmd
+#endif
+    ) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ngspicetclbridge handle", -1));
+        return TCL_ERROR;
+    }
+#if TCL_MAJOR_VERSION >= 9
+    void *data = info.objClientData2;
+#else
+    void *data = info.objClientData;
+#endif
+    return InstObjCmd(data, interp, 3, objv + 1);
 }
 
 //***  NgResolveOrBail function
@@ -3100,8 +3169,29 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
 //***  ResolveOutputNamespace function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * ResolveOutputNamespace -- Resolve an explicit destination relative to the caller and create missing parents.
- * Returns a retained, canonical namespace name, or NULL with an error. The namespace is not owned by the handle.
+ *
+ * ResolveOutputNamespace --
+ *
+ *      Resolves an explicit output namespace and creates it if missing.
+ *      Relative names are resolved against the interpreter's current namespace; fully qualified names are used directly.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter in which to resolve or create the namespace.
+ *      Tcl_Obj *option    - Non-NULL object containing the requested namespace name.
+ *
+ * Results:
+ *      Returns a new Tcl string object containing the namespace's canonical fully qualified name,
+ *      with reference count one. The caller must release it with Tcl_DecrRefCount.
+ *      Returns NULL if the name is empty or namespace creation fails.
+ *
+ * Side Effects:
+ *      Creates the requested namespace and any missing parent namespaces.
+ *      Sets the interpreter result on failure.
+ *
+ * Notes:
+ *      Does not change the current namespace or create vectors.
+ *      Releasing the returned object does not delete the namespace.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option) {
@@ -3134,9 +3224,9 @@ static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option) {
  *
  * NgSpiceNewCmd --
  *
- *      Implements the ::ngspicetclbridge::new command. Creates a new Tcl command instance that wraps an ngspice
- *      simulation context. Dynamically loads the specified ngspice shared library, resolves all required API symbols,
- *      and initializes internal synchronization structures and buffers.
+ *      Implements the native backend of the ::ngspicetclbridge::new wrapper. Creates a new Tcl command instance that
+ *      wraps an ngspice simulation context. Dynamically loads the specified ngspice shared library, resolves all
+ *      required API symbols, and initializes internal synchronization structures and buffers.
  *
  *      A unique command name is generated for each instance in the format:
  *          ::ngspicetclbridge::s<N>
@@ -3146,10 +3236,10 @@ static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option) {
  *      ClientData cd         - input: not used (reserved for future use)
  *      Tcl_Interp *interp    - input: target interpreter in which to create the new command
  *      Tcl_Size objc         - input: number of arguments
- *      Tcl_Obj *const objv[] - input: library path, optional initialization switches, and option/value pairs:
- *                                  -output list|vector, -ifexists error|replace, -namespace destinationNamespace
- * (created if missing). Output and collision defaults also apply to on-demand snapshots. An explicit destination is
- * resolved once and applies to live vectors and snapshots.
+ *      Tcl_Obj *const objv[] - input: native command name followed by a normalized argument dictionary.
+ *                                  libpath identifies the shared library; optional keys are noinit, nospinit,
+ *                                  nospiceinit, output, ifexists, and namespace. Output and collision defaults also
+ *                                  apply to snapshots. An explicit namespace is resolved once and created if missing.
  *
  * Results:
  *      On success:
@@ -3165,48 +3255,26 @@ static Tcl_Obj *ResolveOutputNamespace(Tcl_Interp *interp, Tcl_Obj *option) {
  *          SendDataCallback, SendInitDataCallback, BGThreadRunningCallback.
  *      - Allocates and initializes an NgSpiceContext structure
  *      - Opens the specified shared library and resolves all required symbols
- *      - Registers a new instance-specific Tcl object command bound to InstObjCmd()
+ *      - Registers a new instance-specific Tcl object command bound to HandleCmd()
  *      - On any error during symbol resolution, closes the library, frees the context, and aborts creation
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
 /* cppcheck-suppress misra-c2012-2.7 -- unused parameters; interface must comply with Tcl expected function signature */
 static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *libPathObj = NULL;
-    const PackageDefaults *defaults = GetPackageDefaults(interp);
-    int selector = 0, output = defaults->output, replace = defaults->replace;
-    Tcl_Obj *namespaceOption = NULL;
-    for (Tcl_Size i = 1; i < objc; i++) {
-        const char *opt = Tcl_GetString(objv[i]);
-        if (strcmp(opt, "-noinit") == 0) {
-            selector = 3;
-        } else if (strcmp(opt, "-nospinit") == 0) {
-            selector |= 1;
-        } else if (strcmp(opt, "-nospiceinit") == 0) {
-            selector |= 2;
-        } else if (strcmp(opt, "-output") == 0 || strcmp(opt, "-ifexists") == 0 || strcmp(opt, "-namespace") == 0) {
-            if (++i == objc) {
-                Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing value for %s", opt));
-                return TCL_ERROR;
-            }
-            if (strcmp(opt, "-namespace") == 0) {
-                namespaceOption = objv[i];
-            } else if (OutputOption(interp, opt, objv[i], &output, &replace) != TCL_OK) {
-                return TCL_ERROR;
-            }
-        } else if (!libPathObj && opt[0] != '-') {
-            libPathObj = objv[i];
-        } else {
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("unexpected argument: %s", opt));
-            return TCL_ERROR;
-        }
-    }
-    if (!libPathObj) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                         "libpath ?-noinit|-nospinit|-nospiceinit? ?-output list|vector? ?-ifexists error|replace? "
-                         "?-namespace name?");
+    (void)cd;
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "dictionary");
         return TCL_ERROR;
     }
+    Tcl_Obj *args = objv[1];
+    if (CheckArgs(interp, args, "libpath") != TCL_OK) return TCL_ERROR;
+    Tcl_Obj *libPathObj = Arg(args, "libpath"), *namespaceOption = Arg(args, "namespace");
+    const PackageDefaults *defaults = GetPackageDefaults(interp);
+    int output = defaults->output, replace = defaults->replace;
+    if (Modes(interp, args, &output, &replace) != TCL_OK) return TCL_ERROR;
+    int selector = (Arg(args, "noinit") ? 3 : 0) | (Arg(args, "nospinit") ? 1 : 0) |
+                   (Arg(args, "nospiceinit") ? 2 : 0);
     /* Package loading can evaluate Tcl, so capture the namespace before loading it. */
     Tcl_Obj *nsName;
     if (namespaceOption != NULL) {
@@ -3248,7 +3316,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     ctx->explicitNamespace = namespaceOption != NULL;
     static unsigned long seq = 0;
     Tcl_Obj *name = Tcl_ObjPrintf("::ngspicetclbridge::s%lu", ++seq);
-    Tcl_CreateObjCommand2(interp, Tcl_GetString(name), InstObjCmd, ctx, InstDeleteProc);
+    Tcl_CreateObjCommand2(interp, Tcl_GetString(name), HandleCmd, ctx, InstDeleteProc);
     ctx->ngSpice_Init(SendCharCallback, SendStatCallback, ControlledExitCallback, SendDataCallback,
                       SendInitDataCallback, BGThreadRunningCallback, ctx);
     if (!ctx->vectorData) {
@@ -3280,7 +3348,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
  * Ngspicetclbridge_Init --
  *
  *      Package initialization function for the ngspicetclbridge extension.
- *      Registers the "::ngspicetclbridge::new" command, creates the extension namespace,
+ *      Registers the private native commands, creates the extension namespace,
  *      and declares the package to the Tcl interpreter.
  *
  * Parameters:
@@ -3293,7 +3361,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
  * Side Effects:
  *      - Initializes Tcl stubs for compatibility with Tcl versions 8.6 through 10.0.
  *      - Creates the namespace "::ngspicetclbridge" if it does not already exist.
- *      - Registers the "::ngspicetclbridge::new" command to create new ngspice bridge instances.
+ *      - Registers the private native commands to create new ngspice bridge instances.
  *      - Marks the package as provided via Tcl_PkgProvideEx() using PACKAGE_NAME and PACKAGE_VERSION.
  *
  *----------------------------------------------------------------------------------------------------------------------
@@ -3307,8 +3375,9 @@ DLLEXPORT int Ngspicetclbridge_Init(Tcl_Interp *interp) {
     if (Tcl_Eval(interp, "namespace eval ::ngspicetclbridge:: {}") != TCL_OK) {
         return TCL_ERROR;
     }
-    Tcl_CreateObjCommand2(interp, "::ngspicetclbridge::configure", ConfigureCmd, NULL, NULL);
-    Tcl_CreateObjCommand2(interp, "::ngspicetclbridge::new", NgSpiceNewCmd, NULL, NULL);
+    Tcl_CreateObjCommand2(interp, "::ngspicetclbridge::NativeCall", NativeCall, NULL, NULL);
+    Tcl_CreateObjCommand2(interp, "::ngspicetclbridge::NativeConfigure", ConfigureCmd, NULL, NULL);
+    Tcl_CreateObjCommand2(interp, "::ngspicetclbridge::NativeNew", NgSpiceNewCmd, NULL, NULL);
     if (Tcl_PkgProvideEx(interp, PACKAGE_NAME, PACKAGE_VERSION, NULL) != TCL_OK) {
         return TCL_ERROR;
     }

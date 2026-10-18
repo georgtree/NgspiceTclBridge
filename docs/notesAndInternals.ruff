@@ -16,7 +16,8 @@ namespace eval {Notes and internals} {
         $s command "bg_run"
         $s waitevent bg_running -n 2
         ```
-        Every `$s ...` invocation calls into the same underlying C function, `InstObjCmd`, which dispatches individual
+        Every `$s ...` invocation passes through `HandleCmd` to the Tcl argument wrapper, then through `NativeCall`
+        to `InstObjCmd`, which dispatches individual
         subcommands.
 
         ### Command creation
@@ -778,5 +779,29 @@ namespace eval {Notes and internals} {
         This allows ngspicetclbridge to load any compatible ngspice shared library at runtime, regardless of platform
         or path encoding, ensuring consistent behavior and portability across Tcl environments.
 
+    }
+}
+
+namespace eval {::Notes and internals} {
+    append _ruff_preamble {
+
+## Tcl and C interface boundary
+
+Public argument parsing, interactive help and command documentation live in the
+package's Tcl source. Wrappers pass normalized dictionaries to private native
+commands. The native engine keeps semantic checks, data buffers, event handling
+and RBC publication; numeric samples are not copied through Tcl merely to parse
+options.
+
+Each returned handle remains a native command and owns its original deletion
+callback. It dispatches to the real SIM Tcl procedures, which call the native
+engine in the original caller's frame. Renaming or deleting the handle therefore
+retains the existing ownership rules, and relative namespaces still resolve
+against the caller. No second TclOO object or hidden lifetime-owning handle is
+introduced.
+
+Wrappers call the fixed native argparse directly with -helplevel 1. Help prints
+and returns from the current wrapper without running its native operation. The
+argparse help-return fix is required; no local compatibility helper is used.
     }
 }

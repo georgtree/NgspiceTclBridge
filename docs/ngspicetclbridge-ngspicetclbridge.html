@@ -115,11 +115,6 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>Gets title of the current circuit (first line of circuits netlist).</p>
 <pre class="literal-block"><strong>getCircuitTitle</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
-<dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Not documented.</p>
-</dd>
-</dl>
 <p class="rubric">Return value</p>
 <p>title</p>
 </section>
@@ -128,11 +123,6 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>Gets time stamp of current plot generation.</p>
 <pre class="literal-block"><strong>getPlotDate</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
-<dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Not documented.</p>
-</dd>
-</dl>
 <p class="rubric">Return value</p>
 <p>time stamp</p>
 </section>
@@ -141,11 +131,6 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>Gets name of the current plot, i.e. Operating Point, AC Analysis, etc.</p>
 <pre class="literal-block"><strong>getPlotName</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
-<dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Not documented.</p>
-</dd>
-</dl>
 <p class="rubric">Return value</p>
 <p>name of the plot</p>
 </section>
@@ -154,11 +139,6 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>Gets dictionary with information about current scale vector.</p>
 <pre class="literal-block"><strong>getScaleInfo</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
-<dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Not documented.</p>
-</dd>
-</dl>
 <p class="rubric">Return value</p>
 <p>dictionary with the information</p>
 </section>
@@ -234,7 +214,7 @@ raw vector names as keys and lists or fully qualified RBC vector names as values
 <dd class="field-odd"><p>List or vector; overrides the simulator default.</p>
 </dd>
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Simulator handler that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
+<dd class="field-even"><p>Simulator handle that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -260,11 +240,14 @@ raw vector names as keys and lists or fully qualified RBC vector names as values
 <section id="run">
 <span id="r-symbolqz3a3angspicetclbridge3a3arun"></span><span id="index-17"></span><span id="index-16"></span><h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
 <p>Runs simulation in background thread, waits for the completion, process event in the queue and returns</p>
-<pre class="literal-block"><strong>run</strong> <em>?args?</em></pre>
+<pre class="literal-block"><strong>run</strong> <em>?-nocleanup? sim</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Simulator handler that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code> -nocleanup -if provided, results from previous run are retained.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-nocleanup</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>If provided, results from previous run are retained.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Simulator handle that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
 </dd>
 </dl>
 <p class="rubric">Return value</p>
@@ -311,7 +294,15 @@ ensemble.</p>
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20abort"></span><span id="index-21"></span><span id="index-20"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code><a class="headerlink" href="#sim-abort" title="Link to this heading">¶</a></h3>
 <p>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free
 the instance.</p>
-<pre class="literal-block"><strong>SIM abort</strong></pre>
+<pre class="literal-block"><strong>SIM abort</strong> <em>?-help?</em></pre>
+<p class="rubric">Parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+</dl>
+<p class="rubric">Description</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> abort.</p>
 <p class="rubric">Return value</p>
 <p>nothing.</p>
 </section>
@@ -323,23 +314,26 @@ has produced data; the vector may still be incomplete.</p>
 <strong>SIM asyncvector</strong> <em>-info name</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-ifexists</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Error or replace; overrides the handle collision policy.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-info</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Returns a metadata dictionary: signal type, real/complex type and length.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-ifexists</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Error or replace; overrides the handle collision policy.</p>
 </dd>
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-name</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Destination name or #auto for a fresh RBC name (vector output only)</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-info</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Returns a metadata dictionary: signal type, real/complex type and length.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Destination namespace; created with missing parents (vector output only)</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-name</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Destination name or #auto for a fresh RBC name (vector output only)</p>
 </dd>
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>List or vector; overrides the handle default for this snapshot.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Destination namespace; created with missing parents (vector output only)</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">name</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Ngspice vector name.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>List or vector; overrides the handle default for this snapshot.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">name</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Ngspice vector name.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -369,6 +363,7 @@ has produced data; the vector may still be incomplete.</p>
 <span class="c"># -&gt; {{0.01 0.00} {0.02 0.00} ...}   ;# if complex</span>
 </pre></div>
 </div>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> asyncvector.</p>
 <p class="rubric">Return value</p>
 <p>real vectors as a flat list of doubles, complex vectors as a list of <code class="docutils literal notranslate"><span class="pre">{re</span> <span class="pre">im}</span></code> pairs. Error if vector
 does not exists.</p>
@@ -381,11 +376,14 @@ separator between netlists lines.</p>
 <pre class="literal-block"><strong>SIM circuit</strong> <em>?-string? circuit</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-string</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Allows to pass circuit as ordinary string.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">circuit</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>List of string.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-string</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Allows to pass circuit as ordinary string.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">circuit</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of string.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -403,6 +401,7 @@ separator between netlists lines.</p>
 <span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span>bg_run
 </pre></div>
 </div>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> circuit.</p>
 <p class="rubric">Return value</p>
 <p>Ngspice result code</p>
 </section>
@@ -413,9 +412,15 @@ we provide <code class="docutils literal notranslate"><span class="pre">-capture
 of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be
 deferred to the time is could be safely sent, and in that case <code class="docutils literal notranslate"><span class="pre">-capture</span></code> message and command results code
 are not availaible as a return of <code class="docutils literal notranslate"><span class="pre">command</span></code>.</p>
-<pre class="literal-block"><strong>SIM command</strong> <em>string</em></pre>
+<pre class="literal-block"><strong>SIM command</strong> <em>?-capture? string</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-capture</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Return captured output along with the result code.</p>
+</dd>
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">string</span></code><span class="colon">:</span></dt>
 <dd class="field-odd"><p>Command string.</p>
 </dd>
@@ -426,13 +431,20 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span>bg_run
 </pre></div>
 </div>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> command.</p>
 <p class="rubric">Return value</p>
 <p>Ngspice result code, or dictionary with result code and the message</p>
 </section>
 <section id="sim-destroy">
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20destroy"></span><span id="index-29"></span><span id="index-28"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code><a class="headerlink" href="#sim-destroy" title="Link to this heading">¶</a></h3>
 <p>Deletes the instance command. In details:</p>
-<pre class="literal-block"><strong>SIM destroy</strong></pre>
+<pre class="literal-block"><strong>SIM destroy</strong> <em>?-help?</em></pre>
+<p class="rubric">Parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+</dl>
 <p class="rubric">Description</p>
 <ul class="simple">
 <li><p>Marks the context as destroying</p></li>
@@ -440,6 +452,7 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <li><p>Quiesces the ngspice background thread</p></li>
 <li><p>Defers and performs full cleanup</p></li>
 </ul>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> destroy.</p>
 <p class="rubric">Return value</p>
 <p>nothing.</p>
 </section>
@@ -449,8 +462,11 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <pre class="literal-block"><strong>SIM eventcounts</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Zeros all counts and returns nothing.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Zeros all counts and returns nothing.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -459,6 +475,7 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <span class="c"># -&gt; send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N</span>
 </pre></div>
 </div>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> eventcounts.</p>
 <p class="rubric">Return value</p>
 <p>returns a dict with keys as events names, and counts for each event as a value</p>
 </section>
@@ -468,8 +485,11 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <pre class="literal-block"><strong>SIM initvectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Empties the internal memory structure and returns <strong>nothing</strong>.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Empties the internal memory structure and returns <strong>nothing</strong>.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -480,6 +500,7 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 </div>
 <p><strong>Warning</strong>: accumulation of data <strong>do not</strong> continues after call <code class="docutils literal notranslate"><span class="pre">bg_run</span></code>, new metadata replace the old one
 in the storage.</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> initvectors.</p>
 <p class="rubric">Return value</p>
 <p>dict with initial vector metadata saved in internal structure</p>
 </section>
@@ -491,20 +512,33 @@ provided.</p>
 <strong>SIM inputpath</strong> <em>path</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-current</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Switch to return current path.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">path</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Full path to desired location.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-current</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Switch to return current path.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">path</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Full path to desired location.</p>
 </dd>
 </dl>
+<p class="rubric">Description</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> inputpath.</p>
 <p class="rubric">Return value</p>
 <p>current path</p>
 </section>
 <section id="sim-isrunning">
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading">¶</a></h3>
 <p>Calls asynchronously to check if background thread is running.</p>
-<pre class="literal-block"><strong>SIM isrunning</strong></pre>
+<pre class="literal-block"><strong>SIM isrunning</strong> <em>?-help?</em></pre>
+<p class="rubric">Parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+</dl>
+<p class="rubric">Description</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> isrunning.</p>
 <p class="rubric">Return value</p>
 <p><code class="docutils literal notranslate"><span class="pre">1</span></code> if thread is running, <code class="docutils literal notranslate"><span class="pre">0</span></code> otherwise.</p>
 </section>
@@ -514,8 +548,11 @@ provided.</p>
 <pre class="literal-block"><strong>SIM messages</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Empties the internal queue structure and returns <strong>nothing</strong>.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Empties the internal queue structure and returns <strong>nothing</strong>.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -529,6 +566,7 @@ provided.</p>
 </div>
 <p><strong>Warning</strong>: accumulation of messages continues even if you run new circuit or analysis until you explicitly
 clear the data storage.</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> messages.</p>
 <p class="rubric">Return value</p>
 <p>list of messages</p>
 </section>
@@ -536,17 +574,22 @@ clear the data storage.</p>
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading">¶</a></h3>
 <p>Gets current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot.</p>
-<pre class="literal-block"><strong>SIM plot</strong> <em>-all</em>
+<pre class="literal-block"><strong>SIM plot</strong> <em>?-all?</em>
 <strong>SIM plot</strong> <em>-vecs name</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-all</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Switch to return all plots names.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-vecs</span> <span class="pre">plotname</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Switch with argument to get all vectors names belonging to <code class="docutils literal notranslate"><span class="pre">name</span></code> plot.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-all</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Switch to return all plots names.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-vecs</span> <span class="pre">plotname</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Switch with argument to get all vectors names belonging to <code class="docutils literal notranslate"><span class="pre">name</span></code> plot.</p>
 </dd>
 </dl>
+<p class="rubric">Description</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> plot.</p>
 <p class="rubric">Return value</p>
 <p>current plot, or list of all plots, or list of all vectors</p>
 </section>
@@ -556,8 +599,11 @@ name of the provided plot.</p>
 <pre class="literal-block"><strong>SIM vectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Empties stored samples and returns <strong>nothing</strong>.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Empties stored samples and returns <strong>nothing</strong>.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -592,6 +638,7 @@ name of the provided plot.</p>
 <span class="c"># -&gt; (no result; succeeds)</span>
 </pre></div>
 </div>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> vectors.</p>
 <p class="rubric">Return value</p>
 <p>dict with vectors values accumulated up to this point in internal structure</p>
 </section>
@@ -602,14 +649,17 @@ or the timeout expires (if provided).</p>
 <pre class="literal-block"><strong>SIM waitevent</strong> <em>name ?-n N? ?timeout_ms?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-n</span> <span class="pre">N</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Number of events that should happend for termination after waiting is started.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">name</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Name of the event.</p>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-n</span> <span class="pre">N</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of events that should happend for termination after waiting is started.</p>
 </dd>
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">timeout_ms</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Timeout in miliseconds, optional.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">name</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Name of the event.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">timeout_ms</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Timeout in miliseconds, optional.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -764,6 +814,7 @@ or the timeout expires (if provided).</p>
 </pre></div>
 </div>
 <p>If you want “fresh” waits, you can clear counts with <code class="docutils literal notranslate"><span class="pre">eventcounts</span> <span class="pre">-clear</span></code>.</p>
+<p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> waitevent.</p>
 <p class="rubric">Return value</p>
 <p>dictionary with information about event</p>
 <hr class="docutils" />

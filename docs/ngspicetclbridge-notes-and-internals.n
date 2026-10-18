@@ -22,7 +22,8 @@ $s waitevent bg_running -n 2
 .fi
 .RE
 .PP
-Every $s \&.\&.\&. invocation calls into the same underlying C function, InstObjCmd, which dispatches individual
+Every $s \&.\&.\&. invocation passes through HandleCmd to the Tcl argument wrapper, then through NativeCall
+to InstObjCmd, which dispatches individual
 subcommands\&.
 .SS "COMMAND CREATION"
 .PP
@@ -965,6 +966,24 @@ Isolation of platform differences behind three simple functions\&.
 .PP
 This allows ngspicetclbridge to load any compatible ngspice shared library at runtime, regardless of platform
 or path encoding, ensuring consistent behavior and portability across Tcl environments\&.
+.SH "TCL AND C INTERFACE BOUNDARY"
+.PP
+Public argument parsing, interactive help and command documentation live in the
+package's Tcl source\&. Wrappers pass normalized dictionaries to private native
+commands\&. The native engine keeps semantic checks, data buffers, event handling
+and RBC publication; numeric samples are not copied through Tcl merely to parse
+options\&.
+.PP
+Each returned handle remains a native command and owns its original deletion
+callback\&. It dispatches to the real SIM Tcl procedures, which call the native
+engine in the original caller's frame\&. Renaming or deleting the handle therefore
+retains the existing ownership rules, and relative namespaces still resolve
+against the caller\&. No second TclOO object or hidden lifetime-owning handle is
+introduced\&.
+.PP
+Wrappers call the fixed native argparse directly with -helplevel 1\&. Help prints
+and returns from the current wrapper without running its native operation\&. The
+argparse help-return fix is required; no local compatibility helper is used\&.
 
 
 .SH SEE ALSO

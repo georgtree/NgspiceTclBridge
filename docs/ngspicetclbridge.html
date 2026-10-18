@@ -64,7 +64,7 @@ vector updates. The <code class="docutils literal notranslate"><span class="pre"
 included in the source tree. At runtime, you need:</p>
 <ul class="simple">
 <li><p>An ngspice shared library, such as <code class="docutils literal notranslate"><span class="pre">libngspice.so</span></code>, <code class="docutils literal notranslate"><span class="pre">libngspice.dylib</span></code> or <code class="docutils literal notranslate"><span class="pre">ngspice.dll</span></code>.</p></li>
-<li><p><a class="reference external" href="https://github.com/georgtree/argparse">argparse</a> for the Tcl helper procedures.</p></li>
+<li><p><a class="reference external" href="https://github.com/georgtree/argparse">argparse</a> 0.65 or later for all public commands; Tcllib (<code class="docutils literal notranslate"><span class="pre">textutil::adjust</span></code>) is also required.</p></li>
 <li><p>Optionally, RBC for vector output (see below).</p></li>
 </ul>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/georgtree/NgspiceTclBridge.git
@@ -250,25 +250,31 @@ install list. Check the generation output for errors before installing or creati
 <li><p><strong>Repeated runs:</strong> clear retained messages and event counters when needed. Bridge data buffers reset for a new simulation; caller-owned RBC snapshots still require explicit cleanup.</p></li>
 </ul>
 </section>
-<section id="package-defaults">
-<span id="r-package-defaults"></span><span id="r-package20defaults"></span><h2>Package defaults<a class="headerlink" href="#package-defaults" title="Link to this heading">¶</a></h2>
-<p>Set representation and collision defaults once after loading the package:</p>
+</section>
+<section id="interactive-help">
+<span id="r-interactive-help"></span><span id="r-interactive20help"></span><h1>Interactive help<a class="headerlink" href="#interactive-help" title="Link to this heading">¶</a></h1>
+<p>All public methods have interactive help. To get information about command and its arguments call it with <code class="docutils literal notranslate"><span class="pre">-help</span></code>
+switch:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nb">package</span><span class="w"> </span>require<span class="w"> </span>ngspicetclbridge
-<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>ifexists<span class="w"> </span>replace
+<span class="nv">ngspicetclbridge</span><span class="o">::</span>run<span class="w"> </span><span class="o">-</span>help
 </pre></div>
 </div>
-<p>New handles inherit output and collision defaults unless their creation call supplies <code class="docutils literal notranslate"><span class="pre">-output</span></code> or <code class="docutils literal notranslate"><span class="pre">-ifexists</span></code> explicitly. Existing
-handles keep their settings; per-read overrides still take precedence.</p>
-<p>Use <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span></code> to query all settings, or <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span> <span class="pre">-output</span></code> to query one.
-The all-settings dictionary can be restored with <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span> <span class="pre">{*}$saved</span></code>.
-Initial representation defaults remain <code class="docutils literal notranslate"><span class="pre">list</span></code>; the initial <code class="docutils literal notranslate"><span class="pre">-ifexists</span></code> policy is <code class="docutils literal notranslate"><span class="pre">error</span></code>. Invalid requests and unavailable vector support leave settings unchanged.
-Configuration belongs to the current Tcl interpreter. The command is public but <strong>not namespace-exported</strong>,
-so wildcard imports cannot introduce a <code class="docutils literal notranslate"><span class="pre">configure</span></code> collision. Namespace selection and naming are unchanged. <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">replace</span></code> still requires a compatible, writable destination.
-The collision setting affects vector output only and can be configured even in a build without RBC.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Run a simulation and wait for completion.. Can accepts unambiguous prefixes
+instead of switches names. Allows switches to appear after parameters.
+    Switches:
+        -nocleanup - Boolean. If provided, results from previous run are
+            retained.
+        -help - Help switch, when provided, forces ignoring all other switches
+            and parameters, prints the help message to stdout, and returns up to 1
+            levels above the current level.
+    Parameters:
+        sim - Simulator handle that is returned by ngspicetclbridge::new.
+</pre></div>
+</div>
+<p>Best to do it in interactive console, see <a class="reference external" href="https://github.com/bohagan1/TkCon">tkcon</a></p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
-</section>
 
 
             <div class="clearer"></div>
@@ -291,9 +297,9 @@ The collision setting affects vector output only and can be configured even in a
 <li><a class="reference internal" href="#installation-archives">Installation archives</a></li>
 <li><a class="reference internal" href="#regenerating-documentation">Regenerating documentation</a></li>
 <li><a class="reference internal" href="#notes-and-troubleshooting">Notes and troubleshooting</a></li>
-<li><a class="reference internal" href="#package-defaults">Package defaults</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#interactive-help">Interactive help</a></li>
 </ul>
 
   </div>

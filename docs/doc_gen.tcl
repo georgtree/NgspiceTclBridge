@@ -1,4 +1,5 @@
 package require ruff
+package require ngspicetclbridge
 package require fileutil
 
 set docDir [file dirname [file normalize [info script]]]
@@ -7,20 +8,18 @@ source [file join $docDir startPage.ruff]
 source [file join $docDir rbcBindings.ruff]
 source [file join $docDir notesAndInternals.ruff]
 source [file join $docDir troubleshooting.ruff]
-source [file join $docDir ngspicetclbridge.ruff]
 source [file join $docDir examples.ruff]
-source [file join $sourceDir ngspicetclbridge.tcl]
 
-set packageVersion [package versions ngspicetclbridge]
+set packageVersion [package provide ngspicetclbridge]
 puts $packageVersion
 set title "Tcl NgspiceTclBridge package"
 
 set commonSphinx [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace\
                           -recurse false -includesource false -pagesplit namespace -autopunctuate true -compact false\
-                          -includeprivate false -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version\
+                          -includeprivate false -excludeprocs {^(Native.*|Dispatch)$} -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version\
                           $packageVersion -copyright "George Yashin" {*}$::argv]
 set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace -recurse false\
-                         -pagesplit namespace -autopunctuate true -compact false -includeprivate false\
+                         -pagesplit namespace -autopunctuate true -compact false -includeprivate false -excludeprocs {^(Native.*|Dispatch)$}\
                          -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
                          -copyright "George Yashin" {*}$::argv]
 

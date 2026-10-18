@@ -239,6 +239,11 @@ typedef struct {
     uint64_t gen;
 } NgSpiceEvent;
 
+typedef struct PackageDefaults {
+    int output, replace;
+} PackageDefaults;
+
+
 //** functions
 DLLEXPORT int Ngspicetclbridge_Init(Tcl_Interp *interp);
 

@@ -12,8 +12,28 @@
 //***  BridgeRbcInit function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcInit -- Load vector-only RBC stubs in this interpreter, only when vector output is requested.
- * Results: TCL_OK or a package/build diagnostic. Loading may execute Tcl; callers preserve their context.
+ *
+ * BridgeRbcInit --
+ *
+ *      Initializes the optional RBC vector stubs interface in the current interpreter.
+ *      Requires RBC vector version 0.8.1 or a compatible later version.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter in which to initialize RBC vector support.
+ *
+ * Results:
+ *      Returns TCL_OK if the RBC vector stubs interface is available.
+ *      Returns TCL_ERROR if initialization fails or the extension was built without RBC support.
+ *
+ * Side Effects:
+ *      May load the RBC vector package and evaluate Tcl code during package initialization.
+ *      Initializes the RBC vector stubs pointer and sets the interpreter result on failure.
+ *
+ * Notes:
+ *      Called only when vector output is required, before reading or publishing vector data.
+ *      A previously initialized global stubs pointer does not establish that RBC is available
+ *      in the current interpreter.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 int BridgeRbcInit(Tcl_Interp *interp) {
@@ -28,9 +48,30 @@ int BridgeRbcInit(Tcl_Interp *interp) {
 //***  BridgeRbcName function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcName -- Return an unreferenced name in a fixed namespace, using tclsimrawreader's naming convention.
- * Balanced parentheses and ordinary RBC characters remain literal. Unsafe names and the reserved _raw_ prefix
- * become _raw_ plus uppercase hexadecimal UTF-8 bytes, preventing collisions and raw namespace injection.
+ *
+ * BridgeRbcName --
+ *
+ *      Constructs a fully qualified RBC vector destination from a namespace and raw signal name.
+ *      Preserves supported literal names and encodes other names to avoid invalid or ambiguous destinations.
+ *
+ * Parameters:
+ *      const char *ns      - Canonical fully qualified destination namespace.
+ *      const char *rawName - Null-terminated raw signal name.
+ *
+ * Results:
+ *      Returns a new Tcl string object with reference count zero containing the qualified destination name.
+ *
+ * Side Effects:
+ *      Allocates the result object. Does not create namespaces or vectors.
+ *
+ * Notes:
+ *      Literal names may contain ASCII letters, digits, underscores, dots, at signs, balanced parentheses,
+ *      and isolated interior colons. Empty names, names containing namespace separators, leading or trailing
+ *      colons, unsupported characters, unbalanced parentheses, or the reserved "_raw_" prefix are encoded.
+ *      Encoding uses "_raw_" followed by uppercase hexadecimal pairs for every byte of the raw name.
+ *      Reserving the prefix prevents encoded names from colliding with preserved literal names.
+ *      Does not check destination availability or interpret #auto as an automatic-naming request.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 Tcl_Obj *BridgeRbcName(const char *ns, const char *rawName) {
@@ -83,9 +124,33 @@ struct BridgeRbc {
     int count;
 };
 
-/* Follow the command token across renames. RBC updates its registry after
- * command traces return, so defer vector/type validation to CheckBinding.
- * Deletion remains permanent: never attach to a replacement with the same name. */
+//***  BindingTrace function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * BindingTrace --
+ *
+ *      Tracks deletion or renaming of a live vector command.
+ *
+ * Parameters:
+ *      ClientData data      - Binding associated with the traced command.
+ *      Tcl_Interp *interp   - Interpreter invoking the trace; unused.
+ *      const char *oldName  - Previous command name; unused.
+ *      const char *newName  - New fully qualified name for a rename notification.
+ *      int flags           - Command trace flags identifying deletion or renaming.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Deletion permanently invalidates the binding and clears its command token.
+ *      Renaming replaces the retained name object while preserving vector ownership.
+ *
+ * Notes:
+ *      RBC updates its registry after command traces return; identity and type checks are deferred to CheckBinding.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static void BindingTrace(ClientData data, Tcl_Interp *interp, const char *oldName, const char *newName, int flags) {
     Binding *b = data;
     (void)interp;
@@ -101,6 +166,33 @@ static void BindingTrace(ClientData data, Tcl_Interp *interp, const char *oldNam
     }
 }
 
+//***  CheckDestination function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * CheckDestination --
+ *
+ *      Checks whether a destination is available for a new or replacement vector.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter containing the destination.
+ *      Tcl_Obj *name      - Fully qualified destination name.
+ *      int complex       - Nonzero for complex output; zero for real output.
+ *      int replace       - Nonzero to allow replacement of a compatible vector.
+ *      Rbc_Vector **vec  - Receives an existing compatible vector, or NULL for an unused destination.
+ *
+ * Results:
+ *      Returns TCL_OK for an unused destination or a writable same-type vector eligible for replacement.
+ *      Returns TCL_ERROR for a simulator-maintained vector, command collision, or incompatible destination.
+ *
+ * Side Effects:
+ *      Updates *vec and sets the interpreter result on failure. Does not modify any vector.
+ *
+ * Notes:
+ *      Requires initialized RBC stubs. The output pointer is only usable after a successful return.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static int CheckDestination(Tcl_Interp *interp, Tcl_Obj *name, int complex, int replace, Rbc_Vector **vec) {
     Tcl_CmdInfo info;
     const char *s = Tcl_GetString(name);
@@ -136,6 +228,30 @@ static int CheckDestination(Tcl_Interp *interp, Tcl_Obj *name, int complex, int 
     return TCL_OK;
 }
 
+//***  CheckBinding function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * CheckBinding --
+ *
+ *      Validates the command identity, vector identity, and numeric type of a retained live binding.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter containing the binding.
+ *      Binding *b        - Binding to validate.
+ *      Rbc_Vector **vec  - Receives the borrowed RBC vector pointer on success.
+ *
+ * Results:
+ *      Returns TCL_OK for a valid binding or TCL_ERROR if its command, vector, or type no longer matches.
+ *
+ * Side Effects:
+ *      Updates *vec and sets the interpreter result on failure. Does not modify the vector.
+ *
+ * Notes:
+ *      Does not check writability. The output pointer is only usable after a successful return.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static int CheckBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec) {
     Tcl_CmdInfo info;
     if (b->invalid || b->token == NULL ||
@@ -156,8 +272,27 @@ static int CheckBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec) {
     return TCL_OK;
 }
 
-/* Reading the live mapping is allowed while locked. Mutating paths additionally
- * check permission before touching either borrowed storage or binding metadata. */
+//***  CheckWritableBinding function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * CheckWritableBinding --
+ *
+ *      Validates a retained live binding and checks permission to modify its vector.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter containing the binding.
+ *      Binding *b        - Binding to validate.
+ *      Rbc_Vector **vec  - Receives the borrowed RBC vector pointer on success.
+ *
+ * Results:
+ *      Returns TCL_OK if the binding is valid and writable, or TCL_ERROR otherwise.
+ *
+ * Side Effects:
+ *      Updates *vec and sets the interpreter result on failure. Does not modify the vector.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static int CheckWritableBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec) {
     if (CheckBinding(interp, b, vec) != TCL_OK) {
         return TCL_ERROR;
@@ -165,8 +300,35 @@ static int CheckWritableBinding(Tcl_Interp *interp, Binding *b, Rbc_Vector **vec
     return Rbc_VectorCheckWritable(interp, *vec);
 }
 
-/* All Tcl calls use object arguments. Numeric-looking parentheses remain literal names.
- * Replace the caller-owned name reference with RBC's actual name, including #auto expansion. */
+//***  CreateVector function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * CreateVector --
+ *
+ *      Creates a literal-name RBC vector without a mapped Tcl array variable.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context, preserved by the caller.
+ *      Tcl_Obj **namePtr   - Caller-owned name reference, replaced with the actual RBC name after creation.
+ *      int complex        - Nonzero for a complex vector; zero for a real vector.
+ *      Rbc_Vector **vec   - Receives the borrowed vector pointer on success.
+ *      Tcl_Command *token - Receives the vector command token on success.
+ *
+ * Results:
+ *      Returns TCL_OK on success or the Tcl/RBC completion code on failure.
+ *
+ * Side Effects:
+ *      Evaluates rbc::vector create and may invoke application callbacks.
+ *      Releases the old name reference and retains the actual name, including any #auto expansion.
+ *      Deletes the created command if the simulator was destroyed or vector lookup fails after creation.
+ *
+ * Notes:
+ *      The caller must hold a reference to *namePtr and release its current value after this call.
+ *      The name reference may have changed even if a subsequent validation fails.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static int CreateVector(NgSpiceContext *ctx, Tcl_Obj **namePtr, int complex, Rbc_Vector **vec, Tcl_Command *token) {
     Tcl_Obj *name = *namePtr;
     Tcl_Obj *args[] = {Tcl_NewStringObj("::rbc::vector", -1),
@@ -213,6 +375,30 @@ static int CreateVector(NgSpiceContext *ctx, Tcl_Obj **namePtr, int complex, Rbc
     return code;
 }
 
+//***  FreeBinding function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * FreeBinding --
+ *
+ *      Releases a retained live binding and deletes its vector command only when owned by the simulator.
+ *
+ * Parameters:
+ *      Tcl_Interp *interp - Interpreter containing the binding.
+ *      Binding *b        - Binding to release; must have a valid hash entry.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Removes the command trace, deletes an owned vector command, and removes the hash entry.
+ *      Releases the retained name and frees the binding. Adopted vector commands remain alive.
+ *
+ * Notes:
+ *      The caller is responsible for removing the binding from any linked list or active-vector array.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 static void FreeBinding(Tcl_Interp *interp, Binding *b) {
     if (b->token != NULL) {
         Tcl_Obj *current = Tcl_NewObj();
@@ -233,11 +419,36 @@ static void FreeBinding(Tcl_Interp *interp, Binding *b) {
 //***  BridgeRbcPrepare function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcPrepare -- Acquire this plot's destinations before appending data. Called only in the Tcl event thread.
- * Existing bindings are reused independently of -ifexists. First attachments obey the collision policy. Preflight
- * all names/types before creating anything; roll back new registrations if creation fails, then clear every retained
- * binding so absent signals also become empty. RBC notifications may invoke application code; this is not a
- * transaction.
+ *
+ * BridgeRbcPrepare --
+ *
+ *      Prepares live RBC vector bindings for a new plot using its initialization snapshot.
+ *      Reuses retained bindings, creates or adopts destinations for new signals, and establishes the active
+ *      vector order. Clears all retained vectors, including signals absent from the new plot.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context owning the live bindings.
+ *      const InitSnap *snap - Plot initialization snapshot containing signal names, numeric types, and column order.
+ *
+ * Results:
+ *      Returns TCL_OK if all bindings are prepared and cleared successfully.
+ *      Returns TCL_ERROR on an invalid binding, incompatible destination, vector creation or clearing failure,
+ *      or a build without RBC support.
+ *
+ * Side Effects:
+ *      Allocates binding storage on first use.
+ *      Creates or adopts vectors and installs command traces for newly registered bindings.
+ *      Replaces the active binding array and clears retained vector contents.
+ *      May invoke Tcl code and RBC client callbacks. Sets the interpreter result on failure.
+ *
+ * Notes:
+ *      Called in the Tcl event thread with initialized RBC stubs and a preserved simulator context.
+ *      Existing bindings are reused independently of the collision policy; new attachments obey that policy.
+ *      Validates retained bindings and candidate destinations before creating vectors, then rechecks destinations
+ *      during acquisition.
+ *      Acquisition failure removes bindings added by this call, deleting owned vectors but preserving adopted ones.
+ *      Failure during the final clearing step does not roll back the new active mapping or completed clears.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 int BridgeRbcPrepare(NgSpiceContext *ctx, const InitSnap *snap) {
@@ -332,7 +543,35 @@ int BridgeRbcPrepare(NgSpiceContext *ctx, const InitSnap *snap) {
 }
 
 //***  BridgeRbcClear function
-/* Clear data without replacing commands or detaching graph clients. RBC retains ownership of its storage. */
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * BridgeRbcClear --
+ *
+ *      Empties all retained live RBC vectors without deleting their commands or detaching graph clients.
+ *      Includes bindings for signals absent from the current plot.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context owning the live bindings.
+ *
+ * Results:
+ *      Returns TCL_OK if all vectors are cleared or no binding storage has been initialized.
+ *      Returns TCL_ERROR on an invalid or read-only binding, simulator destruction, or unavailable RBC support.
+ *      Propagates an RBC reset failure.
+ *
+ * Side Effects:
+ *      Resets each vector to empty storage and clears its recorded length, capacity, and data pointer.
+ *      RBC manages release of the previous vector storage and may notify clients.
+ *      Preserves binding names, ownership, command traces, and the active binding array.
+ *
+ * Notes:
+ *      Requires initialized RBC stubs and a preserved simulator context in the Tcl event thread.
+ *      Checks every binding before modifying vectors, then rechecks each binding before resetting it.
+ *      Clearing is not atomic: vectors already cleared remain empty if a later reset or validation fails.
+ *      Does not discard queued samples or clear ngspice's own data; those operations are handled separately.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
 int BridgeRbcClear(NgSpiceContext *ctx) {
 #ifdef HAVE_RBC
     if (ctx->rbc == NULL) {
@@ -366,10 +605,35 @@ int BridgeRbcClear(NgSpiceContext *ctx) {
 //***  BridgeRbcAppend function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcAppend -- Append a detached batch directly to RBC storage, without per-sample Tcl objects.
- * Validate the complete layout and every destination's writability before modifying data. Geometric capacity growth
- * avoids copying the full history on every batch. Filled storage is published once per vector through ResetVector, giving one notification per batch.
- * Attached vector contents are bridge-managed: external resizing/replacement is diagnosed rather than using stale data.
+ *
+ * BridgeRbcAppend --
+ *
+ *      Appends a detached batch of simulation samples to the active live RBC vectors.
+ *      Copies numeric values directly into vector storage without creating per-sample Tcl objects.
+ *      Reuses available capacity and grows buffers geometrically when necessary.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context containing the prepared live bindings.
+ *      const DataBuf *rows - Borrowed batch of samples in the current plot's vector order.
+ *
+ * Results:
+ *      Returns TCL_OK after appending the batch, or immediately for an empty batch in an RBC-enabled build.
+ *      Returns TCL_ERROR on missing metadata, inconsistent sample layout, invalid or read-only bindings,
+ *      externally modified storage, size overflow, allocation failure, or simulator destruction.
+ *      Propagates RBC reset failures and reports an error in builds without RBC support.
+ *
+ * Side Effects:
+ *      Extends active vectors and updates each binding's recorded data pointer, length, and capacity.
+ *      Transfers newly allocated buffers to RBC on successful publication; frees them if publication fails.
+ *      Publishes each vector once per batch through the RBC reset API, which may notify clients.
+ *      Does not modify or free the input batch.
+ *
+ * Notes:
+ *      Requires initialized RBC stubs and a preserved simulator context in the Tcl event thread.
+ *      Validates the complete batch layout and all destinations' writability before appending.
+ *      Rechecks each binding and its storage before writing, and its identity after publication.
+ *      Appending is not atomic across vectors: completed updates remain if a later vector fails.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 int BridgeRbcAppend(NgSpiceContext *ctx, const DataBuf *rows) {
@@ -482,8 +746,31 @@ overflow:
 //***  BridgeRbcResult function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcResult -- Validate retained bindings and return raw signal names mapped to fully qualified commands.
- * Results: TCL_OK with a dictionary, or TCL_ERROR if a live destination has changed identity.
+ *
+ * BridgeRbcResult --
+ *
+ *      Builds a dictionary mapping original raw signal names to their current fully qualified RBC vector commands.
+ *      Validates each retained binding before including it in the result.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context containing the live bindings and receiving the result.
+ *
+ * Results:
+ *      Returns TCL_OK with the dictionary as the interpreter result.
+ *      Returns an empty dictionary if no bindings have been initialized in an RBC-enabled build.
+ *      Returns TCL_ERROR if a binding is invalid or the extension was built without RBC support.
+ *
+ * Side Effects:
+ *      Allocates the result dictionary and its keys.
+ *      Sets the interpreter result to the completed dictionary or an error diagnostic.
+ *      Releases the temporary dictionary on validation failure without returning a partial mapping.
+ *
+ * Notes:
+ *      Requires initialized RBC stubs and execution in the Tcl event thread.
+ *      Includes all retained bindings, including signals absent from the current plot.
+ *      Preserves original signal keys while reporting destination names updated by rename traces.
+ *      Does not copy sample data, modify vectors, or require writable destinations.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 int BridgeRbcResult(NgSpiceContext *ctx) {
@@ -512,8 +799,31 @@ int BridgeRbcResult(NgSpiceContext *ctx) {
 //***  BridgeRbcDestroy function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcDestroy -- Remove traces and delete only commands created by this handle.
- * Adopted vectors remain alive with their last RBC-owned buffers. Called when the preserved context is finally freed.
+ *
+ * BridgeRbcDestroy --
+ *
+ *      Releases all live RBC binding state associated with a simulator context.
+ *      Deletes vector commands owned by the handle while preserving adopted vectors and their contents.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context whose live bindings are being released.
+ *
+ * Results:
+ *      None. Does nothing if no binding storage exists or the extension was built without RBC support.
+ *
+ * Side Effects:
+ *      Sets ctx->rbc to NULL before releasing bindings.
+ *      Removes command traces and deletes surviving vector commands owned by the handle.
+ *      Releases retained name objects, binding records, the hash table, the active binding array,
+ *      and the BridgeRbc structure.
+ *      Deleting owned vector commands may notify RBC clients.
+ *
+ * Notes:
+ *      Called during final context cleanup after outstanding preserves have been released.
+ *      Numeric buffers remain RBC-owned: deleting owned vectors releases their storage through RBC,
+ *      while adopted vectors retain their last contents.
+ *      Does not delete the destination namespace or independent snapshot vectors.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 void BridgeRbcDestroy(NgSpiceContext *ctx) {
@@ -539,9 +849,38 @@ void BridgeRbcDestroy(NgSpiceContext *ctx) {
 //***  BridgeRbcSnapshot function
 /*
  *----------------------------------------------------------------------------------------------------------------------
- * BridgeRbcSnapshot -- Publish a caller-owned, independent snapshot after ngspice's realloc lock is released.
- * Consumes samples on success and failure. A live binding (from any handle) is never a snapshot destination.
- * Newly created commands are removed on failure; existing same-type vectors are updated in place.
+ *
+ * BridgeRbcSnapshot --
+ *
+ *      Publishes copied simulation samples as an independent RBC vector snapshot.
+ *      Creates a new destination or replaces an existing compatible vector in place.
+ *      Converts complex samples from ngspice's representation to RBC's complex storage format.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context, preserved by the caller.
+ *      Tcl_Obj *name      - Fully qualified destination name; a final ::#auto requests automatic naming.
+ *      int complex        - Nonzero for ngcomplex_t samples; zero for double samples.
+ *      Tcl_Size count     - Validated, nonnegative number of samples.
+ *      void *samples      - Tcl-allocated sample buffer; ownership transfers to this function on entry.
+ *      int replace        - Nonzero to allow replacement of an existing writable, same-type vector.
+ *
+ * Results:
+ *      Returns TCL_OK with the actual destination vector name as the interpreter result.
+ *      Returns TCL_ERROR on initialization, allocation, destination, creation, or publication failure.
+ *
+ * Side Effects:
+ *      Consumes samples on both success and failure; the caller must not access or free them afterward.
+ *      Transfers published numeric storage to RBC and releases temporary storage on failure.
+ *      May load RBC, evaluate Tcl code, create a vector command, or update an existing vector.
+ *      Removes a newly created destination on publication failure if its command token still matches.
+ *      Sets the interpreter result and may notify RBC clients.
+ *
+ * Notes:
+ *      Called in the Tcl event thread after releasing ngspice's realloc lock.
+ *      Rejects destinations maintained as live bindings by any simulator handle.
+ *      Does not register the snapshot as a live binding: it belongs to the caller and survives handle destruction.
+ *      Retains name temporarily without consuming the caller's reference.
+ *
  *----------------------------------------------------------------------------------------------------------------------
  */
 int BridgeRbcSnapshot(NgSpiceContext *ctx, Tcl_Obj *name, int complex, Tcl_Size count, void *samples, int replace) {

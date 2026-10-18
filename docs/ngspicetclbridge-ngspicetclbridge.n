@@ -23,11 +23,11 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBreadVecsAsync\fP \fI?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? ?-names dictionary|#auto? sim\fP
 .br
-\fBrun\fP \fI?args?\fP
+\fBrun\fP \fI?-nocleanup? sim\fP
 .br
 \fBSIM\fP \fIsubcommand \&.\&.\&.\fP
 .br
-\fBSIM abort\fP
+\fBSIM abort\fP \fI?-help?\fP
 .br
 \fBSIM asyncvector\fP \fIname ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?\fP
 .br
@@ -35,9 +35,9 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM circuit\fP \fI?-string? circuit\fP
 .br
-\fBSIM command\fP \fIstring\fP
+\fBSIM command\fP \fI?-capture? string\fP
 .br
-\fBSIM destroy\fP
+\fBSIM destroy\fP \fI?-help?\fP
 .br
 \fBSIM eventcounts\fP \fI?-clear?\fP
 .br
@@ -47,11 +47,11 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM inputpath\fP \fIpath\fP
 .br
-\fBSIM isrunning\fP
+\fBSIM isrunning\fP \fI?-help?\fP
 .br
 \fBSIM messages\fP \fI?-clear?\fP
 .br
-\fBSIM plot\fP \fI-all\fP
+\fBSIM plot\fP \fI?-all?\fP
 .br
 \fBSIM plot\fP \fI-vecs name\fP
 .br
@@ -164,9 +164,6 @@ Gets title of the current circuit (first line of circuits netlist)\&.
 .PP
 \fBParameters\fR
 .RS 4n
-.TP
-sim
-Not documented\&.
 .RE
 .PP
 \fBReturn value\fR
@@ -185,9 +182,6 @@ Gets time stamp of current plot generation\&.
 .PP
 \fBParameters\fR
 .RS 4n
-.TP
-sim
-Not documented\&.
 .RE
 .PP
 \fBReturn value\fR
@@ -206,9 +200,6 @@ Gets name of the current plot, i\&.e\&. Operating Point, AC Analysis, etc\&.
 .PP
 \fBParameters\fR
 .RS 4n
-.TP
-sim
-Not documented\&.
 .RE
 .PP
 \fBReturn value\fR
@@ -227,9 +218,6 @@ Gets dictionary with information about current scale vector\&.
 .PP
 \fBParameters\fR
 .RS 4n
-.TP
-sim
-Not documented\&.
 .RE
 .PP
 \fBReturn value\fR
@@ -342,7 +330,7 @@ Destination namespace for vector snapshots; created if missing, relative to the 
 List or vector; overrides the simulator default\&.
 .TP
 sim
-Simulator handler that is returned by ngspicetclbridge::new
+Simulator handle that is returned by ngspicetclbridge::new
 .RE
 .PP
 \fBDescription\fR
@@ -384,15 +372,18 @@ dictionary
 .PP
 Runs simulation in background thread, waits for the completion, process event in the queue and returns
 .RS 4n
-\fBrun\fP \fI?args?\fP
+\fBrun\fP \fI?-nocleanup? sim\fP
 .br
 .RE
 .PP
 \fBParameters\fR
 .RS 4n
 .TP
+-nocleanup
+If provided, results from previous run are retained\&.
+.TP
 sim
-Simulator handler that is returned by ngspicetclbridge::new -nocleanup -if provided, results from previous run are retained\&.
+Simulator handle that is returned by ngspicetclbridge::new
 .RE
 .PP
 \fBReturn value\fR
@@ -464,9 +455,20 @@ Refer to the documentation of each subcommand for details\&.
 Sets an internal abort flag and wake any waiters (useful to force waitevent to return)\&. This does \fBnot\fP free
 the instance\&.
 .RS 4n
-\fBSIM abort\fP
+\fBSIM abort\fP \fI?-help?\fP
 .br
 .RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+handle
+Not documented\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP abort\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -487,6 +489,9 @@ has produced data; the vector may still be incomplete\&.
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+handle
+Not documented\&.
 .TP
 -ifexists
 Error or replace; overrides the handle collision policy\&.
@@ -552,6 +557,8 @@ $sim asyncvector V(9)
 .fi
 .RE
 .PP
+The handle argument is supplied automatically when called as \fI$handle\fP asyncvector\&.
+.PP
 \fBReturn value\fR
 .PP
 real vectors as a flat list of doubles, complex vectors as a list of {re im} pairs\&. Error if vector
@@ -571,6 +578,9 @@ separator between netlists lines\&.
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+handle
+Not documented\&.
 .TP
 -string
 Allows to pass circuit as ordinary string\&.
@@ -599,6 +609,8 @@ $sim command bg_run
 .fi
 .RE
 .PP
+The handle argument is supplied automatically when called as \fI$handle\fP circuit\&.
+.PP
 \fBReturn value\fR
 .PP
 Ngspice result code
@@ -613,12 +625,18 @@ of Ngspice\&. Also, if command is send in the moment background thread is starti
 deferred to the time is could be safely sent, and in that case -capture message and command results code
 are not availaible as a return of command\&.
 .RS 4n
-\fBSIM command\fP \fIstring\fP
+\fBSIM command\fP \fI?-capture? string\fP
 .br
 .RE
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+handle
+Not documented\&.
+.TP
+-capture
+Return captured output along with the result code\&.
 .TP
 string
 Command string\&.
@@ -635,6 +653,8 @@ $sim command bg_run
 .fi
 .RE
 .PP
+The handle argument is supplied automatically when called as \fI$handle\fP command\&.
+.PP
 \fBReturn value\fR
 .PP
 Ngspice result code, or dictionary with result code and the message
@@ -645,8 +665,15 @@ Ngspice result code, or dictionary with result code and the message
 .PP
 Deletes the instance command\&. In details:
 .RS 4n
-\fBSIM destroy\fP
+\fBSIM destroy\fP \fI?-help?\fP
 .br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+handle
+Not documented\&.
 .RE
 .PP
 \fBDescription\fR
@@ -662,6 +689,8 @@ Quiesces the ngspice background thread
 .TP
 \(bu
 Defers and performs full cleanup
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP destroy\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -680,6 +709,9 @@ Gets or reset the cumulative event counters for this simulator instance\&.
 \fBParameters\fR
 .RS 4n
 .TP
+handle
+Not documented\&.
+.TP
 -clear
 Zeros all counts and returns nothing\&.
 .RE
@@ -694,6 +726,8 @@ $sim eventcounts
 # -> send_char N  send_stat N  controlled_exit N send_data N  send_init_data N  bg_running N
 .fi
 .RE
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP eventcounts\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -712,6 +746,9 @@ Gets held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.
 \fBParameters\fR
 .RS 4n
 .TP
+handle
+Not documented\&.
+.TP
 -clear
 Empties the internal memory structure and returns \fBnothing\fP\&.
 .RE
@@ -729,6 +766,8 @@ $sim initvectors
 .PP
 \fBWarning\fP: accumulation of data \fBdo not\fP continues after call bg_run, new metadata replace the old one
 in the storage\&.
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP initvectors\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -750,12 +789,19 @@ provided\&.
 \fBParameters\fR
 .RS 4n
 .TP
+handle
+Not documented\&.
+.TP
 -current
 Switch to return current path\&.
 .TP
 path
 Full path to desired location\&.
 .RE
+.PP
+\fBDescription\fR
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP inputpath\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -767,9 +813,20 @@ current path
 .PP
 Calls asynchronously to check if background thread is running\&.
 .RS 4n
-\fBSIM isrunning\fP
+\fBSIM isrunning\fP \fI?-help?\fP
 .br
 .RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+handle
+Not documented\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP isrunning\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -787,6 +844,9 @@ Queues of textual messages captured from Ngspice (stdout/stderr) and bridge stat
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+handle
+Not documented\&.
 .TP
 -clear
 Empties the internal queue structure and returns \fBnothing\fP\&.
@@ -809,6 +869,8 @@ join [$sim messages] \\n
 \fBWarning\fP: accumulation of messages continues even if you run new circuit or analysis until you explicitly
 clear the data storage\&.
 .PP
+The handle argument is supplied automatically when called as \fI$handle\fP messages\&.
+.PP
 \fBReturn value\fR
 .PP
 list of messages
@@ -820,7 +882,7 @@ list of messages
 Gets current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot\&.
 .RS 4n
-\fBSIM plot\fP \fI-all\fP
+\fBSIM plot\fP \fI?-all?\fP
 .br
 \fBSIM plot\fP \fI-vecs name\fP
 .br
@@ -829,12 +891,19 @@ name of the provided plot\&.
 \fBParameters\fR
 .RS 4n
 .TP
+handle
+Not documented\&.
+.TP
 -all
 Switch to return all plots names\&.
 .TP
 -vecs plotname
 Switch with argument to get all vectors names belonging to name plot\&.
 .RE
+.PP
+\fBDescription\fR
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP plot\&.
 .PP
 \fBReturn value\fR
 .PP
@@ -852,6 +921,9 @@ Gets data accumulated from send_data events through the Tcl event loop\&.
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+handle
+Not documented\&.
 .TP
 -clear
 Empties stored samples and returns \fBnothing\fP\&.
@@ -912,6 +984,8 @@ $sim vectors -clear
 .fi
 .RE
 .PP
+The handle argument is supplied automatically when called as \fI$handle\fP vectors\&.
+.PP
 \fBReturn value\fR
 .PP
 dict with vectors values accumulated up to this point in internal structure
@@ -929,6 +1003,9 @@ or the timeout expires (if provided)\&.
 .PP
 \fBParameters\fR
 .RS 4n
+.TP
+handle
+Not documented\&.
 .TP
 -n N
 Number of events that should happend for termination after waiting is started\&.
@@ -1007,6 +1084,8 @@ $sim waitevent send_stat 1000
 .RE
 .PP
 If you want “fresh” waits, you can clear counts with eventcounts -clear\&.
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP waitevent\&.
 .PP
 \fBReturn value\fR
 .PP

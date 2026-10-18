@@ -3,6 +3,7 @@ if {[llength $argv] != 3 || [lindex $argv 0] ne "--rbc-fixture"} {
 }
 
 load [file normalize [lindex $argv 1]] Ngspicetclbridge
+source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
 set mockLibrary [file normalize [lindex $argv 2]]
 set argv {}
 # Probe the extension build as well as runtime RBC availability. Restore initial defaults.

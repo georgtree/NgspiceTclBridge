@@ -97,7 +97,7 @@ test rbc-1.10 {worker callbacks update live vectors during simulation} -constrai
 test rbc-1.11 {invalid options fail before loading the shared library} -body {
     catch {::ngspicetclbridge::new nonexistent -output bad} message
     set message
-} -result {-output must be list or vector}
+} -result {bad -output value "bad": must be list or vector}
 
 
 proc bgerror {message} {
@@ -588,6 +588,7 @@ test defaults-interpreters {a fresh interpreter has independent list defaults} -
     }
     interp create defaultsChild
     defaultsChild eval [list load $library]
+    defaultsChild eval [list source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]]
     defaultsChild eval {::ngspicetclbridge::configure -output list}
     list [defaultsChild eval {::ngspicetclbridge::configure -output}] [::ngspicetclbridge::configure -output]\
             [defaultsChild eval {package provide rbc::vector}]
@@ -648,6 +649,7 @@ test defaults-policy-interpreters {policy is interpreter-local and setting it al
     }
     interp create policyChild
     policyChild eval [list load $library]
+    policyChild eval [list source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]]
     set initial [policyChild eval {::ngspicetclbridge::configure -ifexists}]
     policyChild eval {::ngspicetclbridge::configure -ifexists replace}
     set loaded [policyChild eval {package provide rbc::vector}]
@@ -699,5 +701,59 @@ test defaults-policy-live {live vector adoption uses the captured collision poli
     list $v $values [expr {[info commands $v] ne {}}]
 } -cleanup {catch {clean $s}; ::ngspicetclbridge::configure {*}$saved} \
     -result {::live::time {0.0 0.1 0.2} 1}
+
+
+foreach operation {command circuit plot inputpath waitevent vectors initvectors asyncvector messages eventcounts abort isrunning destroy} {
+    test interface-help-$operation {help returns normally without invoking ngspice or destroying the handle} -setup {
+        set s [newSim]
+        begin $s
+        set counts [$s eventcounts]
+    } -body [string map [list @OP@ $operation] {
+        set result [$s @OP@ -help]
+        list $result [expr {$counts eq [$s eventcounts]}] [$s isrunning]
+    }] -cleanup {clean $s} -match glob -output {*-help*} -result {{} 1 0}
+}
+foreach command {new configure run readVecsAsync getCircuit getScaleInfo getPlotName getCircuitTitle getPlotDate} {
+    test interface-help-$command {top-level help requires no library or simulator and preserves defaults} -body [string map [list @CMD@ $command] {
+        set before [::ngspicetclbridge::configure]
+        set result [::ngspicetclbridge::@CMD@ -help]
+        list $result [expr {$before eq [::ngspicetclbridge::configure]}]
+    }] -match glob -output {*-help*} -result {{} 1}
+}
+test interface-prefixes {prefixes and mixed ordering for handle options} -setup {
+    set s [::ngspicetclbridge::new -nospin $mockLibrary -out li]
+    begin $s
+} -body {
+    list [expr {[$s plot -vec tran1] eq [$s plot -vecs tran1]}] \
+        [expr {[$s asyncvector v(out) -out li] eq [$s asyncvector -out list v(out)]}] \
+        [dict get [$s asyncvector v(out) -inf] length] \
+        [dict get [$s waitevent -n 1 send_data 1] fired] \
+        [dict get [$s waitevent send_data 1 -n 1] fired] \
+        [expr {[::ngspicetclbridge::readVecsAsync $s -out li] eq [::ngspicetclbridge::readVecsAsync -output list $s]}]
+} -cleanup {clean $s} -result {1 1 3 0 0 1}
+test interface-validation {ambiguous options, invalid counts, mutual exclusions and trailing args are rejected} -setup {
+    set s [newSim]
+} -body {
+    list [catch {::ngspicetclbridge::new $mockLibrary -nos}] \
+        [catch {$s asyncvector v(out) -na dest}] [catch {$s waitevent send_data -n 0 1}] \
+        [catch {$s plot -all -vecs tran1}] [catch {$s asyncvector -info v(out) -output list}] \
+        [catch {$s destroy extra}] [catch {$s abort extra}] [$s isrunning]
+} -cleanup {clean $s} -result {1 1 1 1 1 1 1 0}
+test interface-lifetime {renamed and aliased simulator handles keep working and delete normally} -setup {
+    namespace eval ::bridgeInterface {}
+    set s [newSim]
+    rename $s ::bridgeInterface::sim
+    interp alias {} ::bridgeInterface::alias {} ::bridgeInterface::sim
+} -body {
+    set same [namespace eval ::bridgeInterface {expr {[sim plot] eq [alias plot]}}]
+    namespace eval ::bridgeInterface {sim destroy}
+    list $same [info commands ::bridgeInterface::sim] [catch {::bridgeInterface::alias plot}]
+} -cleanup {catch {::bridgeInterface::sim destroy}; namespace delete ::bridgeInterface; clean {}} -result {1 {} 1}
+test interface-native-validation {private dictionary API rejects malformed input and foreign handles} -body {
+    list [catch {::ngspicetclbridge::NativeNew {}}] \
+        [catch {::ngspicetclbridge::NativeNew {libpath}}] \
+        [catch {::ngspicetclbridge::NativeCall puts asyncvector {source v(out)}}] \
+        [expr {[llength [info procs ::ngspicetclbridge::new]] == 1}]
+} -result {1 1 1 1}
 
 finishTests
