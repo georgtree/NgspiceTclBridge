@@ -44,8 +44,39 @@
 <span id="r-ngspicetclbridge"></span><span id="r-3a3angspicetclbridge"></span><h1>::ngspicetclbridge<a class="headerlink" href="#ngspicetclbridge" title="Link to this heading">¶</a></h1>
 <section id="commands">
 <span id="r-ngspicetclbridge-commands"></span><span id="r-3a3angspicetclbridgeqzcommands"></span><h2>Commands<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
+<section id="configure">
+<span id="r-symbolqz3a3angspicetclbridge3a3aconfigure"></span><span id="index-1"></span><span id="index-0"></span><h3><code class="docutils literal notranslate"><span class="pre">configure</span></code><a class="headerlink" href="#configure" title="Link to this heading">¶</a></h3>
+<p>Queries or changes package-wide representation defaults in this Tcl interpreter.</p>
+<pre class="literal-block"><strong>configure</strong> <em>?option?</em>
+<strong>configure</strong> <em>?-output list|vector?</em></pre>
+<p class="rubric">Parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-output</span> <span class="pre">mode</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Default output representation: list or vector; initially list.</p>
+</dd>
+</dl>
+<p class="rubric">Description</p>
+<p>With no arguments, returns all settings as an option/value dictionary. With one option, returns its value.
+With option/value pairs, validates all settings before applying them and returns the complete configuration.
+Invalid options, invalid modes, or unavailable RBC support leave the configuration unchanged. Selecting
+vector mode requires an RBC-enabled build and a loadable rbc::vector package; list queries/settings do not
+load RBC. Defaults are independent in separate interpreters.</p>
+<p>New simulator handles capture this default unless -output is supplied explicitly at creation.
+Existing handles retain their settings. Per-read overrides take precedence over the handle default.
+This public command is not namespace-exported; call it as ::ngspicetclbridge::configure.
+Namespace selection, naming and collision policies are unaffected.</p>
+<p>Example:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>saved<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="k">]</span>
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="k">{</span><span class="o">*</span><span class="k">}</span><span class="nv">$saved</span>
+</pre></div>
+</div>
+<p class="rubric">Return value</p>
+<p>selected option value for a single-option query; otherwise all settings as a dictionary.</p>
+</section>
 <section id="getcircuit">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuit"></span><span id="index-1"></span><span id="index-0"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code><a class="headerlink" href="#getcircuit" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuit"></span><span id="index-3"></span><span id="index-2"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code><a class="headerlink" href="#getcircuit" title="Link to this heading">¶</a></h3>
 <p>Gets list with currently loaded circuit (its listing) in the form specified by the switch.</p>
 <pre class="literal-block"><strong>getCircuit</strong> <em>?-logical|-physical|-deck|-expand|-runnable|-param? sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -76,7 +107,7 @@
 <p>list with listing lines</p>
 </section>
 <section id="getcircuittitle">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuittitle"></span><span id="index-3"></span><span id="index-2"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code><a class="headerlink" href="#getcircuittitle" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuittitle"></span><span id="index-5"></span><span id="index-4"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code><a class="headerlink" href="#getcircuittitle" title="Link to this heading">¶</a></h3>
 <p>Gets title of the current circuit (first line of circuits netlist).</p>
 <pre class="literal-block"><strong>getCircuitTitle</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -89,7 +120,7 @@
 <p>title</p>
 </section>
 <section id="getplotdate">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetplotdate"></span><span id="index-5"></span><span id="index-4"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code><a class="headerlink" href="#getplotdate" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetplotdate"></span><span id="index-7"></span><span id="index-6"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code><a class="headerlink" href="#getplotdate" title="Link to this heading">¶</a></h3>
 <p>Gets time stamp of current plot generation.</p>
 <pre class="literal-block"><strong>getPlotDate</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -102,7 +133,7 @@
 <p>time stamp</p>
 </section>
 <section id="getplotname">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetplotname"></span><span id="index-7"></span><span id="index-6"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code><a class="headerlink" href="#getplotname" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetplotname"></span><span id="index-9"></span><span id="index-8"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code><a class="headerlink" href="#getplotname" title="Link to this heading">¶</a></h3>
 <p>Gets name of the current plot, i.e. Operating Point, AC Analysis, etc.</p>
 <pre class="literal-block"><strong>getPlotName</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -115,7 +146,7 @@
 <p>name of the plot</p>
 </section>
 <section id="getscaleinfo">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetscaleinfo"></span><span id="index-9"></span><span id="index-8"></span><h3><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code><a class="headerlink" href="#getscaleinfo" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetscaleinfo"></span><span id="index-11"></span><span id="index-10"></span><h3><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code><a class="headerlink" href="#getscaleinfo" title="Link to this heading">¶</a></h3>
 <p>Gets dictionary with information about current scale vector.</p>
 <pre class="literal-block"><strong>getScaleInfo</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -128,7 +159,7 @@
 <p>dictionary with the information</p>
 </section>
 <section id="new">
-<span id="r-symbolqz3a3angspicetclbridge3a3anew"></span><span id="index-11"></span><span id="index-10"></span><h3><code class="docutils literal notranslate"><span class="pre">new</span></code><a class="headerlink" href="#new" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3anew"></span><span id="index-13"></span><span id="index-12"></span><h3><code class="docutils literal notranslate"><span class="pre">new</span></code><a class="headerlink" href="#new" title="Link to this heading">¶</a></h3>
 <p>Load dynamic library, path should be provided in native form for target OS.  Every <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::new</span></code>
 returns a command (e.g. <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::s1</span></code>). The following subcommands operate on that instance.
 Optionally the spinit and/or spiceinit initialization files could be forbidden for loading.</p>
@@ -151,7 +182,7 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <dd class="field-odd"><p>Inhibits spinit.</p>
 </dd>
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>List (default) or vector; controls live storage and the default asyncvector result.</p>
+<dd class="field-even"><p>List or vector; inherits the package configuration (initially list); controls live storage and snapshots.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
@@ -177,7 +208,7 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <p>command name to work with Ngspice instance, references as <code class="docutils literal notranslate"><span class="pre">SIM</span></code> later</p>
 </section>
 <section id="readvecsasync">
-<span id="r-symbolqz3a3angspicetclbridge3a3areadvecsasync"></span><span id="index-13"></span><span id="index-12"></span><h3><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code><a class="headerlink" href="#readvecsasync" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3areadvecsasync"></span><span id="index-15"></span><span id="index-14"></span><h3><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code><a class="headerlink" href="#readvecsasync" title="Link to this heading">¶</a></h3>
 <p>Reads all available vectors of the current plot as independent snapshots. Returns a dictionary with
 raw vector names as keys and lists or fully qualified RBC vector names as values.</p>
 <pre class="literal-block"><strong>readVecsAsync</strong> <em>?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? ?-names dictionary|#auto? sim</em></pre>
@@ -223,7 +254,7 @@ raw vector names as keys and lists or fully qualified RBC vector names as values
 <p>dictionary</p>
 </section>
 <section id="run">
-<span id="r-symbolqz3a3angspicetclbridge3a3arun"></span><span id="index-15"></span><span id="index-14"></span><h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3arun"></span><span id="index-17"></span><span id="index-16"></span><h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
 <p>Runs simulation in background thread, waits for the completion, process event in the queue and returns</p>
 <pre class="literal-block"><strong>run</strong> <em>?args?</em></pre>
 <p class="rubric">Parameters</p>
@@ -235,7 +266,7 @@ raw vector names as keys and lists or fully qualified RBC vector names as values
 <p class="rubric">Return value</p>
 </section>
 <section id="sim">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim"></span><span id="index-17"></span><span id="index-16"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span></code><a class="headerlink" href="#sim" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim"></span><span id="index-19"></span><span id="index-18"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span></code><a class="headerlink" href="#sim" title="Link to this heading">¶</a></h3>
 <p>A
 command
 ensemble.</p>
@@ -273,7 +304,7 @@ ensemble.</p>
 <p>Refer to the documentation of each subcommand for details.</p>
 </section>
 <section id="sim-abort">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20abort"></span><span id="index-19"></span><span id="index-18"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code><a class="headerlink" href="#sim-abort" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20abort"></span><span id="index-21"></span><span id="index-20"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code><a class="headerlink" href="#sim-abort" title="Link to this heading">¶</a></h3>
 <p>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free
 the instance.</p>
 <pre class="literal-block"><strong>SIM abort</strong></pre>
@@ -281,7 +312,7 @@ the instance.</p>
 <p>nothing.</p>
 </section>
 <section id="sim-asyncvector">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20asyncvector"></span><span id="index-21"></span><span id="index-20"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code><a class="headerlink" href="#sim-asyncvector" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20asyncvector"></span><span id="index-23"></span><span id="index-22"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code><a class="headerlink" href="#sim-asyncvector" title="Link to this heading">¶</a></h3>
 <p>Fetches the current values of a named vector through ngspice’s ngGet_Vec_Info. Available once the simulation
 has produced data; the vector may still be incomplete.</p>
 <pre class="literal-block"><strong>SIM asyncvector</strong> <em>name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?</em>
@@ -339,7 +370,7 @@ has produced data; the vector may still be incomplete.</p>
 does not exists.</p>
 </section>
 <section id="sim-circuit">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20circuit"></span><span id="index-23"></span><span id="index-22"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code><a class="headerlink" href="#sim-circuit" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20circuit"></span><span id="index-25"></span><span id="index-24"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code><a class="headerlink" href="#sim-circuit" title="Link to this heading">¶</a></h3>
 <p>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch
 <code class="docutils literal notranslate"><span class="pre">-string</span></code> is provided, the input netlists could be passed as ordinary string with newline character as a
 separator between netlists lines.</p>
@@ -372,7 +403,7 @@ separator between netlists lines.</p>
 <p>Ngspice result code</p>
 </section>
 <section id="sim-command">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20command"></span><span id="index-25"></span><span id="index-24"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code><a class="headerlink" href="#sim-command" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20command"></span><span id="index-27"></span><span id="index-26"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code><a class="headerlink" href="#sim-command" title="Link to this heading">¶</a></h3>
 <p>Sends an arbitrary Ngspice command line (e.g., <code class="docutils literal notranslate"><span class="pre">bg_run</span></code>, <code class="docutils literal notranslate"><span class="pre">circbyline</span></code> …, <code class="docutils literal notranslate"><span class="pre">.save</span></code>, <code class="docutils literal notranslate"><span class="pre">.tran</span></code>, <code class="docutils literal notranslate"><span class="pre">.dc</span></code>). If
 we provide <code class="docutils literal notranslate"><span class="pre">-capture</span></code> switch, it returns not only the result code, but also the next message from stdout
 of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be
@@ -395,7 +426,7 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <p>Ngspice result code, or dictionary with result code and the message</p>
 </section>
 <section id="sim-destroy">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20destroy"></span><span id="index-27"></span><span id="index-26"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code><a class="headerlink" href="#sim-destroy" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20destroy"></span><span id="index-29"></span><span id="index-28"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code><a class="headerlink" href="#sim-destroy" title="Link to this heading">¶</a></h3>
 <p>Deletes the instance command. In details:</p>
 <pre class="literal-block"><strong>SIM destroy</strong></pre>
 <p class="rubric">Description</p>
@@ -409,7 +440,7 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <p>nothing.</p>
 </section>
 <section id="sim-eventcounts">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"></span><span id="index-29"></span><span id="index-28"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code><a class="headerlink" href="#sim-eventcounts" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"></span><span id="index-31"></span><span id="index-30"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code><a class="headerlink" href="#sim-eventcounts" title="Link to this heading">¶</a></h3>
 <p>Gets or reset the cumulative event counters for this simulator instance.</p>
 <pre class="literal-block"><strong>SIM eventcounts</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -428,7 +459,7 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <p>returns a dict with keys as events names, and counts for each event as a value</p>
 </section>
 <section id="sim-initvectors">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20initvectors"></span><span id="index-31"></span><span id="index-30"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code><a class="headerlink" href="#sim-initvectors" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20initvectors"></span><span id="index-33"></span><span id="index-32"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code><a class="headerlink" href="#sim-initvectors" title="Link to this heading">¶</a></h3>
 <p>Gets held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.</p>
 <pre class="literal-block"><strong>SIM initvectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -449,7 +480,7 @@ in the storage.</p>
 <p>dict with initial vector metadata saved in internal structure</p>
 </section>
 <section id="sim-inputpath">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20inputpath"></span><span id="index-33"></span><span id="index-32"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code><a class="headerlink" href="#sim-inputpath" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20inputpath"></span><span id="index-35"></span><span id="index-34"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code><a class="headerlink" href="#sim-inputpath" title="Link to this heading">¶</a></h3>
 <p>Gets current path for XSPICE code models if <code class="docutils literal notranslate"><span class="pre">-current</span></code> switch is provided, or set current path to value
 provided.</p>
 <pre class="literal-block"><strong>SIM inputpath</strong> <em>-current</em>
@@ -467,14 +498,14 @@ provided.</p>
 <p>current path</p>
 </section>
 <section id="sim-isrunning">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-35"></span><span id="index-34"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading">¶</a></h3>
 <p>Calls asynchronously to check if background thread is running.</p>
 <pre class="literal-block"><strong>SIM isrunning</strong></pre>
 <p class="rubric">Return value</p>
 <p><code class="docutils literal notranslate"><span class="pre">1</span></code> if thread is running, <code class="docutils literal notranslate"><span class="pre">0</span></code> otherwise.</p>
 </section>
 <section id="sim-messages">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20messages"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code><a class="headerlink" href="#sim-messages" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20messages"></span><span id="index-39"></span><span id="index-38"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code><a class="headerlink" href="#sim-messages" title="Link to this heading">¶</a></h3>
 <p>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
 <pre class="literal-block"><strong>SIM messages</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -498,7 +529,7 @@ clear the data storage.</p>
 <p>list of messages</p>
 </section>
 <section id="sim-plot">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-39"></span><span id="index-38"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading">¶</a></h3>
 <p>Gets current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot.</p>
 <pre class="literal-block"><strong>SIM plot</strong> <em>-all</em>
@@ -516,7 +547,7 @@ name of the provided plot.</p>
 <p>current plot, or list of all plots, or list of all vectors</p>
 </section>
 <section id="sim-vectors">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-43"></span><span id="index-42"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading">¶</a></h3>
 <p>Gets data accumulated from send_data events through the Tcl event loop.</p>
 <pre class="literal-block"><strong>SIM vectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -561,7 +592,7 @@ name of the provided plot.</p>
 <p>dict with vectors values accumulated up to this point in internal structure</p>
 </section>
 <section id="sim-waitevent">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20waitevent"></span><span id="index-43"></span><span id="index-42"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code><a class="headerlink" href="#sim-waitevent" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20waitevent"></span><span id="index-45"></span><span id="index-44"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code><a class="headerlink" href="#sim-waitevent" title="Link to this heading">¶</a></h3>
 <p>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed,
 or the timeout expires (if provided).</p>
 <pre class="literal-block"><strong>SIM waitevent</strong> <em>name ?-n N? ?timeout_ms?</em></pre>
@@ -749,6 +780,7 @@ or the timeout expires (if provided).</p>
     <ul>
 <li><a class="reference internal" href="#">::ngspicetclbridge</a><ul>
 <li><a class="reference internal" href="#commands">Commands</a><ul>
+<li><a class="reference internal" href="#configure"><code class="docutils literal notranslate"><span class="pre">configure</span></code></a></li>
 <li><a class="reference internal" href="#getcircuit"><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code></a></li>
 <li><a class="reference internal" href="#getcircuittitle"><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code></a></li>
 <li><a class="reference internal" href="#getplotdate"><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code></a></li>

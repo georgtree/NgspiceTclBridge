@@ -5,6 +5,10 @@
 .SH NAME
 ngspicetclbridge - Commands in namespace ngspicetclbridge
 .SH SYNOPSIS
+\fBconfigure\fP \fI?option?\fP
+.br
+\fBconfigure\fP \fI?-output list|vector?\fP
+.br
 \fBgetCircuit\fP \fI?-logical|-physical|-deck|-expand|-runnable|-param? sim\fP
 .br
 \fBgetCircuitTitle\fP \fIsim\fP
@@ -57,6 +61,53 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 .SH ::NGSPICETCLBRIDGE
 .SH COMMANDS
+.PP
+.RS -4n
+\fBconfigure\fR (::ngspicetclbridge)
+.RE
+.PP
+Queries or changes package-wide representation defaults in this Tcl interpreter\&.
+.RS 4n
+\fBconfigure\fP \fI?option?\fP
+.br
+\fBconfigure\fP \fI?-output list|vector?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+-output mode
+Default output representation: list or vector; initially list\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+With no arguments, returns all settings as an option/value dictionary\&. With one option, returns its value\&.
+With option/value pairs, validates all settings before applying them and returns the complete configuration\&.
+Invalid options, invalid modes, or unavailable RBC support leave the configuration unchanged\&. Selecting
+vector mode requires an RBC-enabled build and a loadable rbc::vector package; list queries/settings do not
+load RBC\&. Defaults are independent in separate interpreters\&.
+.PP
+New simulator handles capture this default unless -output is supplied explicitly at creation\&.
+Existing handles retain their settings\&. Per-read overrides take precedence over the handle default\&.
+This public command is not namespace-exported; call it as ::ngspicetclbridge::configure\&.
+Namespace selection, naming and collision policies are unaffected\&.
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+set saved [::ngspicetclbridge::configure]
+::ngspicetclbridge::configure -output vector
+::ngspicetclbridge::configure -output
+::ngspicetclbridge::configure {*}$saved
+.fi
+.RE
+.PP
+\fBReturn value\fR
+.PP
+selected option value for a single-option query; otherwise all settings as a dictionary\&.
 .PP
 .RS -4n
 \fBgetCircuit\fR (::ngspicetclbridge)
@@ -212,7 +263,7 @@ Inhibits spiceinit\&.
 Inhibits spinit\&.
 .TP
 -output
-List (default) or vector; controls live storage and the default asyncvector result\&.
+List or vector; inherits the package configuration (initially list); controls live storage and snapshots\&.
 .RE
 .PP
 \fBDescription\fR

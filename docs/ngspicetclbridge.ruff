@@ -1,6 +1,34 @@
  
 namespace eval ::ngspicetclbridge {
 
+    proc configure {args} {
+        # Queries or changes package-wide representation defaults in this Tcl interpreter.
+        #  -output mode - Default output representation: list or vector; initially list.
+        #
+        # With no arguments, returns all settings as an option/value dictionary. With one option, returns its value.
+        # With option/value pairs, validates all settings before applying them and returns the complete configuration.
+        # Invalid options, invalid modes, or unavailable RBC support leave the configuration unchanged. Selecting
+        # vector mode requires an RBC-enabled build and a loadable rbc::vector package; list queries/settings do not
+        # load RBC. Defaults are independent in separate interpreters.
+        #
+        # New simulator handles capture this default unless -output is supplied explicitly at creation.
+        # Existing handles retain their settings. Per-read overrides take precedence over the handle default.
+        # This public command is not namespace-exported; call it as ::ngspicetclbridge::configure.
+        # Namespace selection, naming and collision policies are unaffected.
+        #
+        # Example:
+        # ```tcl
+        # set saved [::ngspicetclbridge::configure]
+        # ::ngspicetclbridge::configure -output vector
+        # ::ngspicetclbridge::configure -output
+        # ::ngspicetclbridge::configure {*}$saved
+        # ```
+        #
+        # Synopsis: ?option?
+        # Synopsis: ?-output list|vector?
+        # Returns: selected option value for a single-option query; otherwise all settings as a dictionary.
+    }
+
     proc new {args} {
         # Load dynamic library, path should be provided in native form for target OS.  Every `::ngspicetclbridge::new`
         # returns a command (e.g. `::ngspicetclbridge::s1`). The following subcommands operate on that instance.
@@ -8,7 +36,7 @@ namespace eval ::ngspicetclbridge {
         #  -nospinit - inhibits spinit
         #  -nospiceinit - inhibits spiceinit
         #  -noinit - inhibit both spinit and spiceinit
-        #  -output - list (default) or vector; controls live storage and the default asyncvector result
+        #  -output - list or vector; inherits the package configuration (initially list); controls live storage and snapshots
         #  -ifexists - error (default) or replace for initial vector destinations
         #  -namespace - destination for live vectors and snapshots; created at handle construction if missing
         #

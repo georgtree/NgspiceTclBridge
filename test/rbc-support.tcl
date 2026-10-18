@@ -5,7 +5,9 @@ if {[llength $argv] != 3 || [lindex $argv 0] ne "--rbc-fixture"} {
 load [file normalize [lindex $argv 1]] Ngspicetclbridge
 set mockLibrary [file normalize [lindex $argv 2]]
 set argv {}
-set haveRbc [expr {![catch {package require rbc::vector}]}]
+# Probe the extension build as well as runtime RBC availability. Restore initial defaults.
+set haveRbc [expr {![catch {::ngspicetclbridge::configure -output vector}]}]
+::ngspicetclbridge::configure -output list
 
 testConstraint rbc $haveRbc
 

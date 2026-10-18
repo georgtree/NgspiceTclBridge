@@ -543,4 +543,88 @@ test rbc-namespace-root {root destination and missing absolute parent} -constrai
     list $root $code [namespace exists ::snap::absent]
 } -cleanup {clean $s} -result {{} 1 0}
 
+
+testConstraint defaultsNoVectors [expr {!$haveRbc}]
+
+# Public package configuration is intentionally not namespace-exported.
+test defaults-query {initial settings and single-option queries} -body {
+    list [::ngspicetclbridge::configure] [::ngspicetclbridge::configure -output]
+} -result {{-output list} list}
+
+test defaults-validation {invalid requests do not partially change configuration} -body {
+    set saved [::ngspicetclbridge::configure]
+    set errors {}
+    foreach args {{-output vector -unknown list} {-output invalid} {-output list -output} {-unknown}} {
+        lappend errors [catch {::ngspicetclbridge::configure {*}$args}]
+        if {[::ngspicetclbridge::configure] ne $saved} {
+            error {partial configuration change}
+        }
+    }
+    set errors
+} -cleanup {::ngspicetclbridge::configure {*}$saved} -result {1 1 1 1}
+
+test defaults-not-exported {wildcard imports do not import configure} -body {
+    namespace eval ::defaultsImportTest {namespace import ::ngspicetclbridge::*}
+    list [info commands ::ngspicetclbridge::configure] [info commands ::defaultsImportTest::configure]
+} -cleanup {namespace delete ::defaultsImportTest} -result {::ngspicetclbridge::configure {}}
+
+test defaults-set-restore {set returns all settings; returned dictionary restores them} -constraints rbc -body {
+    set saved [::ngspicetclbridge::configure]
+    set changed [::ngspicetclbridge::configure -output vector]
+    set query [::ngspicetclbridge::configure -output]
+    set restored [::ngspicetclbridge::configure {*}$saved]
+    list $changed $query [expr {$restored eq $saved}]
+} -cleanup {::ngspicetclbridge::configure {*}$saved} -result {{-output vector} vector 1}
+
+test defaults-interpreters {a fresh interpreter has independent list defaults} -constraints rbc -body {
+    set saved [::ngspicetclbridge::configure]
+    ::ngspicetclbridge::configure -output vector
+    set library {}
+    foreach loaded [info loaded] {
+        if {[string equal -nocase [lindex $loaded 1] ngspicetclbridge]} {
+            set library [lindex $loaded 0]
+            break
+        }
+    }
+    interp create defaultsChild
+    defaultsChild eval [list load $library]
+    defaultsChild eval {::ngspicetclbridge::configure -output list}
+    list [defaultsChild eval {::ngspicetclbridge::configure -output}] [::ngspicetclbridge::configure -output]\
+            [defaultsChild eval {package provide rbc::vector}]
+} -cleanup {
+    catch {interp delete defaultsChild}
+    ::ngspicetclbridge::configure {*}$saved
+} -result {list vector {}}
+
+test defaults-unavailable {unavailable vector support leaves all defaults unchanged} -constraints defaultsNoVectors\
+        -body {
+    set saved [::ngspicetclbridge::configure]
+    list [catch {::ngspicetclbridge::configure -output vector}] [expr {[::ngspicetclbridge::configure] eq $saved}]
+} -cleanup {::ngspicetclbridge::configure {*}$saved} -result {1 1}
+
+test defaults-handle-output {new simulators capture defaults for live vectors and snapshots} -constraints rbc -body {
+    set saved [::ngspicetclbridge::configure]
+    set old [newSim]
+    begin $old
+    ::ngspicetclbridge::configure -output vector
+    set oldIsList [expr {[dict get [$old vectors] time] eq {0.0 0.1 0.2}}]
+    clean $old
+    set s [newSim]
+    ::ngspicetclbridge::configure -output list
+    begin $s
+    set live [$s vectors]
+    set snap [$s asyncvector time -namespace ::snap -name #auto]
+    set bulk [::ngspicetclbridge::readVecsAsync -namespace ::snap -names #auto $s]
+    set plain [$s asyncvector time -output list]
+    set result [list $oldIsList [dict get $live time] [$snap range 0 end] [[dict get $bulk time] range 0 end] $plain]
+    clean $s
+    ::ngspicetclbridge::configure -output vector
+    set s [newSim -output list]
+    begin $s
+    lappend result [expr {[dict get [$s vectors] time] eq {0.0 0.1 0.2}}]
+} -cleanup {
+    catch {clean $old}; catch {clean $s}
+    ::ngspicetclbridge::configure {*}$saved
+} -result {1 ::live::time {0.0 0.1 0.2} {0.0 0.1 0.2} {0.0 0.1 0.2} 1}
+
 finishTests

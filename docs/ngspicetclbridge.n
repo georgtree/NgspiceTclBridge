@@ -253,6 +253,25 @@ install list\&. Check the generation output for errors before installing or crea
 .TP
 \(bu
 \fBRepeated runs:\fP clear retained messages and event counters when needed\&. Bridge data buffers reset for a new simulation; caller-owned RBC snapshots still require explicit cleanup\&.
+.SH "PACKAGE DEFAULTS"
+.PP
+Set representation defaults once after loading the package:
+.PP
+.RS 4n
+.nf
+package require ngspicetclbridge
+::ngspicetclbridge::configure -output vector
+.fi
+.RE
+.PP
+New handles inherit the output default unless their creation call supplies -output explicitly\&. Existing
+handles keep their settings; per-read overrides still take precedence\&.
+.PP
+Use ::ngspicetclbridge::configure to query all settings, or ::ngspicetclbridge::configure -output to query one\&.
+The all-settings dictionary can be restored with ::ngspicetclbridge::configure {*}$saved\&.
+Initial defaults remain list\&. Invalid requests and unavailable vector support leave settings unchanged\&.
+Configuration belongs to the current Tcl interpreter\&. The command is public but \fBnot namespace-exported\fP,
+so wildcard imports cannot introduce a configure collision\&. Namespace, naming and collision policies are unchanged\&.
 
 
 .SH SEE ALSO

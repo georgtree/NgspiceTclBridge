@@ -205,6 +205,21 @@ or live streaming destinations. Empty namespaces are rejected.</p>
 <p>Relative <code class="docutils literal notranslate"><span class="pre">-name</span></code> and <code class="docutils literal notranslate"><span class="pre">-names</span></code> destinations, omitted signal-derived names, and <code class="docutils literal notranslate"><span class="pre">#auto</span></code> use that selection.
 Fully qualified destinations override it; their parent namespace must already exist. RBC expands a final
 <code class="docutils literal notranslate"><span class="pre">#auto</span></code> component, including in a fully qualified name. <code class="docutils literal notranslate"><span class="pre">auto</span></code> without # is an ordinary name.</p>
+</section>
+<section id="package-defaults">
+<span id="r-rbcbindings-package-defaults"></span><span id="r-3a3arbcbindingsqzpackage20defaults"></span><h2>Package defaults<a class="headerlink" href="#package-defaults" title="Link to this heading">¶</a></h2>
+<p>Set representation defaults once after loading the package:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nb">package</span><span class="w"> </span>require<span class="w"> </span>ngspicetclbridge
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector
+</pre></div>
+</div>
+<p>New handles inherit the output default unless their creation call supplies <code class="docutils literal notranslate"><span class="pre">-output</span></code> explicitly. Existing
+handles keep their settings; per-read overrides still take precedence.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span></code> to query all settings, or <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span> <span class="pre">-output</span></code> to query one.
+The all-settings dictionary can be restored with <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span> <span class="pre">{*}$saved</span></code>.
+Initial defaults remain <code class="docutils literal notranslate"><span class="pre">list</span></code>. Invalid requests and unavailable vector support leave settings unchanged.
+Configuration belongs to the current Tcl interpreter. The command is public but <strong>not namespace-exported</strong>,
+so wildcard imports cannot introduce a <code class="docutils literal notranslate"><span class="pre">configure</span></code> collision. Namespace, naming and collision policies are unchanged.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
@@ -229,6 +244,7 @@ Fully qualified destinations override it; their parent namespace must already ex
 <li><a class="reference internal" href="#read-only-destinations">Read-only destinations</a></li>
 <li><a class="reference internal" href="#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
 <li><a class="reference internal" href="#namespace-precedence-for-snapshots">Namespace precedence for snapshots</a></li>
+<li><a class="reference internal" href="#package-defaults">Package defaults</a></li>
 </ul>
 </li>
 </ul>
