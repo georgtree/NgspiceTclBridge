@@ -65,7 +65,7 @@ RBC 0.8.1 or newer headers and runtime, including the read-only stubs API.</p>
 complex RBC vectors. A graph can bind directly to the returned names through <code class="docutils literal notranslate"><span class="pre">-xdata</span></code> and <code class="docutils literal notranslate"><span class="pre">-ydata</span></code>; bindings
 survive clear and new runs. Use a dedicated namespace to avoid collisions such as the global Tcl <code class="docutils literal notranslate"><span class="pre">time</span></code>
 command.</p>
-<p><code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">error</span></code> is the default. <code class="docutils literal notranslate"><span class="pre">replace</span></code> adopts an existing same-type RBC vector in place, retaining graph
+<p><code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">error</span></code> is the initial default. <code class="docutils literal notranslate"><span class="pre">replace</span></code> adopts an existing same-type RBC vector in place, retaining graph
 bindings; it never overwrites an unrelated Tcl command. Previously attached vectors are reused regardless of
 the collision policy.  Destroying the handle destroys only live vectors it created. Adopted vectors and
 on-demand <code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> snapshots remain caller-owned. Use <code class="docutils literal notranslate"><span class="pre">rbc::vector</span> <span class="pre">rename</span> <span class="pre">oldName</span> <span class="pre">newName</span></code> to rename an
@@ -208,18 +208,19 @@ Fully qualified destinations override it; their parent namespace must already ex
 </section>
 <section id="package-defaults">
 <span id="r-rbcbindings-package-defaults"></span><span id="r-3a3arbcbindingsqzpackage20defaults"></span><h2>Package defaults<a class="headerlink" href="#package-defaults" title="Link to this heading">¶</a></h2>
-<p>Set representation defaults once after loading the package:</p>
+<p>Set representation and collision defaults once after loading the package:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nb">package</span><span class="w"> </span>require<span class="w"> </span>ngspicetclbridge
-<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>ifexists<span class="w"> </span>replace
 </pre></div>
 </div>
-<p>New handles inherit the output default unless their creation call supplies <code class="docutils literal notranslate"><span class="pre">-output</span></code> explicitly. Existing
+<p>New handles inherit output and collision defaults unless their creation call supplies <code class="docutils literal notranslate"><span class="pre">-output</span></code> or <code class="docutils literal notranslate"><span class="pre">-ifexists</span></code> explicitly. Existing
 handles keep their settings; per-read overrides still take precedence.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span></code> to query all settings, or <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span> <span class="pre">-output</span></code> to query one.
 The all-settings dictionary can be restored with <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::configure</span> <span class="pre">{*}$saved</span></code>.
-Initial defaults remain <code class="docutils literal notranslate"><span class="pre">list</span></code>. Invalid requests and unavailable vector support leave settings unchanged.
+Initial representation defaults remain <code class="docutils literal notranslate"><span class="pre">list</span></code>; the initial <code class="docutils literal notranslate"><span class="pre">-ifexists</span></code> policy is <code class="docutils literal notranslate"><span class="pre">error</span></code>. Invalid requests and unavailable vector support leave settings unchanged.
 Configuration belongs to the current Tcl interpreter. The command is public but <strong>not namespace-exported</strong>,
-so wildcard imports cannot introduce a <code class="docutils literal notranslate"><span class="pre">configure</span></code> collision. Namespace, naming and collision policies are unchanged.</p>
+so wildcard imports cannot introduce a <code class="docutils literal notranslate"><span class="pre">configure</span></code> collision. Namespace selection and naming are unchanged. <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">replace</span></code> still requires a compatible, writable destination.
+The collision setting affects vector output only and can be configured even in a build without RBC.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>

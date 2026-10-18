@@ -549,7 +549,7 @@ testConstraint defaultsNoVectors [expr {!$haveRbc}]
 # Public package configuration is intentionally not namespace-exported.
 test defaults-query {initial settings and single-option queries} -body {
     list [::ngspicetclbridge::configure] [::ngspicetclbridge::configure -output]
-} -result {{-output list} list}
+} -result {{-output list -ifexists error} list}
 
 test defaults-validation {invalid requests do not partially change configuration} -body {
     set saved [::ngspicetclbridge::configure]
@@ -574,7 +574,7 @@ test defaults-set-restore {set returns all settings; returned dictionary restore
     set query [::ngspicetclbridge::configure -output]
     set restored [::ngspicetclbridge::configure {*}$saved]
     list $changed $query [expr {$restored eq $saved}]
-} -cleanup {::ngspicetclbridge::configure {*}$saved} -result {{-output vector} vector 1}
+} -cleanup {::ngspicetclbridge::configure {*}$saved} -result {{-output vector -ifexists error} vector 1}
 
 test defaults-interpreters {a fresh interpreter has independent list defaults} -constraints rbc -body {
     set saved [::ngspicetclbridge::configure]
@@ -626,5 +626,78 @@ test defaults-handle-output {new simulators capture defaults for live vectors an
     catch {clean $old}; catch {clean $s}
     ::ngspicetclbridge::configure {*}$saved
 } -result {1 ::live::time {0.0 0.1 0.2} {0.0 0.1 0.2} {0.0 0.1 0.2} 1}
+
+
+test defaults-policy-query {query, save/restore and atomic validation of collision policy} -body {
+    set saved [::ngspicetclbridge::configure]
+    set initial [::ngspicetclbridge::configure -ifexists]
+    set changed [::ngspicetclbridge::configure -ifexists replace]
+    set badMode [catch {::ngspicetclbridge::configure -ifexists error -output invalid}]
+    set unchanged [expr {[::ngspicetclbridge::configure] eq $changed}]
+    set badPolicy [catch {::ngspicetclbridge::configure -ifexists vector}]
+    set restored [::ngspicetclbridge::configure {*}$saved]
+    list $initial [dict get $changed -ifexists] $badMode $unchanged $badPolicy [expr {$restored eq $saved}]
+} -cleanup {::ngspicetclbridge::configure {*}$saved} -result {error replace 1 1 1 1}
+
+test defaults-policy-interpreters {policy is interpreter-local and setting it alone does not load RBC} -body {
+    set saved [::ngspicetclbridge::configure]
+    ::ngspicetclbridge::configure -ifexists replace
+    set library {}
+    foreach loaded [info loaded] {
+        if {[string equal -nocase [lindex $loaded 1] ngspicetclbridge]} {set library [lindex $loaded 0]; break}
+    }
+    interp create policyChild
+    policyChild eval [list load $library]
+    set initial [policyChild eval {::ngspicetclbridge::configure -ifexists}]
+    policyChild eval {::ngspicetclbridge::configure -ifexists replace}
+    set loaded [policyChild eval {package provide rbc::vector}]
+    policyChild eval {::ngspicetclbridge::configure -ifexists error}
+    list $initial $loaded [::ngspicetclbridge::configure -ifexists]
+} -cleanup {
+    catch {interp delete policyChild}
+    ::ngspicetclbridge::configure {*}$saved
+} -result {error {} replace}
+
+test defaults-policy-snapshots {simulators retain collision defaults and snapshot overrides win} -constraints rbc -body {
+    set saved [::ngspicetclbridge::configure]
+    set s [newSim]
+    begin $s
+    $s asyncvector time -output vector -name ::snap::time
+    ::ngspicetclbridge::configure -ifexists replace
+    set oldError [catch {$s asyncvector time -output vector -name ::snap::time}]
+    clean $s
+    set s [newSim]
+    begin $s
+    set v [$s asyncvector time -output vector -name ::snap::time]
+    ::ngspicetclbridge::configure -ifexists error
+    $v set {-99}
+    set again [$s asyncvector time -output vector -name ::snap::time]
+    set bulk [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap $s]
+    set result [list $oldError [expr {$v eq $again}] [$v range 0 end] \
+        [expr {[dict get $bulk time] eq $v}] [catch {$s asyncvector time -output vector -name ::snap::time -ifexists error}]]
+    clean $s
+    ::ngspicetclbridge::configure -ifexists replace
+    set s [newSim -ifexists error]
+    begin $s
+    set v [$s asyncvector time -output vector -name ::snap::time]
+    lappend result [catch {$s asyncvector time -output vector -name ::snap::time}] \
+        [expr {[$s asyncvector time -output vector -name ::snap::time -ifexists replace] eq $v}]
+} -cleanup {catch {clean $s}; ::ngspicetclbridge::configure {*}$saved} \
+    -result {1 1 {0.0 0.1 0.2} 1 1 1 1}
+
+test defaults-policy-live {live vector adoption uses the captured collision policy} -constraints rbc -body {
+    set saved [::ngspicetclbridge::configure]
+    ::rbc::vector create ::live::time -variable {}
+    ::live::time set {-99}
+    ::ngspicetclbridge::configure -ifexists replace
+    set s [newSim -output vector]
+    ::ngspicetclbridge::configure -ifexists error
+    begin $s
+    set v [dict get [$s vectors] time]
+    set values [$v range 0 end]
+    $s destroy
+    list $v $values [expr {[info commands $v] ne {}}]
+} -cleanup {catch {clean $s}; ::ngspicetclbridge::configure {*}$saved} \
+    -result {::live::time {0.0 0.1 0.2} 1}
 
 finishTests

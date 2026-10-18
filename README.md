@@ -222,18 +222,19 @@ install list. Check the generation output for errors before installing or creati
 
 ## Package defaults
 
-Set representation defaults once after loading the package:
+Set representation and collision defaults once after loading the package:
 
 ```tcl
 package require ngspicetclbridge
-::ngspicetclbridge::configure -output vector
+::ngspicetclbridge::configure -output vector -ifexists replace
 ```
 
-New handles inherit the output default unless their creation call supplies `-output` explicitly. Existing
+New handles inherit output and collision defaults unless their creation call supplies `-output` or `-ifexists` explicitly. Existing
 handles keep their settings; per-read overrides still take precedence.
 
 Use `::ngspicetclbridge::configure` to query all settings, or `::ngspicetclbridge::configure -output` to query one.
 The all-settings dictionary can be restored with `::ngspicetclbridge::configure {*}$saved`.
-Initial defaults remain `list`. Invalid requests and unavailable vector support leave settings unchanged.
+Initial representation defaults remain `list`; the initial `-ifexists` policy is `error`. Invalid requests and unavailable vector support leave settings unchanged.
 Configuration belongs to the current Tcl interpreter. The command is public but **not namespace-exported**,
-so wildcard imports cannot introduce a `configure` collision. Namespace, naming and collision policies are unchanged.
+so wildcard imports cannot introduce a `configure` collision. Namespace selection and naming are unchanged. `-ifexists replace` still requires a compatible, writable destination.
+The collision setting affects vector output only and can be configured even in a build without RBC.

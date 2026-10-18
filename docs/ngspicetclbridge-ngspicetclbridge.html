@@ -46,28 +46,32 @@
 <span id="r-ngspicetclbridge-commands"></span><span id="r-3a3angspicetclbridgeqzcommands"></span><h2>Commands<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
 <section id="configure">
 <span id="r-symbolqz3a3angspicetclbridge3a3aconfigure"></span><span id="index-1"></span><span id="index-0"></span><h3><code class="docutils literal notranslate"><span class="pre">configure</span></code><a class="headerlink" href="#configure" title="Link to this heading">¶</a></h3>
-<p>Queries or changes package-wide representation defaults in this Tcl interpreter.</p>
+<p>Queries or changes package-wide representation and collision defaults in this Tcl interpreter.</p>
 <pre class="literal-block"><strong>configure</strong> <em>?option?</em>
-<strong>configure</strong> <em>?-output list|vector?</em></pre>
+<strong>configure</strong> <em>?-output list|vector? ?-ifexists error|replace?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-output</span> <span class="pre">mode</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Default output representation: list or vector; initially list.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">policy</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Default destination collision policy: error or replace; initially error.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-output</span> <span class="pre">mode</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Default output representation: list or vector; initially list.</p>
 </dd>
 </dl>
 <p class="rubric">Description</p>
 <p>With no arguments, returns all settings as an option/value dictionary. With one option, returns its value.
 With option/value pairs, validates all settings before applying them and returns the complete configuration.
-Invalid options, invalid modes, or unavailable RBC support leave the configuration unchanged. Selecting
+Invalid options or values, or unavailable RBC support leave the configuration unchanged. Selecting
 vector mode requires an RBC-enabled build and a loadable rbc::vector package; list queries/settings do not
 load RBC. Defaults are independent in separate interpreters.</p>
-<p>New simulator handles capture this default unless -output is supplied explicitly at creation.
+<p>New simulator handles capture these defaults unless -output or -ifexists is supplied explicitly at creation.
 Existing handles retain their settings. Per-read overrides take precedence over the handle default.
 This public command is not namespace-exported; call it as ::ngspicetclbridge::configure.
-Namespace selection, naming and collision policies are unaffected.</p>
+The collision policy affects vector output only; it can be configured while using list mode or without RBC.
+Replacement still requires a compatible, writable destination. Namespace selection and naming are unchanged.</p>
 <p>Example:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>saved<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="k">]</span>
-<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output<span class="w"> </span>vector<span class="w"> </span><span class="o">-</span>ifexists<span class="w"> </span>replace
 <span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="o">-</span>output
 <span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>configure<span class="w"> </span><span class="k">{</span><span class="o">*</span><span class="k">}</span><span class="nv">$saved</span>
 </pre></div>
@@ -167,7 +171,7 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-ifexists</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Error (default) or replace for initial vector destinations.</p>
+<dd class="field-odd"><p>Error or replace for initial vector destinations; inherits the package configuration (initially error)</p>
 </dd>
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-namespace</span></code><span class="colon">:</span></dt>
 <dd class="field-even"><p>Destination for live vectors and snapshots; created at handle construction if missing.</p>
