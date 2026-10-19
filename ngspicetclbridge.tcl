@@ -31,15 +31,15 @@ proc ::ngspicetclbridge::configure {args} {
     # Synopsis: ?-output list|vector? ?-ifexists error|replace?
     # Returns: selected option value for a single-option query; otherwise all settings as a dictionary.
     if {([llength $args]==1) && ([lindex $args 0] ne {-help})} {
-        set arguments [argparse -inline -helplevel 1 -help {Query or change package defaults. With no arguments\
-                                                                    returns all settings.} {
+        set arguments [argparse -inline -help {Query or change package defaults. With no arguments returns all\
+                                                       settings.} {
             {-output -key query -value output -help {Query the default output representation}}
             {-ifexists -key query -value ifexists -help {Query the default collision policy}}
         }]
         return [NativeConfigure [dict get $arguments query] {}]
     }
-    set arguments [argparse -inline -helplevel 1 -help {Query or change package defaults atomically. Defaults are\
-                                                                local to this interpreter.} {
+    set arguments [argparse -inline -help {Query or change package defaults atomically. Defaults are local to this\
+                                                   interpreter.} {
         {-output= -enum {list vector} -help {Default representation: list or vector}}
         {-ifexists= -enum {error replace} -help {Default collision policy: error or replace}}
     }]
@@ -76,7 +76,7 @@ proc ::ngspicetclbridge::new {args} {
     # Synopsis: ?-nospinit|-nospiceinit|-noinit? libpath ?-output list|vector? ?-ifexists error|replace?
     # ?-namespace name?
     # Returns: command name to work with Ngspice instance, references as `SIM` later
-    set arguments [argparse -inline -mixed -helplevel 1 -help {Create a simulator handle.} {
+    set arguments [argparse -inline -mixed -help {Create a simulator handle.} {
         {-nospinit -help {Do not read spinit}}
         {-nospiceinit -help {Do not read spiceinit}}
         {-noinit -help {Do not read either initialization file}}
@@ -108,7 +108,7 @@ proc ::ngspicetclbridge::SIM::command {handle args} {
     #
     # The handle argument is supplied automatically when called as $handle command.
     # Synopsis: ?-capture? string
-    set arguments [argparse -inline -mixed -helplevel 1 -help {Send a command to ngspice.} {
+    set arguments [argparse -inline -mixed -help {Send a command to ngspice.} {
         {-capture -help {Capture command output along with its result code}}
         {string -help {Ngspice command line}}
     }]
@@ -140,7 +140,7 @@ proc ::ngspicetclbridge::SIM::circuit {handle args} {
     # Returns: Ngspice result code
     #
     # The handle argument is supplied automatically when called as $handle circuit.
-    set arguments [argparse -inline -mixed -helplevel 1 -help {Load a circuit netlist.} {
+    set arguments [argparse -inline -mixed -help {Load a circuit netlist.} {
         {-string -help {Interpret the circuit as newline-separated text instead of a Tcl list}}
         {value -help {Circuit netlist}}
     }]
@@ -158,8 +158,7 @@ proc ::ngspicetclbridge::SIM::plot {handle args} {
     # Returns: current plot, or list of all plots, or list of all vectors
     #
     # The handle argument is supplied automatically when called as $handle plot.
-    set arguments [argparse -inline -helplevel 1 -help {Return the current plot, all plots, or vectors belonging to\
-                                                                a plot.} {
+    set arguments [argparse -inline -help {Return the current plot, all plots, or vectors belonging to a plot.} {
         {-all -help {Return all plot names}}
         {-vecs= -help {Return vector names for the specified plot}}
     }]
@@ -180,7 +179,7 @@ proc ::ngspicetclbridge::SIM::inputpath {handle args} {
     # Returns: current path
     #
     # The handle argument is supplied automatically when called as $handle inputpath.
-    set arguments [argparse -inline -mixed -helplevel 1 -help {Query or set the ngspice input path.} {
+    set arguments [argparse -inline -mixed -help {Query or set the ngspice input path.} {
         {-current -help {Return the current input path}}
         {path? -help {Set the input path; required unless -current is supplied}}
     }]
@@ -243,8 +242,8 @@ proc ::ngspicetclbridge::SIM::waitevent {handle args} {
     # Returns: dictionary with information about event
     #
     # The handle argument is supplied automatically when called as $handle waitevent.
-    set arguments [argparse -inline -mixed -helplevel 1 -help {Wait for an ngspice event count. This does not drain\
-                                                                       the Tcl event queue.} {
+    set arguments [argparse -inline -mixed -help {Wait for an ngspice event count. This does not drain the Tcl event\
+                                                          queue.} {
         {-n= -type wideinteger -validate {$arg > 0} -help {Required event count; defaults to one}}
         {event -enum {send_char send_stat controlled_exit send_data send_init_data bg_running}\
                  -help {Event to wait for}}
@@ -297,8 +296,7 @@ proc ::ngspicetclbridge::SIM::asyncvector {handle args} {
     # does not exists.
     #
     # The handle argument is supplied automatically when called as $handle asyncvector.
-    set arguments [argparse -inline -mixed -helplevel 1 -help {Fetch an independent snapshot or metadata for a named\
-                                                                       vector.} {
+    set arguments [argparse -inline -mixed -help {Fetch an independent snapshot or metadata for a named vector.} {
         {-output= -enum {list vector} -help {Output representation; overrides the configured default}}
         {-ifexists= -enum {error replace} -help {Destination collision policy; overrides the configured default}}
         {-namespace= -help {Destination namespace; relative to the caller, created if missing}}
@@ -322,7 +320,7 @@ proc ::ngspicetclbridge::SIM::isrunning {handle args} {
     #
     # The handle argument is supplied automatically when called as $handle isrunning.
     # Synopsis: ?-help?
-    set arguments [argparse -inline -helplevel 1 -help {Return whether the simulation is running.} {}]
+    set arguments [argparse -inline -help {Return whether the simulation is running.} {}]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle isrunning $arguments]]
 }
 
@@ -333,7 +331,7 @@ proc ::ngspicetclbridge::SIM::abort {handle args} {
     #
     # The handle argument is supplied automatically when called as $handle abort.
     # Synopsis: ?-help?
-    set arguments [argparse -inline -helplevel 1 -help {Abort an active event wait.} {}]
+    set arguments [argparse -inline -help {Abort an active event wait.} {}]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle abort $arguments]]
 }
 
@@ -347,7 +345,7 @@ proc ::ngspicetclbridge::SIM::destroy {handle args} {
     #
     # The handle argument is supplied automatically when called as $handle destroy.
     # Synopsis: ?-help?
-    set arguments [argparse -inline -helplevel 1 -help {Destroy the simulator handle and its owned live vectors.} {}]
+    set arguments [argparse -inline -help {Destroy the simulator handle and its owned live vectors.} {}]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle destroy $arguments]]
 }
 
@@ -396,7 +394,7 @@ proc ::ngspicetclbridge::SIM::vectors {handle args} {
     # Returns: dict with vectors values accumulated up to this point in internal structure
     #
     # The handle argument is supplied automatically when called as $handle vectors.
-    set arguments [argparse -inline -helplevel 1 -help {Return accumulated live samples or live RBC vector bindings.} {
+    set arguments [argparse -inline -help {Return accumulated live samples or live RBC vector bindings.} {
         {-clear -help {Clear the accumulated data}}
     }]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle vectors $arguments]]
@@ -419,7 +417,7 @@ proc ::ngspicetclbridge::SIM::initvectors {handle args} {
     # Returns: dict with initial vector metadata saved in internal structure
     #
     # The handle argument is supplied automatically when called as $handle initvectors.
-    set arguments [argparse -inline -helplevel 1 -help {Return vector initialization metadata.} {
+    set arguments [argparse -inline -help {Return vector initialization metadata.} {
         {-clear -help {Clear the accumulated data}}
     }]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle initvectors $arguments]]
@@ -445,7 +443,7 @@ proc ::ngspicetclbridge::SIM::messages {handle args} {
     # Synopsis: ?-clear?
     #
     # The handle argument is supplied automatically when called as $handle messages.
-    set arguments [argparse -inline -helplevel 1 -help {Return accumulated ngspice messages.} {
+    set arguments [argparse -inline -help {Return accumulated ngspice messages.} {
         {-clear -help {Clear the accumulated data}}
     }]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle messages $arguments]]
@@ -465,7 +463,7 @@ proc ::ngspicetclbridge::SIM::eventcounts {handle args} {
     # Returns: returns a dict with keys as events names, and counts for each event as a value
     #
     # The handle argument is supplied automatically when called as $handle eventcounts.
-    set arguments [argparse -inline -helplevel 1 -help {Return accumulated event counters.} {
+    set arguments [argparse -inline -help {Return accumulated event counters.} {
         {-clear -help {Clear the accumulated data}}
     }]
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle eventcounts $arguments]]
@@ -506,7 +504,7 @@ namespace eval ::ngspicetclbridge {
         #  -nocleanup - if provided, results from previous run are retained
         # Returns:
         # Synopsis: ?-nocleanup? sim
-        set arguments [argparse -inline -mixed -helplevel 1 -help {Run a simulation and wait for completion.} {
+        set arguments [argparse -inline -mixed -help {Run a simulation and wait for completion.} {
             {-nocleanup -boolean -help {If provided, results from previous run are retained}}
             {sim -help {Simulator handle that is returned by ngspicetclbridge::new}}
         }]
@@ -552,8 +550,7 @@ namespace eval ::ngspicetclbridge {
         # Synopsis: ?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? ?-names dictionary|#auto?
         # sim
         # Returns: dictionary
-        set arguments [argparse -inline -mixed -helplevel 1 -help {Read all vectors of the current plot as\
-                                                                           independent snapshots.} {
+        set arguments [argparse -inline -mixed -help {Read all vectors of the current plot as independent snapshots.} {
             {-info -help {Return vector metadata instead of data}}
             {-output= -enum {list vector} -help {Output mode}}
             {-namespace= -help {Destination namespace for vector snapshots}}
@@ -622,7 +619,7 @@ namespace eval ::ngspicetclbridge {
         #
         # Synopsis: ?-logical|-physical|-deck|-expand|-runnable|-param? sim
         # Returns: list with listing lines
-        set arguments [argparse -inline -mixed -helplevel 1 -help {Return the circuit listing in the selected format.} {
+        set arguments [argparse -inline -mixed -help {Return the circuit listing in the selected format.} {
             {-logical -key type -value logical -help {The circuit is with all continuation lines collapsed into one\
                                                               line}}
             {-physical -key type -value physical -help {The circuits lines are printed out as they were found in the\
@@ -650,7 +647,7 @@ namespace eval ::ngspicetclbridge {
         #
         # Returns: dictionary with the information
         # Synopsis: sim
-        set arguments [argparse -inline -helplevel 1 -help {Query simulator metadata.} {
+        set arguments [argparse -inline -help {Query simulator metadata.} {
             {sim -help {Simulator handle that is returned by ngspicetclbridge::new}}
         }]
         set sim [dict get $arguments sim]
@@ -663,7 +660,7 @@ namespace eval ::ngspicetclbridge {
         #
         # Returns: name of the plot
         # Synopsis: sim
-        set arguments [argparse -inline -helplevel 1 -help {Query simulator metadata.} {
+        set arguments [argparse -inline -help {Query simulator metadata.} {
             {sim -help {Simulator handle that is returned by ngspicetclbridge::new}}
         }]
         set sim [dict get $arguments sim]
@@ -675,7 +672,7 @@ namespace eval ::ngspicetclbridge {
         #
         # Returns: title
         # Synopsis: sim
-        set arguments [argparse -inline -helplevel 1 -help {Query simulator metadata.} {
+        set arguments [argparse -inline -help {Query simulator metadata.} {
             {sim -help {Simulator handle that is returned by ngspicetclbridge::new}}
         }]
         set sim [dict get $arguments sim]
@@ -687,7 +684,7 @@ namespace eval ::ngspicetclbridge {
         #
         # Returns: time stamp
         # Synopsis: sim
-        set arguments [argparse -inline -helplevel 1 -help {Query simulator metadata.} {
+        set arguments [argparse -inline -help {Query simulator metadata.} {
             {sim -help {Simulator handle that is returned by ngspicetclbridge::new}}
         }]
         set sim [dict get $arguments sim]
