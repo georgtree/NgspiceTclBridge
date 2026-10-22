@@ -143,8 +143,8 @@ are collected into a Tcl list and returned to the caller along with the return c
 <p><code class="docutils literal notranslate"><span class="pre">InstFreeProc()</span></code> then performs the final cleanup: releasing Tcl objects, freeing message queues, finalizing
 mutexes, and optionally unloading the shared library if it’s safe to do so.</p>
 </section>
-<section id="summary">
-<span id="r-notes-and-internals-summary"></span><span id="r-3a3anotes20and20internalsqzsummary"></span><h3>Summary<a class="headerlink" href="#summary" title="Link to this heading">¶</a></h3>
+<section id="instance-subcommands-summary">
+<span id="r-notes-and-internals-instance-subcommands-summary"></span><span id="r-3a3anotes20and20internalsqzinstance20subcommands20summary"></span><h3>Instance subcommands summary<a class="headerlink" href="#instance-subcommands-summary" title="Link to this heading">¶</a></h3>
 <p>The combination of per-instance Tcl command objects, subcommand dispatching, and deferred command buffering
 provides a robust interface between Tcl and ngspice. Tcl scripts can issue commands synchronously while
 ngspice runs asynchronously in the background, and all interactions remain thread-safe and deterministic even
@@ -717,8 +717,8 @@ while still providing deterministic per-command output isolation.</p>
 <li><p>All pending messages are safely freed during <code class="docutils literal notranslate"><span class="pre">InstFreeProc()</span></code>.</p></li>
 </ul>
 </section>
-<section id="id2">
-<span id="id1"></span><span id="id3"></span><h3>Summary<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<section id="message-queue-summary">
+<span id="r-notes-and-internals-message-queue-summary"></span><span id="r-3a3anotes20and20internalsqzmessage20queue20summary"></span><h3>Message queue summary<a class="headerlink" href="#message-queue-summary" title="Link to this heading">¶</a></h3>
 <p>The message queue subsystem provides a clean, thread-safe bridge between ngspice’s asynchronous textual output
 and Tcl’s event-driven interface.
 It ensures:</p>
@@ -810,8 +810,8 @@ safely:</p>
 <li><p>Standard ELF dynamic linking via <code class="docutils literal notranslate"><span class="pre">dlopen()</span></code>; no special handling required.</p></li>
 </ul>
 </section>
-<section id="id5">
-<span id="id4"></span><span id="id6"></span><h3>Summary<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<section id="dynamic-library-loading-summary">
+<span id="r-notes-and-internals-dynamic-library-loading-summary"></span><span id="r-3a3anotes20and20internalsqzdynamic20library20loading20summary"></span><h3>Dynamic library loading summary<a class="headerlink" href="#dynamic-library-loading-summary" title="Link to this heading">¶</a></h3>
 <p>The DLL loading layer provides:</p>
 <ul class="simple">
 <li><p>Transparent, cross-platform dynamic linking without preprocessor ifdefs in the main code.</p></li>
@@ -825,20 +825,16 @@ or path encoding, ensuring consistent behavior and portability across Tcl enviro
 </section>
 <section id="tcl-and-c-interface-boundary">
 <span id="r-notes-and-internals-tcl-and-c-interface-boundary"></span><span id="r-3a3anotes20and20internalsqztcl20and20c20interface20boundary"></span><h2>Tcl and C interface boundary<a class="headerlink" href="#tcl-and-c-interface-boundary" title="Link to this heading">¶</a></h2>
-<p>Public argument parsing, interactive help and command documentation live in the
-package’s Tcl source. Wrappers pass normalized dictionaries to private native
-commands. The native engine keeps semantic checks, data buffers, event handling
-and RBC publication; numeric samples are not copied through Tcl merely to parse
-options.</p>
-<p>Each returned handle remains a native command and owns its original deletion
-callback. It dispatches to the real SIM Tcl procedures, which call the native
-engine in the original caller’s frame. Renaming or deleting the handle therefore
-retains the existing ownership rules, and relative namespaces still resolve
-against the caller. No second TclOO object or hidden lifetime-owning handle is
-introduced.</p>
-<p>Wrappers call the fixed native argparse directly with -helplevel 1. Help prints
-and returns from the current wrapper without running its native operation. The
-argparse help-return fix is required; no local compatibility helper is used.</p>
+<p>Public argument parsing, interactive help and command documentation live in the package’s Tcl source. Wrappers
+pass normalized dictionaries to private native commands. The native engine keeps semantic checks, data buffers,
+event handling and RBC publication; numeric samples are not copied through Tcl merely to parse options.</p>
+<p>Each returned handle remains a native command and owns its original deletion callback. It dispatches to the
+real SIM Tcl procedures, which call the native engine in the original caller’s frame. Renaming or deleting the
+handle therefore retains the existing ownership rules, and relative namespaces still resolve against the
+caller. No second TclOO object or hidden lifetime-owning handle is introduced.</p>
+<p>Wrappers call the fixed native argparse directly with -helplevel 1. Help prints and returns from the current
+wrapper without running its native operation. The argparse help-return fix is required; no local compatibility
+helper is used.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
@@ -862,7 +858,7 @@ argparse help-return fix is required; no local compatibility helper is used.</p>
 <li><a class="reference internal" href="#deferred-command-queue">Deferred command queue</a></li>
 <li><a class="reference internal" href="#capture-mode">Capture mode</a></li>
 <li><a class="reference internal" href="#command-deletion-and-cleanup">Command deletion and cleanup</a></li>
-<li><a class="reference internal" href="#summary">Summary</a></li>
+<li><a class="reference internal" href="#instance-subcommands-summary">Instance subcommands summary</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#how-sync-callbacks-from-ngspice-is-implemented">How sync callbacks from Ngspice is implemented</a><ul>
@@ -903,7 +899,7 @@ argparse help-return fix is required; no local compatibility helper is used.</p>
 <li><a class="reference internal" href="#capture-mode-capture">Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)</a></li>
 <li><a class="reference internal" href="#clearing-and-freeing-queues">Clearing and freeing queues</a></li>
 <li><a class="reference internal" href="#synchronization-and-safety-guarantees">Synchronization and safety guarantees</a></li>
-<li><a class="reference internal" href="#id2">Summary</a></li>
+<li><a class="reference internal" href="#message-queue-summary">Message queue summary</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#how-dynamic-library-loading-and-portability-is-implemented">How dynamic library loading and portability is implemented</a><ul>
@@ -912,7 +908,7 @@ argparse help-return fix is required; no local compatibility helper is used.</p>
 <li><a class="reference internal" href="#function-symbol-resolution">Function symbol resolution</a></li>
 <li><a class="reference internal" href="#safe-unloading-and-crash-prevention">Safe unloading and crash prevention</a></li>
 <li><a class="reference internal" href="#platform-specific-nuances">Platform-specific nuances</a></li>
-<li><a class="reference internal" href="#id5">Summary</a></li>
+<li><a class="reference internal" href="#dynamic-library-loading-summary">Dynamic library loading summary</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>

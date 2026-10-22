@@ -158,7 +158,7 @@ Schedules deferred destruction via Tcl_EventuallyFree(ctx, InstFreeProc)\&.
 .PP
 InstFreeProc() then performs the final cleanup: releasing Tcl objects, freeing message queues, finalizing
 mutexes, and optionally unloading the shared library if it’s safe to do so\&.
-.SS SUMMARY
+.SS "INSTANCE SUBCOMMANDS SUMMARY"
 .PP
 The combination of per-instance Tcl command objects, subcommand dispatching, and deferred command buffering
 provides a robust interface between Tcl and ngspice\&. Tcl scripts can issue commands synchronously while
@@ -839,7 +839,7 @@ During teardown (ctx->destroying = 1), callbacks stop queueing new messages imme
 .TP
 \(bu
 All pending messages are safely freed during InstFreeProc()\&.
-.SS SUMMARY
+.SS "MESSAGE QUEUE SUMMARY"
 .PP
 The message queue subsystem provides a clean, thread-safe bridge between ngspice’s asynchronous textual output
 and Tcl’s event-driven interface\&.
@@ -954,7 +954,7 @@ Uses dlopen() with RTLD_NOW | RTLD_GLOBAL to ensure ngspice’s internal depende
 .TP
 \(bu
 Standard ELF dynamic linking via dlopen(); no special handling required\&.
-.SS SUMMARY
+.SS "DYNAMIC LIBRARY LOADING SUMMARY"
 .PP
 The DLL loading layer provides:
 .TP
@@ -974,22 +974,18 @@ This allows ngspicetclbridge to load any compatible ngspice shared library at ru
 or path encoding, ensuring consistent behavior and portability across Tcl environments\&.
 .SH "TCL AND C INTERFACE BOUNDARY"
 .PP
-Public argument parsing, interactive help and command documentation live in the
-package's Tcl source\&. Wrappers pass normalized dictionaries to private native
-commands\&. The native engine keeps semantic checks, data buffers, event handling
-and RBC publication; numeric samples are not copied through Tcl merely to parse
-options\&.
+Public argument parsing, interactive help and command documentation live in the package's Tcl source\&. Wrappers
+pass normalized dictionaries to private native commands\&. The native engine keeps semantic checks, data buffers,
+event handling and RBC publication; numeric samples are not copied through Tcl merely to parse options\&.
 .PP
-Each returned handle remains a native command and owns its original deletion
-callback\&. It dispatches to the real SIM Tcl procedures, which call the native
-engine in the original caller's frame\&. Renaming or deleting the handle therefore
-retains the existing ownership rules, and relative namespaces still resolve
-against the caller\&. No second TclOO object or hidden lifetime-owning handle is
-introduced\&.
+Each returned handle remains a native command and owns its original deletion callback\&. It dispatches to the
+real SIM Tcl procedures, which call the native engine in the original caller's frame\&. Renaming or deleting the
+handle therefore retains the existing ownership rules, and relative namespaces still resolve against the
+caller\&. No second TclOO object or hidden lifetime-owning handle is introduced\&.
 .PP
-Wrappers call the fixed native argparse directly with -helplevel 1\&. Help prints
-and returns from the current wrapper without running its native operation\&. The
-argparse help-return fix is required; no local compatibility helper is used\&.
+Wrappers call the fixed native argparse directly with -helplevel 1\&. Help prints and returns from the current
+wrapper without running its native operation\&. The argparse help-return fix is required; no local compatibility
+helper is used\&.
 
 
 .SH SEE ALSO

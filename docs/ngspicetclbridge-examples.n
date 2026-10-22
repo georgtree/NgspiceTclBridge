@@ -108,13 +108,15 @@ The we use ticklecharts package to plot resulted curves:
 set chart [ticklecharts::chart new]
 $chart Xaxis -name {v(anode), V} -minorTick {show True}  -type value -splitLine {show True}
 $chart Yaxis -name {Idiode, A} -minorTick {show True}  -type value -splitLine {show True}
-$chart SetOptions -title {} -tooltip {trigger axis} -animation False -legend {} -toolbox {feature {dataZoom {yAxisIndex none}}}  -grid {left 5% right 15%}
+$chart SetOptions -title {} -tooltip {trigger axis} -animation False -legend {}\\
+        -toolbox {feature {dataZoom {yAxisIndex none}}}  -grid {left 5% right 15%}
 foreach data $dataList n $ns {
     $chart Add lineSeries -data $data -showAllSymbol nothing -name n=$n -symbolSize 2
 }
 set fbasename [file rootname [file tail [info script]]]
 
-$chart Render -outfile [file normalize [file join html_charts $fbasename\&.html]] -width 800px -height 500px
+$chart Render -outfile [file normalize [file join html_charts $fbasename\&.html]] -width 800px -height 500px\\
+        -divid $fbasename -jschartvar chart_$fbasename -jsvar option_$fbasename
 .fi
 .RE
 

@@ -3,7 +3,8 @@ package require ngspicetclbridge
 package require fileutil
 
 set docDir [file dirname [file normalize [info script]]]
-set sourceDir [file join $docDir ..]
+set projectRoot [file normalize [file join $docDir ..]]
+source [file join $docDir doc_include.tcl]
 source [file join $docDir startPage.ruff]
 source [file join $docDir rbcBindings.ruff]
 source [file join $docDir notesAndInternals.ruff]
@@ -16,21 +17,29 @@ set title "Tcl NgspiceTclBridge package"
 
 set commonSphinx [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace\
                           -recurse false -includesource false -pagesplit namespace -autopunctuate true -compact false\
-                          -includeprivate false -excludeprocs {^(Native.*|Dispatch)$} -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version\
-                          $packageVersion -copyright "George Yashin" {*}$::argv]
+                          -includeprivate false -excludeprocs {^(Native.*|Dispatch)$} -product ngspicetclbridge\
+                          -diagrammer "ditaa --border-width 1" -version $packageVersion -copyright "George Yashin"\
+                          {*}$::argv]
 set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -pagesplit namespace -recurse false\
-                         -pagesplit namespace -autopunctuate true -compact false -includeprivate false -excludeprocs {^(Native.*|Dispatch)$}\
-                         -product ngspicetclbridge -diagrammer "ditaa --border-width 1" -version $packageVersion\
-                         -copyright "George Yashin" {*}$::argv]
+                         -pagesplit namespace -autopunctuate true -compact false -includeprivate false -excludeprocs\
+                         {^(Native.*|Dispatch)$} -product ngspicetclbridge -diagrammer "ditaa --border-width 1"\
+                         -version $packageVersion -copyright "George Yashin" {*}$::argv]
 
 set namespaces [list ::rbcBindings ::Examples ::Troubleshooting ::ngspicetclbridge {::Notes and internals}]
+
+foreach ns $namespaces {
+    set preambleVar "${ns}::_ruff_preamble"
+    if {[info exists $preambleVar]} {
+        set $preambleVar [::docgen::expandIncludes [set $preambleVar] $projectRoot]
+    }
+}
 
 ruff::document $namespaces -format sphinx -outfile ngspicetclbridge.rst -outdir [file join $docDir sphinx]\
         {*}$commonSphinx
 ruff::document $namespaces -format nroff -outdir $docDir -outfile ngspicetclbridge.n {*}$commonNroff
 
 
-::fileutil::appendToFile [file join $docDir sphinx conf.py] {html_theme = "classic"
+::fileutil::appendToFile [file join $docDir sphinx conf.py] {
 extensions = [
     "sphinx.ext.githubpages",
 ]

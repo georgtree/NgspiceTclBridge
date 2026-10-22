@@ -121,7 +121,7 @@ namespace eval {Notes and internals} {
         `InstFreeProc()` then performs the final cleanup: releasing Tcl objects, freeing message queues, finalizing
         mutexes, and optionally unloading the shared library if it’s safe to do so.
 
-        ### Summary
+        ### Instance subcommands summary
         The combination of per-instance Tcl command objects, subcommand dispatching, and deferred command buffering
         provides a robust interface between Tcl and ngspice. Tcl scripts can issue commands synchronously while
         ngspice runs asynchronously in the background, and all interactions remain thread-safe and deterministic even
@@ -350,7 +350,6 @@ namespace eval {Notes and internals} {
         Together, this ensures that ngspice’s asynchronous event model integrates cleanly into Tcl’s cooperative
         scheduler, without risking memory corruption, premature frees, or cross-thread Tcl calls.
 
-
         ## How thread safety is ensured
         Thread safety in ngspicetclbridge is achieved through a combination of fine-grained mutexes, conditional
         variables, and a strict rule that all Tcl interactions happen only from the thread that created the
@@ -563,7 +562,6 @@ namespace eval {Notes and internals} {
         Together, these layers implement a robust, zero-copy, thread-safe data pipeline from ngspice’s internal solver
         to Tcl-accessible variables, capable of handling both real-time streaming and post-run inspection scenarios.
 
-
         ## How message queue is implemented
         ngspicetclbridge provides a unified and thread-safe mechanism for collecting text output and diagnostic messages
         emitted by ngspice during simulation. This includes lines printed to ngspice’s stdout/stderr streams, status
@@ -681,7 +679,7 @@ namespace eval {Notes and internals} {
         - During teardown (`ctx->destroying = 1`), callbacks stop queueing new messages immediately.
         - All pending messages are safely freed during `InstFreeProc()`.
 
-        ### Summary
+        ### Message queue summary
         The message queue subsystem provides a clean, thread-safe bridge between ngspice’s asynchronous textual output
         and Tcl’s event-driven interface.  
         It ensures:
@@ -773,7 +771,7 @@ namespace eval {Notes and internals} {
         **Linux / BSD:**  
           - Standard ELF dynamic linking via `dlopen()`; no special handling required.
 
-        ### Summary
+        ### Dynamic library loading summary
         The DLL loading layer provides:
         - Transparent, cross-platform dynamic linking without preprocessor ifdefs in the main code.  
         - Full Unicode path support using Tcl’s path abstractions.  
@@ -783,29 +781,19 @@ namespace eval {Notes and internals} {
         This allows ngspicetclbridge to load any compatible ngspice shared library at runtime, regardless of platform
         or path encoding, ensuring consistent behavior and portability across Tcl environments.
 
+        ## Tcl and C interface boundary
+        Public argument parsing, interactive help and command documentation live in the package's Tcl source. Wrappers
+        pass normalized dictionaries to private native commands. The native engine keeps semantic checks, data buffers,
+        event handling and RBC publication; numeric samples are not copied through Tcl merely to parse options.
+
+        Each returned handle remains a native command and owns its original deletion callback. It dispatches to the
+        real SIM Tcl procedures, which call the native engine in the original caller's frame. Renaming or deleting the
+        handle therefore retains the existing ownership rules, and relative namespaces still resolve against the
+        caller. No second TclOO object or hidden lifetime-owning handle is introduced.
+
+        Wrappers call the fixed native argparse directly with -helplevel 1. Help prints and returns from the current
+        wrapper without running its native operation. The argparse help-return fix is required; no local compatibility
+        helper is used.
     }
 }
 
-namespace eval {::Notes and internals} {
-    append _ruff_preamble {
-
-## Tcl and C interface boundary
-
-Public argument parsing, interactive help and command documentation live in the
-package's Tcl source. Wrappers pass normalized dictionaries to private native
-commands. The native engine keeps semantic checks, data buffers, event handling
-and RBC publication; numeric samples are not copied through Tcl merely to parse
-options.
-
-Each returned handle remains a native command and owns its original deletion
-callback. It dispatches to the real SIM Tcl procedures, which call the native
-engine in the original caller's frame. Renaming or deleting the handle therefore
-retains the existing ownership rules, and relative namespaces still resolve
-against the caller. No second TclOO object or hidden lifetime-owning handle is
-introduced.
-
-Wrappers call the fixed native argparse directly with -helplevel 1. Help prints
-and returns from the current wrapper without running its native operation. The
-argparse help-return fix is required; no local compatibility helper is used.
-    }
-}
