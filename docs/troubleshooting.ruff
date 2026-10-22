@@ -24,6 +24,13 @@ namespace eval Troubleshooting {
         - **Live storage across runs**: new plots replace live list data as well as resetting live RBC
         vectors. Synchronous `command run` and background execution therefore retain the current plot's samples, not
         all previous runs. Process Tcl events after synchronous run to apply the new plot and its data. The explicit
-        `vectors -clear` remains useful for consuming samples in batches within a plot or releasing them early.
+        `vectors -clear` remains useful for consuming samples in batches within a plot or releasing them early;
+        it discards queued samples as well as published samples in both output modes.
+
+        - **Halt and resume**: `bg_halt` preserves live samples. `bg_resume` appends when continuing the same plot,
+        even though ngspice may resend initialization metadata. A subsequent new plot still resets live storage.
+        Wait for the background-start event before halting, and for the stop event before resuming. Capture a fresh
+        `eventcounts` baseline before each command and use `waitevent bg_running -since $baseline` (one event per
+        start or halt). Process Tcl events to publish queued samples; event counts alone do not drain that queue.
     } 
 }

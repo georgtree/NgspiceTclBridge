@@ -1030,7 +1030,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         if (isnap != NULL) {
             /* A new plot replaces live list data, just as BridgeRbcPrepare resets
              * live vectors. Do this on the Tcl thread, before appending samples. */
-            if (!ctx->outputVectors) {
+            if (isnap->reset && !ctx->outputVectors) {
                 Tcl_MutexLock(&ctx->mutex);
                 if (ctx->vectorData != NULL) {
                     Tcl_DecrRefCount(ctx->vectorData);
@@ -1053,11 +1053,11 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
             ctx->vectorInit = dict;
             Tcl_IncrRefCount(dict);
             Tcl_MutexUnlock(&ctx->mutex);
-            if (ctx->vectorError) {
+            if (isnap->reset && ctx->vectorError) {
                 Tcl_DecrRefCount(ctx->vectorError);
                 ctx->vectorError = NULL;
             }
-            if (ctx->outputVectors) {
+            if (isnap->reset && ctx->outputVectors) {
                 ctx->outputBusy = 1;
                 if (BridgeRbcPrepare(ctx, isnap) != TCL_OK) {
                     VectorOutputError(ctx);
@@ -1323,6 +1323,64 @@ static void EnqueuePending(NgSpiceContext *ctx, const char *cmd, int capture) {
     ctx->pending_tail = n;
     Tcl_MutexUnlock(&ctx->cmd_mu);
 }
+//***  ExecuteCommand function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * ExecuteCommand --
+ *
+ *      Executes a direct or deferred ngspice command with background and resume bookkeeping.
+ *      Starting a worker does not clear live data; only a new plot initialization does that.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - Simulator context receiving the command.
+ *      const char *cmd    - NUL-terminated ngspice command string.
+ *
+ * Results:
+ *      Returns the ngSpice_Command status unchanged.
+ *
+ * Side Effects:
+ *      Updates worker state and the pending resume marker under their respective mutexes.
+ *      Calls ngspice without holding bridge mutexes, allowing synchronous callbacks.
+ *      Restores idle state after a failed background start and expires synchronous resume markers.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
+    int background = strcmp(cmd, "bg_run") == 0 || strcmp(cmd, "bg_resume") == 0;
+    int resume = strcmp(cmd, "resume") == 0 || strcmp(cmd, "bg_resume") == 0;
+    if (background) {
+        Tcl_MutexLock(&ctx->bg_mu);
+        ctx->state = NGSTATE_STARTING_BG;
+        ctx->bg_started = 0;
+        ctx->bg_ended = 0;
+        Tcl_MutexUnlock(&ctx->bg_mu);
+    } else if (strcmp(cmd, "bg_halt") == 0) {
+        Tcl_MutexLock(&ctx->bg_mu);
+        if (ctx->state == NGSTATE_BG_ACTIVE) ctx->state = NGSTATE_STOPPING_BG;
+        Tcl_MutexUnlock(&ctx->bg_mu);
+    }
+    if (background || resume) {
+        Tcl_MutexLock(&ctx->mutex);
+        ctx->resume_pending = resume;
+        Tcl_MutexUnlock(&ctx->mutex);
+    }
+    int rc = ctx->ngSpice_Command((char *)cmd);
+    if ((background && rc != 0) || (resume && !background)) {
+        Tcl_MutexLock(&ctx->mutex);
+        ctx->resume_pending = 0;
+        Tcl_MutexUnlock(&ctx->mutex);
+        if (background) {
+            Tcl_MutexLock(&ctx->bg_mu);
+            ctx->state = NGSTATE_IDLE;
+            ctx->bg_ended = 1;
+            Tcl_ConditionNotify(&ctx->bg_cv);
+            Tcl_MutexUnlock(&ctx->bg_mu);
+        }
+    }
+    return rc;
+}
+
 //***  FlushPending function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -1361,7 +1419,7 @@ static void FlushPending(NgSpiceContext *ctx) {
     while (p != NULL)  {
         PendingCmd *next = p->next;
         if (!ctx->destroying && ctx->ngSpice_Command) {
-            ctx->ngSpice_Command((char *)p->cmd);
+            ExecuteCommand(ctx, p->cmd);
         }
         Tcl_Free(p->cmd);
         Tcl_Free(p);
@@ -1645,9 +1703,9 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
  *      - If ctx is valid and ctx->destroying is false:
  *          - Allocates a new InitSnap structure holding vector metadata (name, number, is_real flag).
  *          - Frees any previously stored initialization snapshot (ctx->init_snap) before replacing it.
- *          - Resets ctx->prod (the producer data buffer) to prepare for new simulation data.
- *          - Increments ctx->gen (the generation counter), marking a new run boundary.
- *          - Sets ctx->new_run_pending to request a data reset in NgSpiceEventProc.
+ *          - For a new plot, resets ctx->prod and increments ctx->gen.
+ *          - For resume of the same plot, preserves pending rows, live samples and generation.
+ *          - Marks the snapshot for a Tcl-thread reset only when starting a new plot.
  *          - Increments the SEND_INIT_DATA event counter and signals any waiting threads via BumpAndSignal().
  *          - Queues a SEND_INIT_DATA Tcl event (NgSpiceQueueEvent) for deferred main-thread processing.
  *      - Ensures thread safety by locking ctx->mutex during all shared state updates.
@@ -1670,19 +1728,25 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         snap->vecs[i].is_real = vec->is_real;
     }
     Tcl_MutexLock(&ctx->mutex);
-    if (ctx->init_snap != NULL) {
-        for (int i = 0; i < ctx->init_snap->veccount; i++) {
-            Tcl_Free(ctx->init_snap->vecs[i].name);
-        }
-        Tcl_Free(ctx->init_snap->vecs);
-        Tcl_Free(ctx->init_snap);
-    }
+    /* type is ngspice's unique plot identifier (e.g. tran1), not the analysis title.
+     * Resume can call SendInitData again for that same plot. Preserve its generation,
+     * pending rows and any unprocessed initial reset in that case. */
+    int continuing = ctx->resume_pending && ctx->livePlot && vinfo->type &&
+                     strcmp(ctx->livePlot, vinfo->type) == 0;
+    ctx->resume_pending = 0;
+    snap->reset = !continuing || (ctx->init_snap && ctx->init_snap->reset);
+    FreeInitSnap(ctx->init_snap);
     ctx->init_snap = snap;
-    DataBuf_Free(&ctx->prod);
-    DataBuf_Init(&ctx->prod);
-    ctx->dataEventQueued = 0;
-    ctx->outputFailed = 0;
-    uint64_t mygen = ++ctx->gen;
+    if (!continuing) {
+        Tcl_Free(ctx->livePlot);
+        ctx->livePlot = vinfo->type ? ckstrdup(vinfo->type) : NULL;
+        DataBuf_Free(&ctx->prod);
+        DataBuf_Init(&ctx->prod);
+        ctx->dataEventQueued = 0;
+        ctx->outputFailed = 0;
+        ++ctx->gen;
+    }
+    uint64_t mygen = ctx->gen;
     Tcl_MutexUnlock(&ctx->mutex);
     BumpAndSignal(ctx, SEND_INIT_DATA);
     NgSpiceQueueEvent(ctx, SEND_INIT_DATA, mygen);
@@ -1714,16 +1778,13 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
  *          * Take ctx->bg_mu and update ctx->bg_started / ctx->bg_ended:
  *                running == false:
  *                    - mark ctx->bg_started = 1
- *                    - if ctx->state == NGSTATE_STARTING_BG:
- *                        set ctx->state = NGSTATE_BG_ACTIVE
- *                        FlushPending(ctx)   ;# run any commands queued while starting
+ *                    - reset ctx->bg_ended and set ctx->state = NGSTATE_BG_ACTIVE
  *
  *                running == true:
  *                    - mark ctx->bg_ended = 1
- *                    - if ctx->state == NGSTATE_STOPPING_BG or NGSTATE_BG_ACTIVE:
- *                        set ctx->state = NGSTATE_IDLE
- *                        FlushPending(ctx)   ;# now safe to run deferred commands
+ *                    - set ctx->state = NGSTATE_IDLE and expire the resume marker
  *
+ *          * Flush deferred commands after releasing the state mutex.
  *          * Signal ctx->bg_cv so threads waiting in WaitForBGStarted()/WaitForBGEnded()
  *            can make progress.
  *
@@ -1749,27 +1810,19 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
     }
     Tcl_MutexLock(&ctx->bg_mu);
     if (!running) {
-        if (!ctx->bg_started) {
-            ctx->bg_started = 1;
-            if (ctx->state == NGSTATE_STARTING_BG) {
-                ctx->state = NGSTATE_BG_ACTIVE;
-                FlushPending(ctx);
-            }
-        }
+        ctx->bg_started = 1;
+        ctx->bg_ended = 0;
+        ctx->state = NGSTATE_BG_ACTIVE;
     } else {
         ctx->bg_ended = 1;
-        if (ctx->state == NGSTATE_STOPPING_BG) {
-            ctx->state = NGSTATE_IDLE;
-            FlushPending(ctx);
-        } else if (ctx->state == NGSTATE_BG_ACTIVE) {
-            ctx->state = NGSTATE_IDLE;
-            FlushPending(ctx);
-        } else {
-            /* No action required: all valid cases handled above (MISRA 15.7) */
-        }
+        ctx->state = NGSTATE_IDLE;
+        Tcl_MutexLock(&ctx->mutex);
+        ctx->resume_pending = 0;
+        Tcl_MutexUnlock(&ctx->mutex);
     }
     Tcl_ConditionNotify(&ctx->bg_cv);
     Tcl_MutexUnlock(&ctx->bg_mu);
+    FlushPending(ctx);
     QueueMsg(ctx, running ? "# background thread running ended" : "# background thread running started");
     BumpAndSignal(ctx, BG_THREAD_RUNNING);
     Tcl_MutexLock(&ctx->mutex);
@@ -2029,6 +2082,7 @@ static void InstFreeProc(void *cdata) {
         Tcl_DecrRefCount(ctx->vectorError);
     }
     FreeInitSnap(ctx->init_snap);
+    Tcl_Free(ctx->livePlot);
     MsgQ_Free(&ctx->msgq);
     MsgQ_Free(&ctx->capq);
     DataBuf_Free(&ctx->prod);
@@ -2588,54 +2642,16 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_OK;
             goto done;
         }
-        if (strcmp(cmd, "bg_run") == 0) {
+        if (strcmp(cmd, "bg_run") == 0 || strcmp(cmd, "bg_resume") == 0) {
             if (ctx->ngSpice_running()) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("simulation is already running", -1));
                 code = TCL_ERROR;
                 goto done;
             }
-            Tcl_MutexLock(&ctx->bg_mu);
-            ctx->state = NGSTATE_STARTING_BG;
-            ctx->bg_started = 0;
-            ctx->bg_ended = 0;
-            Tcl_MutexUnlock(&ctx->bg_mu);
-            Tcl_MutexLock(&ctx->mutex);
-            ctx->gen++;
-            ctx->dataEventQueued = 0;
-            ctx->outputFailed = 0;
-            ctx->new_run_pending = 0;
-            if (ctx->init_snap != NULL) {
-                for (int i = 0; i < ctx->init_snap->veccount; i++) {
-                    Tcl_Free(ctx->init_snap->vecs[i].name);
-                }
-                Tcl_Free(ctx->init_snap->vecs);
-                Tcl_Free(ctx->init_snap);
-                ctx->init_snap = NULL;
-            }
-            DataBuf_Free(&ctx->prod);
-            DataBuf_Init(&ctx->prod);
-            if (ctx->vectorData != NULL) {
-                Tcl_DecrRefCount(ctx->vectorData);
-            }
-            ctx->vectorData = Tcl_NewDictObj();
-            Tcl_IncrRefCount(ctx->vectorData);
-            if (ctx->vectorInit != NULL) {
-                Tcl_DecrRefCount(ctx->vectorInit);
-            }
-            ctx->vectorInit = Tcl_NewDictObj();
-            Tcl_IncrRefCount(ctx->vectorInit);
-            Tcl_MutexUnlock(&ctx->mutex);
-        }
-        if (strcmp(cmd, "bg_halt") == 0) {
-            Tcl_MutexLock(&ctx->bg_mu);
-            if (ctx->state == NGSTATE_BG_ACTIVE) {
-                ctx->state = NGSTATE_STOPPING_BG;
-            }
-            Tcl_MutexUnlock(&ctx->bg_mu);
         }
         if (!do_capture) {
             /* cppcheck-suppress misra-c2012-11.8 - Ngspice certainly does not modify passed string*/
-            int rc = ctx->ngSpice_Command((char *)cmd);
+            int rc = ExecuteCommand(ctx, cmd);
             Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
             code = TCL_OK;
             goto done;
@@ -2644,7 +2660,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             MsgQ_Clear(&ctx->capq);
             ctx->cap_active = 1;
             Tcl_MutexUnlock(&ctx->mutex);
-            int rc = ctx->ngSpice_Command((char *)cmd);
+            int rc = ExecuteCommand(ctx, cmd);
             Tcl_Obj *outList = Tcl_NewListObj(0, NULL);
             Tcl_MutexLock(&ctx->mutex);
             ctx->cap_active = 0;
@@ -2782,7 +2798,10 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             Tcl_DecrRefCount(ctx->vectorData);
             ctx->vectorData = Tcl_NewDictObj();
             Tcl_IncrRefCount(ctx->vectorData);
+            DataBuf_Free(&ctx->prod);
+            DataBuf_Init(&ctx->prod);
             Tcl_MutexUnlock(&ctx->mutex);
+            Tcl_ResetResult(interp);
             code = TCL_OK;
             goto done;
         } else {

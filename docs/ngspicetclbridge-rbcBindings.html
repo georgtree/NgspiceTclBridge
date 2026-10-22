@@ -98,6 +98,10 @@ updated.</p>
 separators, and the reserved <code class="docutils literal notranslate"><span class="pre">_raw_</span></code> prefix are encoded using the same <code class="docutils literal notranslate"><span class="pre">_raw_</span></code> plus uppercase UTF-8 hex
 convention as tclsimrawreader.  New vectors have no mapped array variable. <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code> returns the exact
 raw-name-to-command mapping.</p>
+<p>The headless fixture covers repeated <code class="docutils literal notranslate"><span class="pre">bg_run</span></code> → <code class="docutils literal notranslate"><span class="pre">bg_halt</span></code> → <code class="docutils literal notranslate"><span class="pre">bg_resume</span></code> → <code class="docutils literal notranslate"><span class="pre">bg_halt</span></code> cycles in list
+and vector modes, including initialization resent for the same plot, queued samples, real/complex data,
+explicit clearing, failed resume attempts and transitions to a new plot. These tests use a mock shared
+library and do not require an installed ngspice solver.</p>
 <p>The headless <code class="docutils literal notranslate"><span class="pre">test-rbc</span></code> checks also load the public Tcl helpers and require <code class="docutils literal notranslate"><span class="pre">argparse</span></code> on <code class="docutils literal notranslate"><span class="pre">TCLLIBPATH</span></code>.
 Optional checks use a deterministic shared-ngspice fixture, including a worker thread; they do not need a
 circuit solver:</p>

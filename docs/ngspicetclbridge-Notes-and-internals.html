@@ -581,9 +581,11 @@ data structures:</p>
 <section id="data-lifecycle-and-cleanup">
 <span id="r-notes-and-internals-data-lifecycle-and-cleanup"></span><span id="r-3a3anotes20and20internalsqzdata20lifecycle20and20cleanup"></span><h3>Data lifecycle and cleanup<a class="headerlink" href="#data-lifecycle-and-cleanup" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>At the start of each simulation, <code class="docutils literal notranslate"><span class="pre">vectorData</span></code> and <code class="docutils literal notranslate"><span class="pre">vectorInit</span></code> are cleared, and a new generation number (<code class="docutils literal notranslate"><span class="pre">ctx-&gt;gen</span></code>) is incremented.</p></li>
-<li><p>Any pending data buffers or old Tcl objects from previous runs are discarded.</p></li>
-<li><p>At the end of a run, <code class="docutils literal notranslate"><span class="pre">DataBuf</span></code> and <code class="docutils literal notranslate"><span class="pre">InitSnap</span></code> are freed.</p></li>
+<li><p>New plot initialization advances <code class="docutils literal notranslate"><span class="pre">ctx-&gt;gen</span></code> and discards pending samples from the previous plot. The Tcl initialization event replaces live lists or clears live RBC vectors and updates metadata.</p></li>
+<li><p>A resume initialization with the same plot identifier preserves the generation, pending samples and live storage. If the original initialization is still queued, its required reset is retained.</p></li>
+<li><p>Halting preserves live data. Resume starts a new worker lifetime and appends to the same plot.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vectors</span> <span class="pre">-clear</span></code> empties published data and discards queued rows in both output modes. It does not clear ngspice’s plot or invalidate pending initialization metadata.</p></li>
+<li><p>Consumed <code class="docutils literal notranslate"><span class="pre">DataBuf</span></code> and <code class="docutils literal notranslate"><span class="pre">InitSnap</span></code> allocations are freed by Tcl event processing.</p></li>
 <li><p>During teardown (<code class="docutils literal notranslate"><span class="pre">InstDeleteProc</span></code>), all remaining data buffers are released to prevent leaks.</p></li>
 </ul>
 <p>This ensures that every simulation run starts with a clean state and that all memory ownership is consistent

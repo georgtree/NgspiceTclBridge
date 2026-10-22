@@ -373,13 +373,15 @@ proc ::ngspicetclbridge::SIM::vectors {handle args} {
     # Updates and clearing:
     # - Each new plot replaces stored list data, for both run and bg_run. Lists contain the current plot's
     #   accumulated samples, not concatenated history. Previously returned dictionaries remain valid.
-    # - Explicit -clear discards samples within a plot or releases data before the next run.
+    # - Halting preserves samples. Resuming the same plot appends to them, including samples still queued
+    #   for Tcl processing. A different plot resets storage even when reached through resume.
+    # - Explicit -clear empties stored samples and discards already queued samples in both output modes.
+    #   Samples received afterwards continue appending; ngspice snapshot data is unaffected.
     # - Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent
     #   from that plot.
     # - Updates require Tcl event processing; eventcounts/waitevent alone do not guarantee that queued vector
     #   updates have been processed.
-    # - In vector mode, -clear empties vectors and discards queued samples without destroying the vectors. Later
-    #   samples continue appending. Ngspice snapshot data is unaffected.
+    # - In vector mode, -clear preserves vector commands and their graph bindings.
     #
     # Ownership and renaming:
     # - The handle destroys vectors it created; adopted vectors remain alive.
@@ -516,11 +518,11 @@ namespace eval ::ngspicetclbridge {
     proc run {args} {
         # Runs simulation in background thread, waits for the completion, process event in the queue and returns
         #  sim -  simulator handle that is returned by `ngspicetclbridge::new`
-        #  -nocleanup - if provided, results from previous run are retained
+        #  -nocleanup - if provided, previous ngspice plots are retained; live storage still resets for a new plot
         # Returns:
         # Synopsis: ?-nocleanup? sim
         set arguments [argparse -inline -mixed -help {Run a simulation and wait for completion.} {
-            {-nocleanup -boolean -help {If provided, results from previous run are retained}}
+            {-nocleanup -boolean -help {Retain previous ngspice plots}}
             {sim -help {Simulator handle that is returned by ngspicetclbridge::new}}
         }]
         dict with arguments {}

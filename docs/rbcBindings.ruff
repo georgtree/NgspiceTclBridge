@@ -68,6 +68,11 @@ namespace eval rbcBindings {
         convention as tclsimrawreader.  New vectors have no mapped array variable. `SIM vectors` returns the exact
         raw-name-to-command mapping.
 
+        The headless fixture covers repeated `bg_run` → `bg_halt` → `bg_resume` → `bg_halt` cycles in list
+        and vector modes, including initialization resent for the same plot, queued samples, real/complex data,
+        explicit clearing, failed resume attempts and transitions to a new plot. These tests use a mock shared
+        library and do not require an installed ngspice solver.
+
         The headless `test-rbc` checks also load the public Tcl helpers and require `argparse` on `TCLLIBPATH`.
         Optional checks use a deterministic shared-ngspice fixture, including a worker thread; they do not need a
         circuit solver:

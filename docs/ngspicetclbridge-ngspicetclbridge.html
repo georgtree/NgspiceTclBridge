@@ -244,7 +244,7 @@ raw vector names as keys and lists or fully qualified RBC vector names as values
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
 <dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-nocleanup</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>If provided, results from previous run are retained.</p>
+<dd class="field-odd"><p>If provided, previous ngspice plots are retained; live storage still resets for a new plot.</p>
 </dd>
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">sim</span></code><span class="colon">:</span></dt>
 <dd class="field-even"><p>Simulator handle that is returned by <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::new</span></code></p>
@@ -615,10 +615,11 @@ name of the provided plot.</p>
 <p>Updates and clearing:</p>
 <ul class="simple">
 <li><p>Each new plot replaces stored list data, for both run and bg_run. Lists contain the current plot’s accumulated samples, not concatenated history. Previously returned dictionaries remain valid.</p></li>
-<li><p>Explicit -clear discards samples within a plot or releases data before the next run.</p></li>
+<li><p>Halting preserves samples. Resuming the same plot appends to them, including samples still queued for Tcl processing. A different plot resets storage even when reached through resume.</p></li>
+<li><p>Explicit -clear empties stored samples and discards already queued samples in both output modes. Samples received afterwards continue appending; ngspice snapshot data is unaffected.</p></li>
 <li><p>Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent from that plot.</p></li>
 <li><p>Updates require Tcl event processing; eventcounts/waitevent alone do not guarantee that queued vector updates have been processed.</p></li>
-<li><p>In vector mode, -clear empties vectors and discards queued samples without destroying the vectors. Later samples continue appending. Ngspice snapshot data is unaffected.</p></li>
+<li><p>In vector mode, -clear preserves vector commands and their graph bindings.</p></li>
 </ul>
 <p>Ownership and renaming:</p>
 <ul class="simple">

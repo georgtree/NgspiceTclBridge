@@ -647,13 +647,19 @@ The conversion always occurs under ctx->mutex to prevent concurrent modification
 .SS "DATA LIFECYCLE AND CLEANUP"
 .TP
 \(bu
-At the start of each simulation, vectorData and vectorInit are cleared, and a new generation number (ctx->gen) is incremented\&.
+New plot initialization advances ctx->gen and discards pending samples from the previous plot\&. The Tcl initialization event replaces live lists or clears live RBC vectors and updates metadata\&.
 .TP
 \(bu
-Any pending data buffers or old Tcl objects from previous runs are discarded\&.
+A resume initialization with the same plot identifier preserves the generation, pending samples and live storage\&. If the original initialization is still queued, its required reset is retained\&.
 .TP
 \(bu
-At the end of a run, DataBuf and InitSnap are freed\&.
+Halting preserves live data\&. Resume starts a new worker lifetime and appends to the same plot\&.
+.TP
+\(bu
+vectors -clear empties published data and discards queued rows in both output modes\&. It does not clear ngspice's plot or invalidate pending initialization metadata\&.
+.TP
+\(bu
+Consumed DataBuf and InitSnap allocations are freed by Tcl event processing\&.
 .TP
 \(bu
 During teardown (InstDeleteProc), all remaining data buffers are released to prevent leaks\&.

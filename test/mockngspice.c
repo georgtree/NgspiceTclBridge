@@ -6,6 +6,7 @@
 #include <tcl.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include "../generic/sharedspice.h"
 
 static SendData *sendData;
@@ -15,7 +16,9 @@ static ControlledExit *sendExit;
 static void *client;
 static Tcl_Mutex mutex;
 static Tcl_ThreadId worker;
-static int joinable, running, halt, length, fast;
+static int joinable, running, halt, length, fast, pausedMode, resuming, nextPlot, plotId, failStart;
+static Tcl_Condition stopped;
+static char plotName[32] = "tran1";
 static double times[10000], values[10000];
 static ngcomplex_t complexValues[10000];
 static char *names[] = {"time", "v(out)", "v(1)", NULL};
@@ -25,7 +28,7 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
                  void *g) {
     (void)a;
     (void)b;
-    fast = 0;
+    fast = pausedMode = resuming = nextPlot = plotId = failStart = 0;
     sendExit = c;
     sendData = d;
     sendInit = e;
@@ -34,14 +37,17 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
     return 0;
 }
 
-static void Begin(void) {
-    Tcl_MutexLock(&mutex);
-    length = 0;
-    Tcl_MutexUnlock(&mutex);
+static void Begin(int newPlot) {
+    if (newPlot) {
+        Tcl_MutexLock(&mutex);
+        length = 0;
+        snprintf(plotName, sizeof(plotName), "tran%d", ++plotId);
+        Tcl_MutexUnlock(&mutex);
+    }
     vecinfo columns[3] = {
         {0, names[0], true, NULL, NULL}, {1, names[1], true, NULL, NULL}, {2, names[2], false, NULL, NULL}};
     pvecinfo ptrs[] = {columns, columns + 1, columns + 2};
-    vecinfoall metadata = {"tran1", "fixture", "", "tran", 3, ptrs};
+    vecinfoall metadata = {"Transient Analysis", "fixture", "", plotName, 3, ptrs};
     sendInit(&metadata, 0, client);
 }
 
@@ -63,8 +69,9 @@ static void Point(void) {
 static Tcl_ThreadCreateType Run(ClientData unused) {
     (void)unused;
     sendRunning(false, 0, client);
-    Begin();
-    for (int i = 0; i < 100; i++) {
+    Begin(!resuming || nextPlot);
+    nextPlot = 0;
+    for (int i = 0; i < (pausedMode ? 3 : 100); i++) {
         Tcl_MutexLock(&mutex);
         int stop = halt;
         Tcl_MutexUnlock(&mutex);
@@ -75,6 +82,9 @@ static Tcl_ThreadCreateType Run(ClientData unused) {
         Tcl_Sleep(2);
     }
     Tcl_MutexLock(&mutex);
+    while (pausedMode && !halt) {
+        Tcl_ConditionWait(&stopped, &mutex, NULL);
+    }
     running = 0;
     Tcl_MutexUnlock(&mutex);
     sendRunning(true, 0, client);
@@ -83,28 +93,39 @@ static Tcl_ThreadCreateType Run(ClientData unused) {
 }
 
 int ngSpice_Command(char *command) {
-    if (!strcmp(command, "mock_begin")) {
-        Begin();
+    if (failStart && (!strcmp(command, "bg_run") || !strcmp(command, "bg_resume"))) {
+        failStart = 0;
+        return 1;
+    }
+    if (!strcmp(command, "mock_failstart")) {
+        failStart = 1;
+    } else if (!strcmp(command, "mock_begin")) {
+        Begin(1);
     } else if (!strcmp(command, "mock_point")) {
         Point();
+    } else if (!strcmp(command, "mock_pause")) {
+        pausedMode = 1;
+    } else if (!strcmp(command, "mock_resume_newplot")) {
+        nextPlot = 1;
     } else if (!strcmp(command, "mock_fast")) {
         fast = 1;
     } else if (!strcmp(command, "run") || (!strcmp(command, "bg_run") && fast)) {
         int background = !strcmp(command, "bg_run");
         if (background) sendRunning(false, 0, client);
-        Begin();
+        Begin(1);
         for (int i = 0; i < 3; i++) {
             Point();
         }
         if (background) {
             sendRunning(true, 0, client);
         }            
-    } else if (!strcmp(command, "bg_run")) {
+    } else if (!strcmp(command, "bg_run") || !strcmp(command, "bg_resume")) {
         if (joinable) {
             int result;
             Tcl_JoinThread(worker, &result);
             joinable = 0;
         }
+        resuming = !strcmp(command, "bg_resume");
         Tcl_MutexLock(&mutex);
         halt = 0;
         running = 1;
@@ -116,6 +137,7 @@ int ngSpice_Command(char *command) {
     } else if (!strcmp(command, "bg_halt") || !strcmp(command, "quit")) {
         Tcl_MutexLock(&mutex);
         halt = 1;
+        Tcl_ConditionNotify(&stopped);
         Tcl_MutexUnlock(&mutex);
         if (joinable) {
             int result;

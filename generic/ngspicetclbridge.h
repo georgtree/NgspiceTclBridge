@@ -56,7 +56,7 @@ enum vector_types {
 
 typedef enum {
     NGSTATE_IDLE = 0,    // no bg thread active
-    NGSTATE_STARTING_BG, // bg_run issued, waiting for bg_started=1
+    NGSTATE_STARTING_BG, // bg_run/bg_resume issued, waiting for bg_started=1
     NGSTATE_BG_ACTIVE,   // bg thread running normally
     NGSTATE_STOPPING_BG, // bg_halt issued and bg thread is winding down
     NGSTATE_DEAD         // teardown/abort/destroy
@@ -65,6 +65,7 @@ typedef enum {
 //** define data snaps for saving data during ngspice callbacks
 typedef struct {
     int veccount;
+    int reset;                                   /* New plot: reset live output on the Tcl thread. */
     struct {
         char *name;
         int number;
@@ -193,7 +194,8 @@ typedef struct {
     MsgQueue msgq;                                /* Async message queue for log/status lines */
     uint64_t evt_counts[NUM_EVTS];                /* Per-callback counters */
     uint64_t gen;                                 /* Generation number (run_id) for event validation */
-    int new_run_pending;                          /* Marks pending new run between INIT/DATA callbacks */
+    int resume_pending;                           /* Next init may reconnect the current plot; mutex protected. */
+    char *livePlot;                                /* Last callback plot identifier (vinfo->type), owned. */
 
     int destroying;                               /* True while context teardown in progress */
     int quitting;                                 /* True while sending "quit" command to ngspice */
@@ -202,7 +204,7 @@ typedef struct {
     int has_circuit;                              /* True if circuit is loaded into ngspice */
 
     /*------------------------------------------------------------------------------------------------------------------
-     * Background (bg_run) thread coordination
+     * Background (bg_run/bg_resume) thread coordination
      *-----------------------------------------------------------------------------------------------------------------*/
     int bg_started;                               /* Set after first “started” callback received */
     int bg_ended;                                 /* Set after “ended” callback or post-quit */
