@@ -272,11 +272,10 @@ test test-10 {run long simulation and wait for two event, the second one marks t
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
+    set baseline [dict get [$s1 eventcounts] bg_running]
     $s1 command bg_run
-    set i 0
-    while {$i<2} {
-        $s1 waitevent bg_running
-        incr i
+    for {set i 1} {$i<=2} {incr i} {
+        $s1 waitevent bg_running -since $baseline -n $i
     }
     update
     return [$s1 initvectors]
@@ -291,8 +290,9 @@ test test-10.1 {run long simulation and wait for two event, the second one marks
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
+    set baseline [dict get [$s1 eventcounts] bg_running]
     $s1 command bg_run
-    $s1 waitevent bg_running -n 2
+    $s1 waitevent bg_running -since $baseline -n 2
     update
     return [$s1 initvectors]
 } -result {V(12) {number 0 real 1} V(11) {number 1 real 1} V(10) {number 2 real 1} V(9) {number 3 real 1}\
@@ -305,8 +305,9 @@ test test-10.2 {run long simulation and wait for three events (never happens, so
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
+    set baseline [dict get [$s1 eventcounts] bg_running]
     $s1 command bg_run
-    $s1 waitevent bg_running -n 3 20000
+    $s1 waitevent bg_running -since $baseline -n 3 20000
     update
     return [$s1 initvectors]
 } -result {V(12) {number 0 real 1} V(11) {number 1 real 1} V(10) {number 2 real 1} V(9) {number 3 real 1}\

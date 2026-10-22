@@ -37,8 +37,8 @@ test rbc-graph-1.1 {graph keeps vector bindings across live rename, updates, cle
     waitUntil {![$s isrunning]}
     update
     list $live $empty [$y length] [expr {$first eq [.liveGraph element cget signal -ydata]}]\
-            [expr {$names eq [$s vectors]}] [expr {[.liveGraph axis limits x] ne {}}] \
-        [expr {[lindex [.liveGraph axis limits y] 1] >= 198}]
+            [expr {$names eq [$s vectors]}] [expr {[.liveGraph axis limits x] ne {}}]\
+            [expr {[lindex [.liveGraph axis limits y] 1] >= 198}]
 } -cleanup {
     catch {destroy .liveGraph}
     clean $s

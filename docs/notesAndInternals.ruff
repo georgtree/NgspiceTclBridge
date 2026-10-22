@@ -12,9 +12,9 @@ namespace eval {Notes and internals} {
         handle for interacting with that specific ngspice context. This provides natural Tcl semantics such as:
         ```tcl
         set s [::ngspicetclbridge::new /path/to/libngspice.so]
-        $s init
+        set baseline [dict get [$s eventcounts] bg_running]
         $s command "bg_run"
-        $s waitevent bg_running -n 2
+        $s waitevent bg_running -since $baseline -n 2
         ```
         Every `$s ...` invocation passes through `HandleCmd` to the Tcl argument wrapper, then through `NativeCall`
         to `InstObjCmd`, which dispatches individual

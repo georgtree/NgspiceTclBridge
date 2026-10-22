@@ -45,9 +45,9 @@ All information provided here could be found in source code comments, but in mor
 <p>Each simulator instance in ngspicetclbridge is represented by a dedicated Tcl command object that acts as a
 handle for interacting with that specific ngspice context. This provides natural Tcl semantics such as:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>s<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="o">/</span>path<span class="o">/</span>to<span class="o">/</span>libngspice.so<span class="k">]</span>
-<span class="nv">$s</span><span class="w"> </span><span class="nv">init</span>
+<span class="k">set</span><span class="w"> </span>baseline<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="k">[</span><span class="nv">$s</span><span class="w"> </span><span class="nv">eventcounts</span><span class="k">]</span><span class="w"> </span>bg_running<span class="k">]</span>
 <span class="nv">$s</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">&quot;bg_run&quot;</span>
-<span class="nv">$s</span><span class="w"> </span><span class="nv">waitevent</span><span class="w"> </span>bg_running<span class="w"> </span><span class="o">-</span>n<span class="w"> </span><span class="mi">2</span>
+<span class="nv">$s</span><span class="w"> </span><span class="nv">waitevent</span><span class="w"> </span>bg_running<span class="w"> </span><span class="o">-</span>since<span class="w"> </span><span class="nv">$baseline</span><span class="w"> </span><span class="o">-</span>n<span class="w"> </span><span class="mi">2</span>
 </pre></div>
 </div>
 <p>Every <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">...</span></code> invocation passes through <code class="docutils literal notranslate"><span class="pre">HandleCmd</span></code> to the Tcl argument wrapper, then through <code class="docutils literal notranslate"><span class="pre">NativeCall</span></code>

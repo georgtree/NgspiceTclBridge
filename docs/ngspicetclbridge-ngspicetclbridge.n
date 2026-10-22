@@ -57,7 +57,7 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM vectors\fP \fI?-clear?\fP
 .br
-\fBSIM waitevent\fP \fIname ?-n N? ?timeout_ms?\fP
+\fBSIM waitevent\fP \fIname ?-n N? ?-since count? ?timeout_ms?\fP
 .br
 .SH ::NGSPICETCLBRIDGE
 .SH COMMANDS
@@ -942,6 +942,12 @@ Vector mode: dictionary mapping raw signal names to fully qualified live RBC vec
 Updates and clearing:
 .TP
 \(bu
+Each new plot replaces stored list data, for both run and bg_run\&. Lists contain the current plot's accumulated samples, not concatenated history\&. Previously returned dictionaries remain valid\&.
+.TP
+\(bu
+Explicit -clear discards samples within a plot or releases data before the next run\&.
+.TP
+\(bu
 Vector identities remain stable across runs\&. Each new plot clears retained vectors, including signals absent from that plot\&.
 .TP
 \(bu
@@ -997,7 +1003,7 @@ dict with vectors values accumulated up to this point in internal structure
 Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed,
 or the timeout expires (if provided)\&.
 .RS 4n
-\fBSIM waitevent\fP \fIname ?-n N? ?timeout_ms?\fP
+\fBSIM waitevent\fP \fIname ?-n N? ?-since count? ?timeout_ms?\fP
 .br
 .RE
 .PP
@@ -1008,7 +1014,10 @@ handle
 Not documented\&.
 .TP
 -n N
-Number of events that should happend for termination after waiting is started\&.
+Required number of callbacks relative to the baseline; defaults to one\&.
+.TP
+-since count
+Optional baseline captured with eventcounts before starting the operation\&.
 .TP
 name
 Name of the event\&.
@@ -1063,7 +1072,7 @@ Timeout in miliseconds, optional\&.
 Result dictionary of the command:
 .TP
 \(bu
-fired - 0|1, whether the event occurred during this wait
+fired - 0|1, whether the target count was reached
 .TP
 \(bu
 count - cumulative total count for that event so far
@@ -1083,7 +1092,20 @@ $sim waitevent send_stat 1000
 .fi
 .RE
 .PP
-If you want “fresh” waits, you can clear counts with eventcounts -clear\&.
+By default, only callbacks received after entering the wait count\&. To include callbacks received
+between starting an operation and waiting, capture a baseline first:
+.PP
+.RS 4n
+.nf
+set baseline [dict get [$sim eventcounts] bg_running]
+$sim command bg_run
+$sim waitevent bg_running -since $baseline -n 2 10000
+.fi
+.RE
+.PP
+With -since, the target is baseline + N; an already reached target returns immediately\&.
+Use a count from the same handle and event\&. Do not clear counters between capturing it and waiting\&.
+A timeout returns status timeout, not a Tcl error\&. This command does not process queued data updates\&.
 .PP
 The handle argument is supplied automatically when called as \fI$handle\fP waitevent\&.
 .PP

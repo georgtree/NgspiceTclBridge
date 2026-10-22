@@ -193,7 +193,8 @@ proc ::ngspicetclbridge::SIM::waitevent {handle args} {
     # Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed,
     # or the timeout expires (if provided).
     #  name -  name of the event
-    #  -n N - number of events that should happend for termination after waiting is started
+    #  -n N - required number of callbacks relative to the baseline; defaults to one
+    #  -since count - optional baseline captured with eventcounts before starting the operation
     #  timeout_ms -  timeout in miliseconds, optional
     #
     # | Event name        | Ngspice callback function name | When it is called                                                                                                                 |
@@ -223,7 +224,7 @@ proc ::ngspicetclbridge::SIM::waitevent {handle args} {
     # | t12  | `$s destroy`              | Teardown                    | *(no further calls)*     | *(command removed)* |
     #
     # Result dictionary of the command:
-    #   - `fired` \- `0|1`, whether the event occurred during this wait
+    #   - `fired` \- `0|1`, whether the target count was reached
     #   - `count` \- cumulative total count for that event so far
     #   - `status` \- `ok | timeout | aborted`
     #
@@ -236,14 +237,25 @@ proc ::ngspicetclbridge::SIM::waitevent {handle args} {
     # # -> {fired 0 count 1 status timeout}  ;# nothing new in the next 1s
     #```
     #
-    # If you want “fresh” waits, you can clear counts with `eventcounts -clear`.
+    # By default, only callbacks received after entering the wait count. To include callbacks received
+    # between starting an operation and waiting, capture a baseline first:
+    #```tcl
+    # set baseline [dict get [$sim eventcounts] bg_running]
+    # $sim command bg_run
+    # $sim waitevent bg_running -since $baseline -n 2 10000
+    #```
+    # With -since, the target is baseline + N; an already reached target returns immediately.
+    # Use a count from the same handle and event. Do not clear counters between capturing it and waiting.
+    # A timeout returns status timeout, not a Tcl error. This command does not process queued data updates.
     #
-    # Synopsis: name ?-n N? ?timeout_ms?
+    # Synopsis: name ?-n N? ?-since count? ?timeout_ms?
     # Returns: dictionary with information about event
     #
     # The handle argument is supplied automatically when called as $handle waitevent.
     set arguments [argparse -inline -mixed -help {Wait for an ngspice event count. This does not drain the Tcl event\
                                                           queue.} {
+        {-since= -type wideinteger -validate {$arg >= 0} -help {Count captured before starting the operation; includes\
+                                                                        callbacks already received}}
         {-n= -type wideinteger -validate {$arg > 0} -help {Required event count; defaults to one}}
         {event -enum {send_char send_stat controlled_exit send_data send_init_data bg_running}\
                  -help {Event to wait for}}
@@ -359,6 +371,9 @@ proc ::ngspicetclbridge::SIM::vectors {handle args} {
     # complex signals use the corresponding vector types.
     #
     # Updates and clearing:
+    # - Each new plot replaces stored list data, for both run and bg_run. Lists contain the current plot's
+    #   accumulated samples, not concatenated history. Previously returned dictionaries remain valid.
+    # - Explicit -clear discards samples within a plot or releases data before the next run.
     # - Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent
     #   from that plot.
     # - Updates require Tcl event processing; eventcounts/waitevent alone do not guarantee that queued vector
@@ -517,8 +532,15 @@ namespace eval ::ngspicetclbridge {
         if {$::tcl_platform(platform) eq {windows}} {
             $sim command {set num_threads=1}
         }
-        $sim command bg_run
-        $sim waitevent bg_running -n 2
+        set baseline [dict get [$sim eventcounts] bg_running]
+        set rc [$sim command bg_run]
+        if {![string is integer -strict $rc] || ($rc != 0)} {
+            return -code error "could not start background simulation: $rc"
+        }
+        set waited [$sim waitevent bg_running -since $baseline -n 2]
+        if {[dict get $waited status] ne {ok}} {
+            return -code error "background simulation wait [dict get $waited status]"
+        }
         update
         $sim command bg_halt
         return

@@ -453,7 +453,8 @@ test rbc-auto-7 {destroy during automatic vector creation removes the new snapsh
 } -result {1 {} {simulator handle was destroyed during vector creation}}
 
 foreach rawName {v(out) v(1)} {
-    test rbc-readonly-snapshot-$rawName {snapshot replacement rejects locked real/complex output} -constraints rbc -body {
+    test rbc-readonly-snapshot-$rawName {snapshot replacement rejects locked real/complex output} -constraints rbc\
+            -body {
         set s [newSim]
         begin $s
         set v [$s asyncvector $rawName -output vector -name ::snap::copy]
@@ -467,7 +468,8 @@ foreach rawName {v(out) v(1)} {
     } -cleanup {clean $s} -result {1 {RBC VECTOR READONLY} 1 0}
 }
 
-test rbc-readonly-clear {failed clear preserves every vector and binding; unlocking resumes appends} -constraints rbc -body {
+test rbc-readonly-clear {failed clear preserves every vector and binding; unlocking resumes appends} -constraints rbc\
+        -body {
     set s [newSim -output vector]
     begin $s
     ::live::time readonly true
@@ -483,7 +485,8 @@ test rbc-readonly-clear {failed clear preserves every vector and binding; unlock
 } -cleanup {clean $s} -result {1 {RBC VECTOR READONLY} {3 3 3} 4 0}
 
 foreach rawName {v(out) v(1)} {
-    test rbc-readonly-live-$rawName {all live destinations checked before any in-capacity append} -constraints rbc -body {
+    test rbc-readonly-live-$rawName {all live destinations checked before any in-capacity append} -constraints rbc\
+            -body {
         set ::outputErrors {}
         set s [newSim -output vector]
         begin $s
@@ -500,7 +503,8 @@ foreach rawName {v(out) v(1)} {
     } -cleanup {clean $s} -result {1 1 1 {3 3 3} {2 2 2}}
 }
 
-test rbc-readonly-adopt {initial replacement refuses a locked vector without creating earlier outputs} -constraints rbc -body {
+test rbc-readonly-adopt {initial replacement refuses a locked vector without creating earlier outputs} -constraints rbc\
+        -body {
     rbc::vector create ::live::v(out) -literal true -variable {}
     ::live::v(out) set {99}
     ::live::v(out) readonly true
@@ -522,7 +526,8 @@ test rbc-readonly-clear-pending {rejected clear does not discard queued producer
     list $code [lmap v [dict values [$s vectors]] {$v length}]
 } -cleanup {clean $s} -result {1 {4 4 4}}
 
-test rbc-namespace-qualified-auto {absolute #auto overrides per-call namespace without changing defaults} -constraints rbc -body {
+test rbc-namespace-qualified-auto {absolute #auto overrides per-call namespace without changing defaults}\
+        -constraints rbc -body {
     set s [newSim]
     begin $s
     namespace eval ::snap::absolute {}
@@ -660,7 +665,8 @@ test defaults-policy-interpreters {policy is interpreter-local and setting it al
     ::ngspicetclbridge::configure {*}$saved
 } -result {error {} replace}
 
-test defaults-policy-snapshots {simulators retain collision defaults and snapshot overrides win} -constraints rbc -body {
+test defaults-policy-snapshots {simulators retain collision defaults and snapshot overrides win} -constraints rbc\
+        -body {
     set saved [::ngspicetclbridge::configure]
     set s [newSim]
     begin $s
@@ -675,17 +681,19 @@ test defaults-policy-snapshots {simulators retain collision defaults and snapsho
     $v set {-99}
     set again [$s asyncvector time -output vector -name ::snap::time]
     set bulk [::ngspicetclbridge::readVecsAsync -output vector -namespace ::snap $s]
-    set result [list $oldError [expr {$v eq $again}] [$v range 0 end] \
-        [expr {[dict get $bulk time] eq $v}] [catch {$s asyncvector time -output vector -name ::snap::time -ifexists error}]]
+    set result [list $oldError [expr {$v eq $again}] [$v range 0 end] [expr {[dict get $bulk time] eq $v}]\
+                        [catch {$s asyncvector time -output vector -name ::snap::time -ifexists error}]]
     clean $s
     ::ngspicetclbridge::configure -ifexists replace
     set s [newSim -ifexists error]
     begin $s
     set v [$s asyncvector time -output vector -name ::snap::time]
-    lappend result [catch {$s asyncvector time -output vector -name ::snap::time}] \
-        [expr {[$s asyncvector time -output vector -name ::snap::time -ifexists replace] eq $v}]
-} -cleanup {catch {clean $s}; ::ngspicetclbridge::configure {*}$saved} \
-    -result {1 1 {0.0 0.1 0.2} 1 1 1 1}
+    lappend result [catch {$s asyncvector time -output vector -name ::snap::time}]\
+            [expr {[$s asyncvector time -output vector -name ::snap::time -ifexists replace] eq $v}]
+} -cleanup {
+    catch {clean $s}
+    ::ngspicetclbridge::configure {*}$saved
+} -result {1 1 {0.0 0.1 0.2} 1 1 1 1}
 
 test defaults-policy-live {live vector adoption uses the captured collision policy} -constraints rbc -body {
     set saved [::ngspicetclbridge::configure]
@@ -699,11 +707,14 @@ test defaults-policy-live {live vector adoption uses the captured collision poli
     set values [$v range 0 end]
     $s destroy
     list $v $values [expr {[info commands $v] ne {}}]
-} -cleanup {catch {clean $s}; ::ngspicetclbridge::configure {*}$saved} \
-    -result {::live::time {0.0 0.1 0.2} 1}
+} -cleanup {
+    catch {clean $s}
+    ::ngspicetclbridge::configure {*}$saved
+} -result {::live::time {0.0 0.1 0.2} 1}
 
 
-foreach operation {command circuit plot inputpath waitevent vectors initvectors asyncvector messages eventcounts abort isrunning destroy} {
+foreach operation {command circuit plot inputpath waitevent vectors initvectors asyncvector messages eventcounts abort\
+                           isrunning destroy} {
     test interface-help-$operation {help returns normally without invoking ngspice or destroying the handle} -setup {
         set s [newSim]
         begin $s
@@ -713,32 +724,37 @@ foreach operation {command circuit plot inputpath waitevent vectors initvectors 
         list $result [expr {$counts eq [$s eventcounts]}] [$s isrunning]
     }] -cleanup {clean $s} -match glob -output {*-help*} -result {{} 1 0}
 }
+
 foreach command {new configure run readVecsAsync getCircuit getScaleInfo getPlotName getCircuitTitle getPlotDate} {
-    test interface-help-$command {top-level help requires no library or simulator and preserves defaults} -body [string map [list @CMD@ $command] {
+    test interface-help-$command {top-level help requires no library or simulator and preserves defaults}\
+            -body [string map [list @CMD@ $command] {
         set before [::ngspicetclbridge::configure]
         set result [::ngspicetclbridge::@CMD@ -help]
         list $result [expr {$before eq [::ngspicetclbridge::configure]}]
     }] -match glob -output {*-help*} -result {{} 1}
 }
+
 test interface-prefixes {prefixes and mixed ordering for handle options} -setup {
     set s [::ngspicetclbridge::new -nospin $mockLibrary -out li]
     begin $s
 } -body {
-    list [expr {[$s plot -vec tran1] eq [$s plot -vecs tran1]}] \
-        [expr {[$s asyncvector v(out) -out li] eq [$s asyncvector -out list v(out)]}] \
-        [dict get [$s asyncvector v(out) -inf] length] \
-        [dict get [$s waitevent -n 1 send_data 1] fired] \
-        [dict get [$s waitevent send_data 1 -n 1] fired] \
-        [expr {[::ngspicetclbridge::readVecsAsync $s -out li] eq [::ngspicetclbridge::readVecsAsync -output list $s]}]
+    list [expr {[$s plot -vec tran1] eq [$s plot -vecs tran1]}]\
+            [expr {[$s asyncvector v(out) -out li] eq [$s asyncvector -out list v(out)]}]\
+            [dict get [$s asyncvector v(out) -inf] length] [dict get [$s waitevent -n 1 send_data 1] fired]\
+            [dict get [$s waitevent send_data 1 -n 1] fired]\
+            [expr {[::ngspicetclbridge::readVecsAsync $s -out li] eq\
+                           [::ngspicetclbridge::readVecsAsync -output list $s]}]
 } -cleanup {clean $s} -result {1 1 3 0 0 1}
+
 test interface-validation {ambiguous options, invalid counts, mutual exclusions and trailing args are rejected} -setup {
     set s [newSim]
 } -body {
-    list [catch {::ngspicetclbridge::new $mockLibrary -nos}] \
-        [catch {$s asyncvector v(out) -na dest}] [catch {$s waitevent send_data -n 0 1}] \
-        [catch {$s plot -all -vecs tran1}] [catch {$s asyncvector -info v(out) -output list}] \
-        [catch {$s destroy extra}] [catch {$s abort extra}] [$s isrunning]
+    list [catch {::ngspicetclbridge::new $mockLibrary -nos}] [catch {$s asyncvector v(out) -na dest}]\
+            [catch {$s waitevent send_data -n 0 1}] [catch {$s plot -all -vecs tran1}]\
+            [catch {$s asyncvector -info v(out) -output list}] [catch {$s destroy extra}] [catch {$s abort extra}]\
+            [$s isrunning]
 } -cleanup {clean $s} -result {1 1 1 1 1 1 1 0}
+
 test interface-lifetime {renamed and aliased simulator handles keep working and delete normally} -setup {
     namespace eval ::bridgeInterface {}
     set s [newSim]
@@ -748,12 +764,86 @@ test interface-lifetime {renamed and aliased simulator handles keep working and 
     set same [namespace eval ::bridgeInterface {expr {[sim plot] eq [alias plot]}}]
     namespace eval ::bridgeInterface {sim destroy}
     list $same [info commands ::bridgeInterface::sim] [catch {::bridgeInterface::alias plot}]
-} -cleanup {catch {::bridgeInterface::sim destroy}; namespace delete ::bridgeInterface; clean {}} -result {1 {} 1}
+} -cleanup {
+    catch {::bridgeInterface::sim destroy}
+    namespace delete ::bridgeInterface
+    clean {}
+} -result {1 {} 1}
+
 test interface-native-validation {private dictionary API rejects malformed input and foreign handles} -body {
-    list [catch {::ngspicetclbridge::NativeNew {}}] \
-        [catch {::ngspicetclbridge::NativeNew {libpath}}] \
-        [catch {::ngspicetclbridge::NativeCall puts asyncvector {source v(out)}}] \
-        [expr {[llength [info procs ::ngspicetclbridge::new]] == 1}]
+    list [catch {::ngspicetclbridge::NativeNew {}}] [catch {::ngspicetclbridge::NativeNew {libpath}}]\
+            [catch {::ngspicetclbridge::NativeCall puts asyncvector {source v(out)}}]\
+            [expr {[llength [info procs ::ngspicetclbridge::new]] == 1}]
 } -result {1 1 1 1}
+
+test event-since-1 {callbacks before waiting count only with an explicit baseline} -setup {
+    set s [newSim -output list]
+    set baseline [dict get [$s eventcounts] bg_running]
+    $s command mock_fast
+    $s command bg_run
+} -body {
+    list [dict get [$s waitevent bg_running -since $baseline -n 2 10] status]\
+            [dict get [$s waitevent bg_running -n 2 1] status]\
+            [dict get [$s waitevent bg_running -since $baseline -n 3 1] status]
+} -cleanup {$s destroy} -result {ok timeout timeout}
+
+test event-since-2 {negative and overflowing baselines are rejected} -setup {
+    set s [newSim -output list]
+} -body {
+    list [catch {$s waitevent bg_running -since -1 1}]\
+            [catch {$s waitevent bg_running -since 9223372036854775807 -n 1 1}]
+} -cleanup {$s destroy} -result {1 1}
+
+test event-since-3 {worker callbacks can arrive after capturing the baseline} -setup {
+    set s [newSim -output list]
+} -body {
+    set baseline [dict get [$s eventcounts] bg_running]
+    $s command bg_run
+    dict get [$s waitevent bg_running -since $baseline -n 2 5000] status
+} -cleanup {$s destroy} -result ok
+
+test live-list-run-1 {synchronous runs replace live lists and preserve previously returned dictionaries} -setup {
+    set s [newSim -output list]
+} -body {
+    $s command run
+    update
+    set saved [$s vectors]
+    set lengths {}
+    for {set i 0} {$i < 4} {incr i} {
+        $s command run
+        update
+        lappend lengths [llength [dict get [$s vectors] time]]
+    }
+    list $lengths [llength [dict get $saved time]]
+} -cleanup {$s destroy} -result {{3 3 3 3} 3}
+
+test live-list-run-2 {explicit clear still supports incremental consumption within a plot} -setup {
+    set s [newSim -output list]
+    $s command run
+    update
+} -body {
+    $s vectors -clear
+    $s command mock_point
+    update
+    llength [dict get [$s vectors] time]
+} -cleanup {$s destroy} -result 1
+
+test event-since-run-helper {run helper uses a pre-start baseline on every run} -setup {
+    set s [newSim -output list]
+    $s command mock_fast
+    # Cap waits so a regression fails instead of hanging the test process.
+    rename ::ngspicetclbridge::SIM::waitevent ::ngspicetclbridge::SIM::SavedWait
+    proc ::ngspicetclbridge::SIM::waitevent {handle args} {
+        SavedWait $handle {*}$args 50
+    }
+} -body {
+    ::ngspicetclbridge::run $s
+    ::ngspicetclbridge::run $s
+    llength [dict get [$s vectors] time]
+} -cleanup {
+    rename ::ngspicetclbridge::SIM::waitevent {}
+    rename ::ngspicetclbridge::SIM::SavedWait ::ngspicetclbridge::SIM::waitevent
+    $s destroy
+} -result 3
 
 finishTests

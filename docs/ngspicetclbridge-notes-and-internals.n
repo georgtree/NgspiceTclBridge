@@ -16,9 +16,9 @@ handle for interacting with that specific ngspice context\&. This provides natur
 .RS 4n
 .nf
 set s [::ngspicetclbridge::new /path/to/libngspice\&.so]
-$s init
+set baseline [dict get [$s eventcounts] bg_running]
 $s command "bg_run"
-$s waitevent bg_running -n 2
+$s waitevent bg_running -since $baseline -n 2
 .fi
 .RE
 .PP

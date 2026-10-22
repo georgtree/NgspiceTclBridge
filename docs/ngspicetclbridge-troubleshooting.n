@@ -7,16 +7,22 @@ Troubleshooting - Commands in namespace Troubleshooting
 .SH TROUBLESHOOTING
 .TP
 \(bu
-waitevent \fBalways times out\fP: make sure you actually started the background run ($sim command bg_run) and you allow the Tcl event loop to process events (update) between waits when appropriate\&.
+waitevent \fBalways times out\fP: make sure you actually started the background run ($sim command bg_run) and capture an event-count baseline before starting it\&. Use -since so early callbacks are included\&. Tcl event processing is required for live data updates, but not for the callback counters\&.
 .TP
 \(bu
 \fBCircuit is not loaded\fP: ensure your circuit issues \&.end directive\&.
 .TP
 \(bu
-\fBComplex data surprises\fP: if you expected real data but get {re im} pairs, your vector is complex per ngspice\&. Handle both cases in your Tcl code if needed\&.
+\fBComplex data\fP: if you expected real data but get {re im} pairs, your vector is complex per ngspice\&. Handle both cases in your Tcl code if needed\&.
 .TP
 \(bu
 \fBMultiple runs\fP: clear old event data between runs if you want pristine event counters and messages buffer: $sim messages -clear and  $sim eventcounts -clear\&. Data buffer and saved vectors resetted after run of the new simulation to prevent data mixing\&.
+.TP
+\(bu
+\fBWaiting for fast simulations\fP: capture the bg_running counter before starting a background run and pass it to waitevent -since\&. Otherwise callbacks received before the wait do not count\&. The run helper does this automatically\&. Do not clear event counters while a saved baseline is in use\&.
+.TP
+\(bu
+\fBLive storage across runs\fP: new plots replace live list data as well as resetting live RBC vectors\&. Synchronous command run and background execution therefore retain the current plot's samples, not all previous runs\&. Process Tcl events after synchronous run to apply the new plot and its data\&. The explicit vectors -clear remains useful for consuming samples in batches within a plot or releasing them early\&.
 
 
 .SH SEE ALSO

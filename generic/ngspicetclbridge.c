@@ -449,13 +449,12 @@ static inline void BumpAndSignal(NgSpiceContext *ctx, int which) {
  *      Wait for a specific event counter in an NgSpiceContext to reach a target value, with optional timeout
  *      and abort handling. This function blocks until one of the following occurs:
  *
- *          - The specified event counter increases by at least `need` increments since the start of the wait
+ *          - The specified event counter increases by at least `need` increments since the supplied baseline (or the start of the wait)
  *          - The context is marked for destruction (abort condition)
  *          - The timeout period expires
  *
- *      This allows waiting for multiple occurrences of a given event after the call to waitevent from Tcl.
- *      For example, with need = 3, the function will return only after three new events of the requested
- *      type have been registered since the call began.
+ *      With a supplied baseline, callbacks already received before entering this function count toward
+ *      the target. Without one, only callbacks received after entering the wait count.
  *
  * Parameters:
  *      NgSpiceContext *ctx   - input/output: pointer to the ngspice context containing the mutex,
@@ -466,21 +465,23 @@ static inline void BumpAndSignal(NgSpiceContext *ctx, int which) {
  *      int *reached_out      - output (optional): set to nonzero if the target count was reached
  *                               (i.e., the event fired `need` times) during the wait.
  *      uint64_t *count_out   - output (optional): set to the current cumulative total count for this
- *                               event when the wait terminates (since instance creation).
+ *                               event when the wait terminates (since instance creation or last clear).
+ *      const uint64_t *since - input (optional): event count captured before starting the operation.
  *
  * Results:
  *      Returns one of:
  *          NGSPICE_WAIT_OK       - target count reached during the wait
  *          NGSPICE_WAIT_TIMEOUT  - timeout expired before target reached
  *          NGSPICE_WAIT_ABORTED  - context was marked for destruction before target reached
- *
+ * *
  * Side Effects:
  *      Locks and unlocks ctx->mutex around counter checks and condition waits.
  *      May sleep in slices (25 ms by default) for finite timeouts, polling the counter between sleeps.
  *      For indefinite waits, uses Tcl_ConditionWait() to block until signaled or aborted.
  *
  * Notes:
- *      - The function checks event deltas relative to the counter value observed at entry time.
+ *      - The function checks deltas relative to *since, or the counter observed at entry if since is NULL.
+ *      - Do not clear counters between taking a baseline and completing its wait.
  *      - If multiple Tcl threads share a context, only one should call this function at a time.
  *      - The returned count is always cumulative; use `eventcounts -clear` in Tcl to zero counters
  *        if you prefer delta-based semantics between independent tests.
@@ -488,7 +489,7 @@ static inline void BumpAndSignal(NgSpiceContext *ctx, int which) {
  *----------------------------------------------------------------------------------------------------------------------
  */
 static wait_rc wait_for(NgSpiceContext *ctx, int which, uint64_t need, long timeout_ms, int *reached_out,
-                        uint64_t *count_out) {
+                        uint64_t *count_out, const uint64_t *since) {
     uint64_t needLoc;
     if (need == (uint64_t)0) {
         needLoc = 1;
@@ -497,7 +498,7 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, uint64_t need, long time
     }
     const int slice_ms = 25;
     Tcl_MutexLock(&ctx->mutex);
-    uint64_t start = ctx->evt_counts[which];
+    uint64_t start = since ? *since : ctx->evt_counts[which];
     uint64_t target = start + needLoc;
     if (ctx->evt_counts[which] >= target) {
         uint64_t cnt = ctx->evt_counts[which];
@@ -516,7 +517,7 @@ static wait_rc wait_for(NgSpiceContext *ctx, int which, uint64_t need, long time
         }
     } else {
         long remaining = timeout_ms;
-        while (!ctx->destroying && (ctx->evt_counts[which] < target) && (remaining > 0)) {
+        while (!ctx->destroying && !ctx->aborting && (ctx->evt_counts[which] < target) && (remaining > 0)) {
             Tcl_MutexUnlock(&ctx->mutex);
             int step = (remaining < slice_ms) ? (int)remaining : slice_ms;
             Tcl_Sleep(step);
@@ -1027,6 +1028,17 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
         ctx->init_snap = NULL;
         Tcl_MutexUnlock(&ctx->mutex);
         if (isnap != NULL) {
+            /* A new plot replaces live list data, just as BridgeRbcPrepare resets
+             * live vectors. Do this on the Tcl thread, before appending samples. */
+            if (!ctx->outputVectors) {
+                Tcl_MutexLock(&ctx->mutex);
+                if (ctx->vectorData != NULL) {
+                    Tcl_DecrRefCount(ctx->vectorData);
+                }
+                ctx->vectorData = Tcl_NewDictObj();
+                Tcl_IncrRefCount(ctx->vectorData);
+                Tcl_MutexUnlock(&ctx->mutex);
+            }
             Tcl_Obj *dict = Tcl_NewDictObj();
             for (int i = 0; i < isnap->veccount; i++) {
                 Tcl_Obj *meta = Tcl_NewDictObj();
@@ -2462,7 +2474,7 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Obj *args) {
  *      - Sends a full circuit deck to ngSpice_Circ(), building a transient NULL-terminated char** from the Tcl list.
  *      - Result: int rc from ngSpice_Circ().
  *
- *   waitevent name ?-n N? ?timeout_ms?
+ *   waitevent name ?-n N? ?-since count? ?timeout_ms?
  *      - Blocks until the given event fires N more times (default N=1), or until timeout_ms expires (default: no
  *        timeout).
  *      - Valid event names:
@@ -2703,13 +2715,26 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             code = TCL_ERROR; goto done;
         }
         uint64_t need = (uint64_t)requested;
+        Tcl_WideInt baseline = 0;
+        uint64_t since = 0;
+        Tcl_Obj *sinceObj = Arg(args, "since");
+        if (sinceObj) {
+            if (Tcl_GetWideIntFromObj(interp, sinceObj, &baseline) != TCL_OK) {
+                code = TCL_ERROR; goto done;
+            }
+            if (baseline < 0 || (uint64_t)baseline > (uint64_t)INT64_MAX - need) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("-since must be nonnegative and -since + -n must fit in a wide integer", -1));
+                code = TCL_ERROR; goto done;
+            }
+            since = (uint64_t)baseline;
+        }
         if (Arg(args, "timeout") && Tcl_GetLongFromObj(interp, Arg(args, "timeout"), &timeout_ms) != TCL_OK) {
             code = TCL_ERROR; goto done;
         }
         int reached;
         uint64_t count;
         ctx->aborting = 0;
-        wait_rc rc = wait_for(ctx, which, need, timeout_ms, &reached, &count);
+        wait_rc rc = wait_for(ctx, which, need, timeout_ms, &reached, &count, sinceObj ? &since : NULL);
         Tcl_Obj *res = Tcl_NewDictObj();
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("fired", -1), Tcl_NewBooleanObj(reached));
         Tcl_DictObjPut(interp, res, Tcl_NewStringObj("count", -1), Tcl_NewWideIntObj((Tcl_WideInt)count));

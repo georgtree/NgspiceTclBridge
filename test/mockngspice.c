@@ -15,7 +15,7 @@ static ControlledExit *sendExit;
 static void *client;
 static Tcl_Mutex mutex;
 static Tcl_ThreadId worker;
-static int joinable, running, halt, length;
+static int joinable, running, halt, length, fast;
 static double times[10000], values[10000];
 static ngcomplex_t complexValues[10000];
 static char *names[] = {"time", "v(out)", "v(1)", NULL};
@@ -25,6 +25,7 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
                  void *g) {
     (void)a;
     (void)b;
+    fast = 0;
     sendExit = c;
     sendData = d;
     sendInit = e;
@@ -32,6 +33,7 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
     client = g;
     return 0;
 }
+
 static void Begin(void) {
     Tcl_MutexLock(&mutex);
     length = 0;
@@ -42,6 +44,7 @@ static void Begin(void) {
     vecinfoall metadata = {"tran1", "fixture", "", "tran", 3, ptrs};
     sendInit(&metadata, 0, client);
 }
+
 static void Point(void) {
     Tcl_MutexLock(&mutex);
     int n = length++;
@@ -56,6 +59,7 @@ static void Point(void) {
     vecvaluesall row = {3, n, ptrs};
     sendData(&row, 3, 0, client);
 }
+
 static Tcl_ThreadCreateType Run(ClientData unused) {
     (void)unused;
     sendRunning(false, 0, client);
@@ -77,11 +81,24 @@ static Tcl_ThreadCreateType Run(ClientData unused) {
     Tcl_ExitThread(0);
     TCL_THREAD_CREATE_RETURN;
 }
+
 int ngSpice_Command(char *command) {
     if (!strcmp(command, "mock_begin")) {
         Begin();
     } else if (!strcmp(command, "mock_point")) {
         Point();
+    } else if (!strcmp(command, "mock_fast")) {
+        fast = 1;
+    } else if (!strcmp(command, "run") || (!strcmp(command, "bg_run") && fast)) {
+        int background = !strcmp(command, "bg_run");
+        if (background) sendRunning(false, 0, client);
+        Begin();
+        for (int i = 0; i < 3; i++) {
+            Point();
+        }
+        if (background) {
+            sendRunning(true, 0, client);
+        }            
     } else if (!strcmp(command, "bg_run")) {
         if (joinable) {
             int result;
@@ -111,6 +128,7 @@ int ngSpice_Command(char *command) {
     }
     return 0;
 }
+
 pvector_info ngGet_Vec_Info(char *name) {
     for (int i = 0; i < 3; i++) {
         if (!strcmp(name, names[i])) {
@@ -121,35 +139,50 @@ pvector_info ngGet_Vec_Info(char *name) {
     }
     return NULL;
 }
+
 int ngSpice_LockRealloc(void) {
     Tcl_MutexLock(&mutex);
     return 0;
 }
+
 int ngSpice_UnlockRealloc(void) {
     Tcl_MutexUnlock(&mutex);
     return 0;
 }
+
 NG_BOOL ngSpice_running(void) {
     Tcl_MutexLock(&mutex);
     int r = running;
     Tcl_MutexUnlock(&mutex);
     return r != 0;
 }
+
 int ngSpice_Init_Sync(GetVSRCData *a, GetISRCData *b, GetSyncData *c, int *d, void *e) { return 0; }
+
 char *ngCM_Input_Path(const char *path) { return (char *)path; }
+
 pevt_shared_data ngGet_Evt_NodeInfo(char *name) { return NULL; }
+
 char **ngSpice_AllEvtNodes(void) {
     static char *empty[] = {NULL};
     return empty;
 }
+
 int ngSpice_Init_Evt(SendEvtData *a, SendInitEvtData *b, void *c) { return 0; }
+
 int ngSpice_Circ(char **circuit) { return 0; }
+
 char *ngSpice_CurPlot(void) { return "tran1"; }
+
 char **ngSpice_AllPlots(void) {
     static char *plots[] = {"tran1", NULL};
     return plots;
 }
+
 char **ngSpice_AllVecs(char *plot) { return names; }
+
 NG_BOOL ngSpice_SetBkpt(double value) { return true; }
+
 int ngSpice_nospinit(void) { return 0; }
+
 int ngSpice_nospiceinit(void) { return 0; }

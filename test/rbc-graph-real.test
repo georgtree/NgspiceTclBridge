@@ -56,7 +56,7 @@ proc ::realGraphTest::commandChanged {old new operation} {
 
 proc ::realGraphTest::nodeName {mapping node} {
     foreach raw [dict keys $mapping] {
-        if {$raw eq $node || [string equal -nocase $raw v($node)]} {
+        if {($raw eq $node) || [string equal -nocase $raw v($node)]} {
             return $raw
         }
     }
@@ -70,7 +70,7 @@ proc ::realGraphTest::run {sim graph expected timeout} {
     set liveGrowth 0
     set started [clock milliseconds]
     $sim eventcounts -clear
-    assert {[$sim command bg_run] == 0} {ngspice rejected bg_run}
+    assert {[$sim command bg_run]==0} {ngspice rejected bg_run}
     while {1} {
         # Let Tk redraw and the bridge publish queued samples without blocking the event loop.
         set timer [after 10 [list set ::realGraphTest::tick 1]]
@@ -83,7 +83,7 @@ proc ::realGraphTest::run {sim graph expected timeout} {
             return -code error "background error: $backgroundErrors"
         }
         set current [$sim vectors]
-        if {$mapping eq {} && [dict exists $current time]} {
+        if {($mapping eq {}) && [dict exists $current time]} {
             set mapping $current
             if {$expected ne {}} {
                 dict for {raw name} $expected {
@@ -95,7 +95,7 @@ proc ::realGraphTest::run {sim graph expected timeout} {
                 foreach node {9 10 11 12} color {red blue green4 purple} {
                     set raw [nodeName $mapping $node]
                     $graph element create bit$node -label v($node) -xdata $x -ydata [dict get $mapping $raw]\
-                            -color $color -symbol none
+                            -color $color -symbol none -decimate auto
                 }
                 dict for {raw name} $mapping {
                     trace add command $name {rename delete} ::realGraphTest::commandChanged
@@ -105,28 +105,28 @@ proc ::realGraphTest::run {sim graph expected timeout} {
         if {$mapping ne {}} {
             set x [dict get $mapping time]
             set count [$x length]
-            if {[$sim isrunning] && $count > $previous} {
+            if {[$sim isrunning] && ($count>$previous)} {
                 incr liveGrowth
             }
             set previous $count
             .realGraph.status configure -text "Samples: $count; live updates observed: $liveGrowth"
         }
         # Count both start and stop callbacks, avoiding the startup race in isrunning.
-        if {[dict get [$sim eventcounts] bg_running] >= 2 && ![$sim isrunning]} {
+        if {([dict get [$sim eventcounts] bg_running]>=2) && ![$sim isrunning]} {
             break
         }
-        if {[clock milliseconds] - $started > $timeout} {
+        if {([clock milliseconds]-$started) > $timeout} {
             return -code error "ngspice did not finish within $timeout ms; messages: [$sim messages]"
         }
     }
     update
     assert {$mapping ne {}} {ngspice produced no vector metadata}
-    assert {$liveGrowth >= 2} {fewer than two growing vector updates observed while ngspice was running}
-    assert {[llength $backgroundErrors] == 0} "background error: $backgroundErrors"
+    assert {$liveGrowth>=2} {fewer than two growing vector updates observed while ngspice was running}
+    assert {[llength $backgroundErrors]==0} "background error: $backgroundErrors"
     set x [dict get $mapping time]
     set count [$x length]
-    assert {$count > 1} {ngspice produced insufficient transient samples}
-    assert {abs([lindex [$x index end] 0] - 10e-6) < 1e-12} {transient did not reach 10 microseconds}
+    assert {$count>1} {ngspice produced insufficient transient samples}
+    assert {abs([lindex [$x index end] 0]-10e-6)<1e-12} {transient did not reach 10 microseconds}
     # Compare every displayed trace and the time scale against independent ngspice snapshots.
     set rawNames [list time]
     foreach node {9 10 11 12} {
@@ -134,7 +134,7 @@ proc ::realGraphTest::run {sim graph expected timeout} {
     }
     foreach raw $rawNames {
         set vec [dict get $mapping $raw]
-        assert {[$vec length] == $count} "sample count mismatch for $raw"
+        assert {[$vec length]==$count} "sample count mismatch for $raw"
         set snapshot [$sim asyncvector $raw -output list]
         assert {[$vec range 0 end] eq $snapshot} "live data differs from ngspice snapshot for $raw"
     }
@@ -167,7 +167,7 @@ test rbc-graph-real-1.1 {four-bit adder: real ngspice streaming, clear, and grap
     } finally {
         close $channel
     }
-    ::realGraphTest::assert {[$sim circuit $fourBitAdderCircuit] == 0} {ngspice rejected the four-bit adder circuit}
+    ::realGraphTest::assert {[$sim circuit $fourBitAdderCircuit]==0} {ngspice rejected the four-bit adder circuit}
 } -body {
     set graph .realGraph.graph
     set names [::realGraphTest::run $sim $graph {} $timeoutMilliseconds]
@@ -178,7 +178,7 @@ test rbc-graph-real-1.1 {four-bit adder: real ngspice streaming, clear, and grap
     $sim vectors -clear
     update
     dict for {raw name} $names {
-        ::realGraphTest::assert {[$name length] == 0} "clear did not empty $raw"
+        ::realGraphTest::assert {[$name length]==0} "clear did not empty $raw"
         ::realGraphTest::assert {[dict get [$sim vectors] $raw] eq $name} "clear changed the name of $raw"
     }
     ::realGraphTest::run $sim $graph $names $timeoutMilliseconds
@@ -202,4 +202,5 @@ test rbc-graph-real-1.1 {four-bit adder: real ngspice streaming, clear, and grap
 
 set failed $::tcltest::numTests(Failed)
 cleanupTests
-exit [expr {$failed != 0}]
+
+exit [expr {$failed!=0}]
