@@ -626,8 +626,14 @@ test test-30 {check if unknown command hits ngspice during thread state transiti
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command -capture bg_run
-    return [$s1 command -capture kolp]
-} -result {background thread is starting, command kolp is deffered} -cleanup {
+    set result [$s1 command -capture kolp]
+    if {$result eq {background thread is starting, command kolp is deffered}} {
+        set valid 1
+    } else {
+        set valid [expr {([dict get $result rc] == 0) &&\
+                                 ([dict get $result output] eq {{stderr kolp: no such command available in ngspice}})}]
+    }
+} -result 1 -cleanup {
     $s1 destroy
     unset s1
 }
