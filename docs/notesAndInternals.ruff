@@ -491,6 +491,17 @@ namespace eval {Notes and internals} {
 
         This snapshot serves as the source for `ctx->vectorInit` once the event is processed on the Tcl side.
 
+        ### Native worker thread cleanup
+        Ngspice creates native background threads. Tcl allocations made by the callbacks initialize thread-local
+        allocator state, which is not automatically released when a native worker returns. At the end of the
+        stopped `BGThreadRunningCallback`, the bridge calls `Tcl_FinalizeThread` on the worker after completing
+        all queueing and synchronization. This also applies when the handle is being destroyed.
+
+        `ControlledExitCallback` performs the same cleanup: fatal exits can invoke it after the stopped callback
+        and initialize fresh Tcl state. Calls on the interpreter's own thread are excluded, so synchronous `run`
+        and owner-thread shutdown do not finalize the interpreter thread. Halting releases worker-local state;
+        live samples remain available for the next resume. Transferred buffers retain their normal ownership.
+
         ### Internal buffering and memory layout
         The in-memory storage for raw data uses nested structures designed for efficient append and event-driven
         transfer:

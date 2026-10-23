@@ -541,6 +541,17 @@ corresponding <code class="docutils literal notranslate"><span class="pre">InitS
 </div>
 <p>This snapshot serves as the source for <code class="docutils literal notranslate"><span class="pre">ctx-&gt;vectorInit</span></code> once the event is processed on the Tcl side.</p>
 </section>
+<section id="native-worker-thread-cleanup">
+<span id="r-notes-and-internals-native-worker-thread-cleanup"></span><span id="r-3a3anotes20and20internalsqznative20worker20thread20cleanup"></span><h3>Native worker thread cleanup<a class="headerlink" href="#native-worker-thread-cleanup" title="Link to this heading">¶</a></h3>
+<p>Ngspice creates native background threads. Tcl allocations made by the callbacks initialize thread-local
+allocator state, which is not automatically released when a native worker returns. At the end of the
+stopped <code class="docutils literal notranslate"><span class="pre">BGThreadRunningCallback</span></code>, the bridge calls <code class="docutils literal notranslate"><span class="pre">Tcl_FinalizeThread</span></code> on the worker after completing
+all queueing and synchronization. This also applies when the handle is being destroyed.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ControlledExitCallback</span></code> performs the same cleanup: fatal exits can invoke it after the stopped callback
+and initialize fresh Tcl state. Calls on the interpreter’s own thread are excluded, so synchronous <code class="docutils literal notranslate"><span class="pre">run</span></code>
+and owner-thread shutdown do not finalize the interpreter thread. Halting releases worker-local state;
+live samples remain available for the next resume. Transferred buffers retain their normal ownership.</p>
+</section>
 <section id="internal-buffering-and-memory-layout">
 <span id="r-notes-and-internals-internal-buffering-and-memory-layout"></span><span id="r-3a3anotes20and20internalsqzinternal20buffering20and20memory20layout"></span><h3>Internal buffering and memory layout<a class="headerlink" href="#internal-buffering-and-memory-layout" title="Link to this heading">¶</a></h3>
 <p>The in-memory storage for raw data uses nested structures designed for efficient append and event-driven
@@ -889,6 +900,7 @@ helper is used.</p>
 <li><a class="reference internal" href="#overview-of-the-data-flow">Overview of the data flow</a></li>
 <li><a class="reference internal" href="#asynchronous-access-structures">Asynchronous access structures</a></li>
 <li><a class="reference internal" href="#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
+<li><a class="reference internal" href="#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
 <li><a class="reference internal" href="#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
 <li><a class="reference internal" href="#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>
 <li><a class="reference internal" href="#data-lifecycle-and-cleanup">Data lifecycle and cleanup</a></li>

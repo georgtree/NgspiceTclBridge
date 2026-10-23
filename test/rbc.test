@@ -1078,4 +1078,63 @@ test flush-destroy {destroying the handle during RBC creation safely releases a 
     clean $s
 } -result {1 {} {simulator handle was destroyed during publication}}
 
+# Joining the native worker makes the exit-handler count deterministic. Neither
+# the fixture nor these tests call Tcl_FinalizeThread on behalf of the bridge.
+foreach mode {list vector} {
+    test worker-cleanup-1.$mode {native workers release Tcl state after repeated runs} \
+            -constraints [expr {$mode eq "vector" ? "rbc" : {}}] -body {
+        set s [newSim -output $mode]
+        $s command mock_burst
+        for {set i 0} {$i < 20} {incr i} {
+            ::ngspicetclbridge::run $s
+            $s messages -clear
+        }
+        set count [$s command mock_finalized]
+        set values [$s asyncvector v(out) -output list]
+        list $count [llength $values] [lindex $values end]
+    } -cleanup {clean $s} -result {20 1000 1998.0}
+}
+
+test worker-cleanup-2 {halt/resume releases each native worker and preserves live samples} -body {
+    set s [newSim]
+    $s command mock_pause
+    set baseline [dict get [$s eventcounts] send_data]
+    $s command bg_run
+    $s waitevent send_data -since $baseline -n 3 5000
+    $s command bg_halt
+    set first [$s command mock_finalized]
+    $s flush
+    set before [dict get [$s vectors] v(out)]
+    set baseline [dict get [$s eventcounts] send_data]
+    $s command bg_resume
+    $s waitevent send_data -since $baseline -n 3 5000
+    $s command bg_halt
+    set second [$s command mock_finalized]
+    $s flush
+    list $first $second $before [dict get [$s vectors] v(out)]
+} -cleanup {clean $s} -result {1 2 {0.0 2.0 4.0} {0.0 2.0 4.0 6.0 8.0 10.0}}
+
+test worker-cleanup-3 {controlled exit after the stopped callback cleans newly initialized thread state} -body {
+    set s [newSim]
+    $s command mock_burst
+    $s command mock_terminal_exit
+    set baseline [dict get [$s eventcounts] controlled_exit]
+    $s command bg_run
+    $s waitevent controlled_exit -since $baseline 5000
+    # Joining also waits for cleanup after controlled_exit signals its counter.
+    set count [$s command mock_finalized]
+    list $count [dict get [$s eventcounts] controlled_exit]
+} -cleanup {clean $s} -result {2 1}
+
+test worker-cleanup-4 {synchronous callbacks leave the interpreter thread usable} -body {
+    set s [newSim]
+    $s command mock_fast
+    for {set i 0} {$i < 5} {incr i} {
+        ::ngspicetclbridge::run $s
+        $s command run
+        $s flush
+    }
+    list [$s command mock_finalized] [dict get [$s vectors] v(out)] [expr {6 * 7}]
+} -cleanup {clean $s} -result {0 {0.0 2.0 4.0} 42}
+
 finishTests

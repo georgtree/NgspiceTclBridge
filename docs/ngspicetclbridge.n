@@ -166,6 +166,12 @@ make test also runs the standalone C callback-ownership regression\&. Run it sep
 requires Tcl headers and the Tcl link library, but no ngspice, argparse or extexpr\&. It checks real/complex sample
 ownership and snapshot independence rather than RSS, which can remain elevated when allocators retain freed memory\&.
 .PP
+The headless make test-rbc suite also checks native-worker cleanup in list and vector modes,
+including repeated runs, halt/resume and controlled exit\&. Its mock uses POSIX threads or Windows
+_beginthreadex, without Tcl_ExitThread, so missing bridge cleanup cannot be masked by the fixture\&.
+The tests count Tcl thread-exit handlers after joining workers; no memory-debug Tcl build is needed\&.
+List-mode cases run even when the bridge is built without RBC support\&.
+.PP
 Optional RBC suites have separate targets: test-rbc, test-rbc-graph and test-rbc-graph-real\&. Their dependencies,
 fixture behavior and real-library configuration are documented in \fIthe RBC guide\fP [URL: docs/rbcBindings\&.ruff]; they are not
 part of ordinary make test\&.

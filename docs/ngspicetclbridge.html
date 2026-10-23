@@ -166,6 +166,11 @@ guide</a> for the full ownership and naming rules.</p>
 <p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code> also runs the standalone C callback-ownership regression. Run it separately with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test-memory</span></code>; it
 requires Tcl headers and the Tcl link library, but no ngspice, argparse or extexpr. It checks real/complex sample
 ownership and snapshot independence rather than RSS, which can remain elevated when allocators retain freed memory.</p>
+<p>The headless <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test-rbc</span></code> suite also checks native-worker cleanup in list and vector modes,
+including repeated runs, halt/resume and controlled exit. Its mock uses POSIX threads or Windows
+<code class="docutils literal notranslate"><span class="pre">_beginthreadex</span></code>, without <code class="docutils literal notranslate"><span class="pre">Tcl_ExitThread</span></code>, so missing bridge cleanup cannot be masked by the fixture.
+The tests count Tcl thread-exit handlers after joining workers; no memory-debug Tcl build is needed.
+List-mode cases run even when the bridge is built without RBC support.</p>
 <p>Optional RBC suites have separate targets: <code class="docutils literal notranslate"><span class="pre">test-rbc</span></code>, <code class="docutils literal notranslate"><span class="pre">test-rbc-graph</span></code> and <code class="docutils literal notranslate"><span class="pre">test-rbc-graph-real</span></code>. Their dependencies,
 fixture behavior and real-library configuration are documented in <a class="reference external" href="docs/rbcBindings.ruff">the RBC guide</a>; they are not
 part of ordinary <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>.</p>

@@ -29,6 +29,7 @@ static Tcl_Obj *Track(Tcl_Obj *obj) {
     tracked[trackedCount++] = (TrackedObject){obj, 0};
     return obj;
 }
+
 static Tcl_Obj *NewString(const char *bytes, Tcl_Size length) { return Track(Tcl_NewStringObj(bytes, length)); }
 static Tcl_Obj *NewList(Tcl_Size count, Tcl_Obj *const elements[]) { return Track(Tcl_NewListObj(count, elements)); }
 static void Release(Tcl_Obj *obj) {

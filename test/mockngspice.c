@@ -4,6 +4,16 @@
 #define SHARED_MODULE
 #define XSPICE 1
 #include <tcl.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h>
+typedef HANDLE WorkerThread;
+#define WORKER_RESULT unsigned __stdcall
+#else
+#include <pthread.h>
+typedef pthread_t WorkerThread;
+#define WORKER_RESULT void *
+#endif
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -15,7 +25,8 @@ static BGThreadRunning *sendRunning;
 static ControlledExit *sendExit;
 static void *client;
 static Tcl_Mutex mutex;
-static Tcl_ThreadId worker;
+static WorkerThread worker;
+static int finalized, terminalExit, burst;
 static int joinable, running, halt, length, fast, pausedMode, resuming, nextPlot, plotId, failStart;
 static Tcl_Condition stopped;
 static char plotName[32] = "tran1";
@@ -28,6 +39,7 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
                  void *g) {
     (void)a;
     (void)b;
+    finalized = terminalExit = burst = 0;
     fast = pausedMode = resuming = nextPlot = plotId = failStart = 0;
     sendExit = c;
     sendData = d;
@@ -66,12 +78,31 @@ static void Point(void) {
     sendData(&row, 3, 0, client);
 }
 
-static Tcl_ThreadCreateType Run(ClientData unused) {
+/* The fixture deliberately uses native threads without Tcl_ExitThread. This exit handler
+ * observes cleanup by the bridge, rather than hiding missing cleanup in the fixture. */
+static void WorkerFinalized(ClientData unused) {
     (void)unused;
+    finalized++;
+}
+
+static void JoinWorker(void) {
+    if (!joinable) return;
+#ifdef _WIN32
+    WaitForSingleObject(worker, INFINITE);
+    CloseHandle(worker);
+#else
+    pthread_join(worker, NULL);
+#endif
+    joinable = 0;
+}
+
+static WORKER_RESULT Run(void *unused) {
+    (void)unused;
+    Tcl_CreateThreadExitHandler(WorkerFinalized, NULL);
     sendRunning(false, 0, client);
     Begin(!resuming || nextPlot);
     nextPlot = 0;
-    for (int i = 0; i < (pausedMode ? 3 : 100); i++) {
+    for (int i = 0; i < (pausedMode ? 3 : (burst ? 1000 : 100)); i++) {
         Tcl_MutexLock(&mutex);
         int stop = halt;
         Tcl_MutexUnlock(&mutex);
@@ -79,7 +110,7 @@ static Tcl_ThreadCreateType Run(ClientData unused) {
             break;
         }
         Point();
-        Tcl_Sleep(2);
+        if (!burst) Tcl_Sleep(2);
     }
     Tcl_MutexLock(&mutex);
     while (pausedMode && !halt) {
@@ -88,8 +119,12 @@ static Tcl_ThreadCreateType Run(ClientData unused) {
     running = 0;
     Tcl_MutexUnlock(&mutex);
     sendRunning(true, 0, client);
-    Tcl_ExitThread(0);
-    TCL_THREAD_CREATE_RETURN;
+    if (terminalExit) {
+        /* ngspice can report controlled_exit after bg_running(true). */
+        Tcl_CreateThreadExitHandler(WorkerFinalized, NULL);
+        sendExit(1, false, false, 0, client);
+    }
+    return 0;
 }
 
 int ngSpice_Command(char *command) {
@@ -97,7 +132,14 @@ int ngSpice_Command(char *command) {
         failStart = 0;
         return 1;
     }
-    if (!strcmp(command, "mock_failstart")) {
+    if (!strcmp(command, "mock_finalized")) {
+        JoinWorker();
+        return finalized;
+    } else if (!strcmp(command, "mock_terminal_exit")) {
+        terminalExit = 1;
+    } else if (!strcmp(command, "mock_burst")) {
+        burst = 1;
+    } else if (!strcmp(command, "mock_failstart")) {
         failStart = 1;
     } else if (!strcmp(command, "mock_begin")) {
         Begin(1);
@@ -120,17 +162,18 @@ int ngSpice_Command(char *command) {
             sendRunning(true, 0, client);
         }            
     } else if (!strcmp(command, "bg_run") || !strcmp(command, "bg_resume")) {
-        if (joinable) {
-            int result;
-            Tcl_JoinThread(worker, &result);
-            joinable = 0;
-        }
+        JoinWorker();
         resuming = !strcmp(command, "bg_resume");
         Tcl_MutexLock(&mutex);
         halt = 0;
         running = 1;
         Tcl_MutexUnlock(&mutex);
-        joinable = Tcl_CreateThread(&worker, Run, NULL, TCL_THREAD_STACK_DEFAULT, TCL_THREAD_JOINABLE) == TCL_OK;
+#ifdef _WIN32
+        worker = (HANDLE)_beginthreadex(NULL, 0, Run, NULL, 0, NULL);
+        joinable = worker != NULL;
+#else
+        joinable = pthread_create(&worker, NULL, Run, NULL) == 0;
+#endif
         if (!joinable) {
             return 1;
         }
@@ -139,11 +182,7 @@ int ngSpice_Command(char *command) {
         halt = 1;
         Tcl_ConditionNotify(&stopped);
         Tcl_MutexUnlock(&mutex);
-        if (joinable) {
-            int result;
-            Tcl_JoinThread(worker, &result);
-            joinable = 0;
-        }
+        JoinWorker();
         if (!strcmp(command, "quit")) {
             sendExit(0, false, true, 0, client);
         }

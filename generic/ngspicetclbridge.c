@@ -1479,6 +1479,33 @@ static inline void MsgMaybeCaptureAndSignal(NgSpiceContext *ctx, const char *msg
     }
     Tcl_MutexUnlock(&ctx->mutex);
 }
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * FinalizeWorkerThread --
+ *
+ *      Release Tcl thread-local state at the end of an ngspice worker's callbacks. Ngspice creates native
+ *      threads, so returning from its worker does not call Tcl_ExitThread or release Tcl's allocator cache.
+ *
+ * Parameters:
+ *      Tcl_ThreadId owner - Thread owning the interpreter; this thread must never be finalized here.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Finalizes the calling thread's Tcl state only when it is not the interpreter thread. Call after the
+ *      last Tcl operation in a terminal callback, with no mutex held. Later callbacks may initialize fresh
+ *      thread state; ControlledExitCallback therefore also finalizes after reporting a fatal worker exit.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void FinalizeWorkerThread(Tcl_ThreadId owner) {
+    if (Tcl_GetCurrentThread() != owner) {
+        Tcl_FinalizeThread();
+    }
+}
+
 //** ngspice callbacks (instance-scoped via ctx user ptr)
 //***  SendCharCallback function
 /*
@@ -1558,8 +1585,10 @@ static int SendStatCallback(char *msg, int id, void *user) {
     if (!ctx || ctx->destroying) {
         return 0;
     }
-    const char *line = Tcl_GetString(Tcl_ObjPrintf("# status[%d]: %s", id, msg));
-    QueueMsg(ctx, line);
+    Tcl_Obj *line = Tcl_ObjPrintf("# status[%d]: %s", id, msg);
+    Tcl_IncrRefCount(line);
+    QueueMsg(ctx, Tcl_GetString(line));
+    Tcl_DecrRefCount(line);
     BumpAndSignal(ctx, SEND_STAT);
     Tcl_MutexLock(&ctx->mutex);
     mygen = ctx->gen;
@@ -1598,6 +1627,7 @@ static int SendStatCallback(char *msg, int id, void *user) {
  *          - Captures the current generation counter (ctx->gen) under ctx->mutex.
  *          - Queues a CONTROLLED_EXIT Tcl event for deferred handling in the main thread.
  *      - Ensures proper synchronization using ctx->exit_mu and ctx->mutex.
+ *      - Finalizes Tcl state when called on a worker, including after a preceding stopped callback.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
@@ -1607,6 +1637,7 @@ static int ControlledExitCallback(int status, bool immediate, bool exit_upon_exi
     if (!ctx) {
         return 0;
     }
+    Tcl_ThreadId owner = ctx->tclid;
     Tcl_MutexLock(&ctx->exit_mu);
     ctx->exited = 1;
     ctx->quitting = 0;
@@ -1620,6 +1651,7 @@ static int ControlledExitCallback(int status, bool immediate, bool exit_upon_exi
         Tcl_MutexUnlock(&ctx->mutex);
         NgSpiceQueueEvent(ctx, CONTROLLED_EXIT, mygen);
     }
+    FinalizeWorkerThread(owner);
     return 0;
 }
 //***  SendDataCallback function
@@ -1782,7 +1814,8 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
  *      Always returns 0 (ngspice ignores the return value).
  *
  * Side Effects:
- *      - If ctx is NULL or ctx->destroying is already set, we return immediately.
+ *      - A stopped worker finalizes its Tcl thread state, even during handle destruction.
+ *        The interpreter thread is never finalized by this callback.
  *
  *      - Otherwise:
  *          * Take ctx->bg_mu and update ctx->bg_started / ctx->bg_ended:
@@ -1815,7 +1848,12 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
 static int BGThreadRunningCallback(bool running, int id, void *user) {
     NgSpiceContext *ctx = (NgSpiceContext *)user;
     uint64_t mygen;
-    if (!ctx || ctx->destroying) {
+    if (!ctx) {
+        return 0;
+    }
+    Tcl_ThreadId owner = ctx->tclid;
+    if (ctx->destroying) {
+        if (running) FinalizeWorkerThread(owner);
         return 0;
     }
     Tcl_MutexLock(&ctx->bg_mu);
@@ -1839,6 +1877,7 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
     mygen = ctx->gen;
     Tcl_MutexUnlock(&ctx->mutex);
     NgSpiceQueueEvent(ctx, BG_THREAD_RUNNING, mygen);
+    if (running) FinalizeWorkerThread(owner);
     return 0;
 }
 //***  WaitForBGStarted function
