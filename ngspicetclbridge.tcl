@@ -595,6 +595,7 @@ namespace eval ::ngspicetclbridge {
         if {[dict get $waited status] ne {ok}} {
             return -code error "background simulation wait [dict get $waited status]"
         }
+        $sim command bg_halt
         $sim flush
         return
     }

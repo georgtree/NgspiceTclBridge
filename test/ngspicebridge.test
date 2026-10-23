@@ -371,9 +371,10 @@ test test-14 {test of isrunning command} -setup {
     $s1 circuit $fourBitAdderCircuit
 } -body {
     $s1 command bg_run
+    set baseline [dict get [$s1 eventcounts] bg_running]
     set i 0
     while {$i<2} {
-        $s1 waitevent bg_running
+        $s1 waitevent bg_running -since $baseline -n 1
         if {$i==0} {
             set result [$s1 isrunning]
         }
@@ -442,11 +443,8 @@ test test-17 {halt simulation, then resume it} -setup {
     after 100
     $s1 command bg_halt
     $s1 command bg_resume
-    set i 0
-    while {$i<2} {
-        $s1 waitevent bg_running
-        incr i
-    }
+    set baseline [dict get [$s1 eventcounts] bg_running]
+    $s1 waitevent bg_running -since $baseline -n 2
     update
     return [$s1 initvectors]
 } -result {V(12) {number 0 real 1} V(11) {number 1 real 1} V(10) {number 2 real 1} V(9) {number 3 real 1}\
