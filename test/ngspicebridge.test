@@ -370,8 +370,8 @@ test test-14 {test of isrunning command} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
-    $s1 command bg_run
     set baseline [dict get [$s1 eventcounts] bg_running]
+    $s1 command bg_run
     set i 0
     while {$i<2} {
         $s1 waitevent bg_running -since $baseline -n 1
@@ -442,8 +442,8 @@ test test-17 {halt simulation, then resume it} -setup {
     $s1 command bg_run
     after 100
     $s1 command bg_halt
-    $s1 command bg_resume
     set baseline [dict get [$s1 eventcounts] bg_running]
+    $s1 command bg_resume
     $s1 waitevent bg_running -since $baseline -n 2
     update
     return [$s1 initvectors]
