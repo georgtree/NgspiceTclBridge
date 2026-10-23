@@ -55,8 +55,9 @@ loop.</p>
 <li><p>Read simulation results as Tcl lists or, optionally, real and complex RBC vectors.</p></li>
 <li><p>Stream results into live RBC vectors for graph bindings, or create independent snapshots.</p></li>
 </ul>
-<p>Ngspice callbacks enqueue work for the Tcl thread. Keep the Tcl event loop running to process messages, events and live
-vector updates. The <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::run</span></code> helper waits for completion and processes events for synchronous use.</p>
+<p>Ngspice callbacks buffer live samples for publication on the Tcl thread. Keep the Tcl event loop running for automatic
+updates, or call <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">flush</span></code> to publish pending data without processing GUI, timer or idle events. The
+<code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::run</span></code> helper waits for completion and flushes automatically before returning.</p>
 </section>
 <section id="building-requirements">
 <span id="r-building-requirements"></span><span id="r-building202620requirements"></span><h2>Building &amp; requirements<a class="headerlink" href="#building-requirements" title="Link to this heading">¶</a></h2>

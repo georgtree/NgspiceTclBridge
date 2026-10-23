@@ -714,7 +714,7 @@ test defaults-policy-live {live vector adoption uses the captured collision poli
 
 
 foreach operation {command circuit plot inputpath waitevent vectors initvectors asyncvector messages eventcounts abort\
-                           isrunning destroy} {
+                           isrunning destroy flush} {
     test interface-help-$operation {help returns normally without invoking ngspice or destroying the handle} -setup {
         set s [newSim]
         begin $s
@@ -960,5 +960,122 @@ foreach mode {list vector} {
         liveValues $s @MODE@ v(out)
     }] -cleanup {clean $s} -result {0.0 2.0 4.0}
 }
+
+foreach mode {list vector} {
+    set constraints [expr {$mode eq "vector" ? "rbc" : ""}]
+    test flush-data-$mode {flush publishes metadata and real/complex samples once without servicing Tcl events}\
+            -constraints $constraints -setup {
+        set ::flushTimer 0
+        set ::flushIdle 0
+        set timer [after 0 {set ::flushTimer 1}]
+        set idle [after idle {set ::flushIdle 1}]
+    } -body [string map [list @MODE@ $mode] {
+        set s [newSim -output @MODE@]
+        $s command run
+        set counts [$s eventcounts]
+        set empty [$s flush]
+        set values [liveValues $s @MODE@ v(out)]
+        set complex [liveValues $s @MODE@ v(1)]
+        set meta [$s initvectors]
+        $s flush
+        set untouched [list $::flushTimer $::flushIdle]
+        set sameCounts [expr {$counts eq [$s eventcounts]}]
+        # Old queued events must neither reset storage nor append these rows twice.
+        update
+        list $empty $untouched $sameCounts [dict exists $meta v(out)] $values $complex\
+                [expr {$values eq [liveValues $s @MODE@ v(out)]}]
+    }] -cleanup {
+        after cancel $timer
+        after cancel $idle
+        clean $s
+    } -result {{} {0 0} 1 1 {0.0 2.0 4.0} {{0.0 0.0} {2.0 -3.0} {4.0 -6.0}} 1}
+
+    test flush-generations-$mode {flush and queued delivery preserve new plots and explicit clear}\
+            -constraints $constraints -body [string map [list @MODE@ $mode] {
+        set s [newSim -output @MODE@]
+        $s command run
+        $s flush
+        $s command mock_begin
+        $s command mock_point
+        $s flush
+        update
+        set fresh [liveValues $s @MODE@ v(out)]
+        $s command mock_point
+        $s vectors -clear
+        $s flush
+        set cleared [liveValues $s @MODE@ v(out)]
+        $s command mock_point
+        update
+        list $fresh $cleared [liveValues $s @MODE@ v(out)]
+    }] -cleanup {clean $s} -result {0.0 {} 4.0}
+
+    test flush-run-$mode {run publishes data without invoking a queued callback that could reenter run}\
+            -constraints $constraints -body [string map [list @MODE@ $mode] {
+        set s [newSim -output @MODE@]
+        $s command mock_fast
+        set ::flushNested 0
+        set timer [after 0 [list apply {{s} {
+            incr ::flushNested
+            ::ngspicetclbridge::run -nocleanup $s
+        }} $s]]
+        ::ngspicetclbridge::run -nocleanup $s
+        list $::flushNested [liveValues $s @MODE@ v(out)]
+    }] -cleanup {
+        after cancel $timer
+        clean $s
+    } -result {0 {0.0 2.0 4.0}}
+}
+
+test flush-error {explicit publication errors are returned and retained without duplicate background errors}\
+        -constraints rbc -body {
+    set ::outputErrors {}
+    set s [newSim -output vector]
+    proc ::live::v(out) {} {}
+    $s command run
+    set failed [catch {$s flush} message]
+    update
+    set retained [catch {$s flush} again]
+    set same [expr {$message eq $again}]
+    rename ::live::v(out) {}
+    $s command run
+    $s flush
+    list $failed $retained $same $::outputErrors [::live::v(out) length]
+} -cleanup {clean $s} -result {1 1 1 {} 3}
+
+test flush-reentry {RBC creation callbacks cannot reenter publication} -constraints rbc -setup {
+    set s [newSim -output vector]
+    set ::flushReentry {}
+    proc flushCreationTrace {sim command operation} {
+        if {[lindex $command 1] eq "create"} {
+            lappend ::flushReentry [catch {$sim flush} message] $message
+        }
+    }
+    set hook [list flushCreationTrace $s]
+    trace add execution ::rbc::vector enter $hook
+} -body {
+    $s command run
+    $s flush
+    list [lrange $::flushReentry 0 1] [::live::v(out) length]
+} -cleanup {
+    trace remove execution ::rbc::vector enter $hook
+    rename flushCreationTrace {}
+    clean $s
+} -result {{1 {vector output update is in progress}} 3}
+
+test flush-destroy {destroying the handle during RBC creation safely releases a detached batch} -constraints rbc\
+        -setup {
+    set s [newSim -output vector]
+    set hook [list apply {{sim command code result op} {
+        if {[lindex $command 1] eq "create"} {$sim destroy}
+    }} $s]
+    trace add execution ::rbc::vector leave $hook
+} -body {
+    $s command run
+    set failed [catch {$s flush} message]
+    list $failed [info commands $s] $message
+} -cleanup {
+    trace remove execution ::rbc::vector leave $hook
+    clean $s
+} -result {1 {} {simulator handle was destroyed during publication}}
 
 finishTests

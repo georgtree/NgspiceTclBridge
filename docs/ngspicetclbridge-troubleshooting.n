@@ -22,10 +22,13 @@ waitevent \fBalways times out\fP: make sure you actually started the background 
 \fBWaiting for fast simulations\fP: capture the bg_running counter before starting a background run and pass it to waitevent -since\&. Otherwise callbacks received before the wait do not count\&. The run helper does this automatically\&. Do not clear event counters while a saved baseline is in use\&.
 .TP
 \(bu
-\fBLive storage across runs\fP: new plots replace live list data as well as resetting live RBC vectors\&. Synchronous command run and background execution therefore retain the current plot's samples, not all previous runs\&. Process Tcl events after synchronous run to apply the new plot and its data\&. The explicit vectors -clear remains useful for consuming samples in batches within a plot or releasing them early; it discards queued samples as well as published samples in both output modes\&.
+\fBLive storage across runs\fP: new plots replace live list data as well as resetting live RBC vectors\&. Synchronous command run and background execution therefore retain the current plot's samples, not all previous runs\&. Call $sim flush after synchronous command run to apply the new plot and its data\&. The explicit vectors -clear remains useful for consuming samples in batches within a plot or releasing them early; it discards queued samples as well as published samples in both output modes\&.
 .TP
 \(bu
-\fBHalt and resume\fP: bg_halt preserves live samples\&. bg_resume appends when continuing the same plot, even though ngspice may resend initialization metadata\&. A subsequent new plot still resets live storage\&. Wait for the background-start event before halting, and for the stop event before resuming\&. Capture a fresh eventcounts baseline before each command and use waitevent bg_running -since $baseline (one event per start or halt)\&. Process Tcl events to publish queued samples; event counts alone do not drain that queue\&.
+\fBHalt and resume\fP: bg_halt preserves live samples\&. bg_resume appends when continuing the same plot, even though ngspice may resend initialization metadata\&. A subsequent new plot still resets live storage\&. Wait for the background-start event before halting, and for the stop event before resuming\&. Capture a fresh eventcounts baseline before each command and use waitevent bg_running -since $baseline (one event per start or halt)\&. Call $sim flush or process Tcl events to publish queued samples; event counts alone do not publish data\&.
+.TP
+\(bu
+\fBSlider callback reentry\fP: the run helper publishes data through flush and does not call update\&. Pending slider, timer and idle callbacks remain queued until the application returns to the Tcl event loop\&. RBC vector notifications may still invoke callbacks during publication; reentrant handle operations are rejected while that publication is in progress\&.
 
 
 .SH SEE ALSO

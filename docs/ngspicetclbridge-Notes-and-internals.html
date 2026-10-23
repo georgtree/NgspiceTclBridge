@@ -83,6 +83,7 @@ internal data structures. For example:</p>
 <li><p><strong>command ?-capture? string</strong> - Sends arbitrary ngspice commands via <code class="docutils literal notranslate"><span class="pre">ngSpice_Command()</span></code>. If <code class="docutils literal notranslate"><span class="pre">-capture</span></code> is used, temporarily enables output capturing in <code class="docutils literal notranslate"><span class="pre">ctx-&gt;capq</span></code>, then returns a dictionary with <code class="docutils literal notranslate"><span class="pre">rc</span></code> and <code class="docutils literal notranslate"><span class="pre">output</span></code> fields.</p></li>
 <li><p><strong>circuit list</strong> - Sends a complete circuit deck to ngspice via <code class="docutils literal notranslate"><span class="pre">ngSpice_Circ()</span></code>.</p></li>
 <li><p><strong>waitevent</strong> - Blocks until an ngspice event occurs or a timeout expires, returning a result dictionary.</p></li>
+<li><p><strong>flush</strong> - Publishes one buffered live-data batch without processing Tcl events.</p></li>
 <li><p><strong>vectors</strong>, <strong>initvectors</strong>, <strong>messages</strong>, <strong>eventcounts</strong> - Return or clear data structures stored in the context.</p></li>
 <li><p><strong>plot</strong>, <strong>asyncvector</strong>, <strong>isrunning</strong>, <strong>abort</strong>, <strong>destroy</strong> - Perform specialized inspection or control operations on the current simulation session.</p></li>
 </ul>
@@ -346,14 +347,16 @@ using:</p>
 <p>Inside this function, we unpack the event, verify that the <code class="docutils literal notranslate"><span class="pre">NgSpiceContext</span></code> still exists, and check whether
 the event’s <code class="docutils literal notranslate"><span class="pre">gen</span></code> field matches the current generation counter in the context. If not, the event is stale and
 immediately discarded to avoid processing old data from previous runs.</p>
-<p>Depending on the <code class="docutils literal notranslate"><span class="pre">callbackId</span></code>, the procedure performs different tasks:</p>
-<ul class="simple">
-<li><p><strong>SEND_INIT_DATA:</strong> transfers initialization metadata from <code class="docutils literal notranslate"><span class="pre">ctx-&gt;init_snap</span></code> into <code class="docutils literal notranslate"><span class="pre">ctx-&gt;vectorInit</span></code> (a Tcl dictionary mapping vector names to <code class="docutils literal notranslate"><span class="pre">{number</span> <span class="pre">N</span> <span class="pre">real</span> <span class="pre">0/1}</span></code>), resets <code class="docutils literal notranslate"><span class="pre">ctx-&gt;vectorData</span></code>, and frees the snapshot.</p></li>
-<li><p><strong>SEND_DATA:</strong> moves data rows from <code class="docutils literal notranslate"><span class="pre">ctx-&gt;prod</span></code> (filled in the ngspice thread) into the Tcl dictionary <code class="docutils literal notranslate"><span class="pre">ctx-&gt;vectorData</span></code>, appending each vector’s numeric or complex values. The buffer is then cleared.</p></li>
-<li><p><strong>CONTROLLED_EXIT:</strong> marks <code class="docutils literal notranslate"><span class="pre">ctx-&gt;exited</span> <span class="pre">=</span> <span class="pre">1</span></code> and signals <code class="docutils literal notranslate"><span class="pre">ctx-&gt;exit_cv</span></code> to wake any waiters.</p></li>
-<li><p><strong>BG_THREAD_RUNNING:</strong> updates state flags, signals <code class="docutils literal notranslate"><span class="pre">ctx-&gt;bg_cv</span></code>, and may call <code class="docutils literal notranslate"><span class="pre">FlushPending()</span></code> to run any commands queued during background thread transitions.</p></li>
-<li><p><strong>All others:</strong> increment their respective event counters and append textual messages to <code class="docutils literal notranslate"><span class="pre">ctx-&gt;msgq</span></code>.</p></li>
-</ul>
+<p>For <strong>SEND_INIT_DATA</strong> and <strong>SEND_DATA</strong>, the handler calls <code class="docutils literal notranslate"><span class="pre">FlushLiveData</span></code>. This helper also implements
+the public <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">flush</span></code> command. It detaches <code class="docutils literal notranslate"><span class="pre">ctx-&gt;init_snap</span></code> and <code class="docutils literal notranslate"><span class="pre">ctx-&gt;prod</span></code> together under the mutex,
+applies initialization before sample rows, and frees the detached allocations. Publication occurs without
+holding the mutex. New plots reset live storage; resume of the same plot preserves it.</p>
+<p>Explicit flushing does not enter the Tcl event loop. Old queued events cannot duplicate consumed samples,
+and obsolete generations cannot consume a newer plot’s data. New samples arriving after detachment remain
+available to subsequent events or flush calls. <code class="docutils literal notranslate"><span class="pre">outputBusy</span></code> guards publication against RBC callback reentry.</p>
+<p>Callback counters, messages, controlled-exit flags and background worker state are updated by the native
+callbacks themselves, independently of publication. Flush does not alter those counters. Event-driven
+publication reports errors through the background error handler; explicit flush returns them directly.</p>
 <p>Once processed, the event always returns 1 to indicate it should be removed from Tcl’s event queue.</p>
 </section>
 <section id="event-deletion-and-resource-balancing">

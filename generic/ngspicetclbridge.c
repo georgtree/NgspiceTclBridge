@@ -943,10 +943,11 @@ static void QueueMsg(NgSpiceContext *ctx, const char *msg) {
 /*
  *----------------------------------------------------------------------------------------------------------------------
  * VectorOutputError -- Retain the first asynchronous output failure and discard pending samples.
- * Called only by the Tcl thread. The retained error remains available from the vectors command.
+ * Called only by the Tcl thread. The retained error remains available from vectors and flush.
+ * The background argument controls reporting; explicit flush returns the error directly.
  *----------------------------------------------------------------------------------------------------------------------
  */
-static void VectorOutputError(NgSpiceContext *ctx) {
+static void VectorOutputError(NgSpiceContext *ctx, int background) {
     if (!ctx->vectorError && !ctx->destroying) {
         ctx->vectorError = Tcl_GetObjResult(ctx->interp);
         Tcl_IncrRefCount(ctx->vectorError);
@@ -955,8 +956,149 @@ static void VectorOutputError(NgSpiceContext *ctx) {
         DataBuf_Free(&ctx->prod);
         DataBuf_Init(&ctx->prod);
         Tcl_MutexUnlock(&ctx->mutex);
-        Tcl_BackgroundException(ctx->interp, TCL_ERROR);
+        if (background) Tcl_BackgroundException(ctx->interp, TCL_ERROR);
     }
+}
+
+//***  FlushLiveData function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * FlushLiveData --
+ *
+ *      Publishes one batch of buffered initialization metadata and samples on the owning Tcl thread.
+ *      Used by both queued events and the public flush command, without servicing the Tcl event loop.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx       - Simulator context, preserved by the caller for the duration of this call.
+ *      const uint64_t *generation - Expected event generation, or NULL for an explicit flush.
+ *      int background           - Report a newly encountered publication failure as a background exception.
+ *
+ * Results:
+ *      Returns TCL_OK with an empty result, or TCL_ERROR with a retained publication error.
+ *      An obsolete event generation succeeds without consuming any buffered data.
+ *
+ * Side Effects:
+ *      Detaches metadata and rows together under ctx->mutex, then publishes them without holding that mutex.
+ *      Initializes live storage before appending samples and frees the detached allocations.
+ *      Samples arriving after detachment remain pending for a later flush or queued event.
+ *      RBC notifications may invoke Tcl callbacks; outputBusy prevents reentrant publication or mutation.
+ *      Does not wait for ngspice, process unrelated Tcl events, or change callback counters.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int FlushLiveData(NgSpiceContext *ctx, const uint64_t *generation, int background) {
+    Tcl_Interp *interp = ctx->interp;
+    if (ctx->outputBusy || ctx->destroying) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(ctx->destroying ? "instance is shutting down" :
+                                                "vector output update is in progress", -1));
+        return TCL_ERROR;
+    }
+    Tcl_MutexLock(&ctx->mutex);
+    if (generation && *generation != ctx->gen) {
+        Tcl_MutexUnlock(&ctx->mutex);
+        return TCL_OK;
+    }
+    InitSnap *isnap = ctx->init_snap;
+    ctx->init_snap = NULL;
+    DataBuf take = ctx->prod;
+    DataBuf_Init(&ctx->prod);
+    ctx->dataEventQueued = 0;
+    Tcl_MutexUnlock(&ctx->mutex);
+
+    int code = TCL_OK;
+    ctx->outputBusy = 1;
+    if (isnap != NULL) {
+        /* A new plot replaces live list data, just as BridgeRbcPrepare resets
+         * live vectors. Do this on the Tcl thread, before appending samples. */
+        if (isnap->reset && !ctx->outputVectors) {
+            Tcl_MutexLock(&ctx->mutex);
+            if (ctx->vectorData != NULL) {
+                Tcl_DecrRefCount(ctx->vectorData);
+            }
+            ctx->vectorData = Tcl_NewDictObj();
+            Tcl_IncrRefCount(ctx->vectorData);
+            Tcl_MutexUnlock(&ctx->mutex);
+        }
+        Tcl_Obj *dict = Tcl_NewDictObj();
+        for (int i = 0; i < isnap->veccount; i++) {
+            Tcl_Obj *meta = Tcl_NewDictObj();
+            Tcl_DictObjPut(interp, meta, Tcl_NewStringObj("number", -1), Tcl_NewIntObj(isnap->vecs[i].number));
+            Tcl_DictObjPut(interp, meta, Tcl_NewStringObj("real", -1), Tcl_NewBooleanObj(isnap->vecs[i].is_real));
+            Tcl_DictObjPut(interp, dict, Tcl_NewStringObj(isnap->vecs[i].name, -1), meta);
+        }
+        Tcl_MutexLock(&ctx->mutex);
+        if (ctx->vectorInit != NULL) {
+            Tcl_DecrRefCount(ctx->vectorInit);
+        }
+        ctx->vectorInit = dict;
+        Tcl_IncrRefCount(dict);
+        Tcl_MutexUnlock(&ctx->mutex);
+        if (isnap->reset && ctx->vectorError) {
+            Tcl_DecrRefCount(ctx->vectorError);
+            ctx->vectorError = NULL;
+        }
+        if (isnap->reset && ctx->outputVectors) {
+            if (BridgeRbcPrepare(ctx, isnap) != TCL_OK) {
+                code = TCL_ERROR;
+            }
+        }
+        FreeInitSnap(isnap);
+    }
+
+    if (code == TCL_OK && ctx->vectorError) {
+        Tcl_SetObjResult(interp, ctx->vectorError);
+        code = TCL_ERROR;
+    }
+    if (code == TCL_OK && ctx->destroying) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("simulator handle was destroyed during publication", -1));
+        code = TCL_ERROR;
+    }
+    if (code == TCL_OK && take.count) {
+        if (ctx->outputVectors) {
+            code = BridgeRbcAppend(ctx, &take);
+        } else {
+            if (Tcl_IsShared(ctx->vectorData)) {
+                Tcl_Obj *dup = Tcl_DuplicateObj(ctx->vectorData);
+                Tcl_IncrRefCount(dup);
+                Tcl_DecrRefCount(ctx->vectorData);
+                ctx->vectorData = dup;
+            }
+            for (size_t r = 0; r < take.count && code == TCL_OK; r++) {
+                DataRow *dr = &take.rows[r];
+                for (int i = 0; i < dr->veccount && code == TCL_OK; i++) {
+                    Tcl_Obj *key = Tcl_NewStringObj(dr->vecs[i].name, -1);
+                    /* Existing dictionary entries do not retain a newly allocated equal key. */
+                    Tcl_IncrRefCount(key);
+                    if (dr->vecs[i].is_complex == 1) {
+                        Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
+                        Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].creal));
+                        Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].cimag));
+                        /* DictLappend retains the elements, not their temporary container. */
+                        Tcl_IncrRefCount(pair);
+                        code = DictLappend(interp, ctx->vectorData, key, pair);
+                        Tcl_DecrRefCount(pair);
+                    } else {
+                        code = DictLappendElem(interp, ctx->vectorData, key, Tcl_NewDoubleObj(dr->vecs[i].creal));
+                    }
+                    Tcl_DecrRefCount(key);
+                }
+            }
+        }
+    }
+    DataBuf_Free(&take);
+    if (ctx->destroying) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("simulator handle was destroyed during publication", -1));
+        code = TCL_ERROR;
+    }
+    if (code != TCL_OK) {
+        VectorOutputError(ctx, background);
+        if (ctx->vectorError) Tcl_SetObjResult(interp, ctx->vectorError);
+    } else {
+        Tcl_ResetResult(interp);
+    }
+    ctx->outputBusy = 0;
+    return code;
 }
 
 //***  NgSpiceEventProc function
@@ -965,164 +1107,32 @@ static void VectorOutputError(NgSpiceContext *ctx) {
  *
  * NgSpiceEventProc --
  *
- *      Tcl event handler for processing deferred ngspice callbacks in the main interpreter thread.
- *      This procedure is invoked via Tcl's event loop when ngspice-related events are queued from background
- *      threads or asynchronous callbacks. It unpacks the event data, updates shared state in NgSpiceContext,
- *      and performs any required Tcl_Obj manipulations in a thread-safe manner. If generation of the event is not the
- *      same as the current generation, skip event processing.
+ *      Publishes buffered live data for a queued ngspice event through FlushLiveData.
  *
  * Parameters:
- *      Tcl_Event *ev                - input: pointer to the queued Tcl event, castable to NgSpiceEvent
- *      int flags                    - input: bitmask of flags from Tcl's event loop (currently unused)
+ *      Tcl_Event *ev - Queued NgSpiceEvent holding a preserved simulator context.
+ *      int flags     - Tcl event service flags; unused.
  *
  * Results:
- *      Always returns 1 to indicate the event was processed and should be removed from the queue.
+ *      Returns 1 after consuming the event, or 0 while publication is already in progress.
  *
  * Side Effects:
- *      For SEND_INIT_DATA:
- *          - Retrieves and clears ctx->init_snap under ctx->mutex.
- *          - Resets previous generation vectorData
- *          - Builds a Tcl dictionary mapping vector names to metadata ("number" and "real").
- *          - Stores the dictionary in ctx->vectorInit, updating reference counts appropriately.
- *          - Frees the InitSnap structure.
- *
- *      For SEND_DATA:
- *          - Detaches ctx->prod into a local DataBuf under ctx->mutex, leaving ctx->prod empty.
- *          - Ensures ctx->vectorData is unshared if necessary by duplicating it.
- *          - Iterates over all DataRow entries, appending numeric or complex values into ctx->vectorData
- *            using DictLappend() or DictLappendElem().
- *          - Frees all DataRow entries and their vector name strings.
- *
- *      For all other callbacks:
- *          - No per-event processing is performed.
- *
- *      In all cases:
- *          - Calls Tcl_Release() on ctx to match a Tcl_Preserve() performed when queuing the event.
- *          - May allocate and free Tcl_Obj values.
- *          - May adjust Tcl reference counts and free dynamically allocated buffers.
+ *      Preserves the interpreter result, reports new asynchronous publication failures once,
+ *      and releases the event's context reference when consumed. Stale generations cannot publish data.
+ *      Events left queued by an explicit flush find no consumed samples and cannot publish them twice.
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-/* cppcheck-suppress misra-c2012-2.7 - have to comply with Tcl expected interface*/
 static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
-    /* cppcheck-suppress misra-c2012-11.3 - Tcl embedding pattern*/
+    (void)flags;
     NgSpiceEvent *sp = (NgSpiceEvent *)ev;
     NgSpiceContext *ctx = sp->ctx;
-    Tcl_Interp *interp = ctx->interp;
-    Tcl_MutexLock(&ctx->mutex);
-    uint64_t curgen = ctx->gen;
-    Tcl_MutexUnlock(&ctx->mutex);
-    if (sp->gen != curgen) {
-        Tcl_Release((ClientData)ctx);
-        return 1;
+    if (ctx->outputBusy) return 0;
+    Tcl_InterpState saved = Tcl_SaveInterpState(ctx->interp, TCL_OK);
+    if (sp->callbackId == SEND_INIT_DATA || sp->callbackId == SEND_DATA) {
+        FlushLiveData(ctx, &sp->gen, 1);
     }
-    if (ctx->outputBusy) {
-        return 0;
-    }
-    Tcl_InterpState saved = Tcl_SaveInterpState(interp, TCL_OK);
-    switch ((enum CallbacksIds)sp->callbackId) {
-    case SEND_INIT_DATA: {
-        InitSnap *isnap = NULL;
-        Tcl_MutexLock(&ctx->mutex);
-        isnap = ctx->init_snap;
-        ctx->init_snap = NULL;
-        Tcl_MutexUnlock(&ctx->mutex);
-        if (isnap != NULL) {
-            /* A new plot replaces live list data, just as BridgeRbcPrepare resets
-             * live vectors. Do this on the Tcl thread, before appending samples. */
-            if (isnap->reset && !ctx->outputVectors) {
-                Tcl_MutexLock(&ctx->mutex);
-                if (ctx->vectorData != NULL) {
-                    Tcl_DecrRefCount(ctx->vectorData);
-                }
-                ctx->vectorData = Tcl_NewDictObj();
-                Tcl_IncrRefCount(ctx->vectorData);
-                Tcl_MutexUnlock(&ctx->mutex);
-            }
-            Tcl_Obj *dict = Tcl_NewDictObj();
-            for (int i = 0; i < isnap->veccount; i++) {
-                Tcl_Obj *meta = Tcl_NewDictObj();
-                Tcl_DictObjPut(interp, meta, Tcl_NewStringObj("number", -1), Tcl_NewIntObj(isnap->vecs[i].number));
-                Tcl_DictObjPut(interp, meta, Tcl_NewStringObj("real", -1), Tcl_NewBooleanObj(isnap->vecs[i].is_real));
-                Tcl_DictObjPut(interp, dict, Tcl_NewStringObj(isnap->vecs[i].name, -1), meta);
-            }
-            Tcl_MutexLock(&ctx->mutex);
-            if (ctx->vectorInit != NULL) {
-                Tcl_DecrRefCount(ctx->vectorInit);
-            }
-            ctx->vectorInit = dict;
-            Tcl_IncrRefCount(dict);
-            Tcl_MutexUnlock(&ctx->mutex);
-            if (isnap->reset && ctx->vectorError) {
-                Tcl_DecrRefCount(ctx->vectorError);
-                ctx->vectorError = NULL;
-            }
-            if (isnap->reset && ctx->outputVectors) {
-                ctx->outputBusy = 1;
-                if (BridgeRbcPrepare(ctx, isnap) != TCL_OK) {
-                    VectorOutputError(ctx);
-                }
-                ctx->outputBusy = 0;
-            }
-            FreeInitSnap(isnap);
-        }
-        break;
-    }
-    case SEND_DATA: {
-        DataBuf take;
-        DataBuf_Init(&take);
-        /* detach producer buffer */
-        Tcl_MutexLock(&ctx->mutex);
-        ctx->dataEventQueued = 0;
-        int failed = ctx->outputFailed;
-        take = ctx->prod;
-        ctx->prod.rows = NULL;
-        ctx->prod.count = 0;
-        ctx->prod.cap = 0;
-        if (Tcl_IsShared(ctx->vectorData)) {
-            Tcl_Obj *dup = Tcl_DuplicateObj(ctx->vectorData);
-            Tcl_IncrRefCount(dup);
-            Tcl_DecrRefCount(ctx->vectorData);
-            ctx->vectorData = dup;
-        }
-        Tcl_MutexUnlock(&ctx->mutex);
-        if (ctx->outputVectors) {
-            ctx->outputBusy = 1;
-            if (!failed && take.count && BridgeRbcAppend(ctx, &take) != TCL_OK) {
-                VectorOutputError(ctx);
-            }
-            ctx->outputBusy = 0;
-            DataBuf_Free(&take);
-            break;
-        }
-        for (size_t r = 0; r < take.count; r++) {
-            DataRow *dr = &take.rows[r];
-            for (int i = 0; i < dr->veccount; i++) {
-                Tcl_Obj *key = Tcl_NewStringObj(dr->vecs[i].name, -1);
-                /* Existing dictionary entries do not retain a newly allocated equal key. */
-                Tcl_IncrRefCount(key);
-                if (dr->vecs[i].is_complex == 1) {
-                    Tcl_Obj *pair = Tcl_NewListObj(0, NULL);
-                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].creal));
-                    Tcl_ListObjAppendElement(interp, pair, Tcl_NewDoubleObj(dr->vecs[i].cimag));
-                    /* DictLappend retains the elements, not their temporary container. */
-                    Tcl_IncrRefCount(pair);
-                    DictLappend(interp, ctx->vectorData, key, pair);
-                    Tcl_DecrRefCount(pair);
-                } else {
-                    DictLappendElem(interp, ctx->vectorData, key, Tcl_NewDoubleObj(dr->vecs[i].creal));
-                }
-                Tcl_DecrRefCount(key);
-            }
-            FreeDataRow(dr);
-        }
-        Tcl_Free(take.rows);
-        break;
-    }
-    default:
-        break;
-    }
-    Tcl_RestoreInterpState(interp, saved);
+    Tcl_RestoreInterpState(ctx->interp, saved);
     Tcl_Release((ClientData)ctx);
     return 1;
 }
@@ -1133,7 +1143,7 @@ static int NgSpiceEventProc(Tcl_Event *ev, int flags) {
  * DeleteNgSpiceEventProc --
  *
  *      Predicate/deletion callback used with Tcl_DeleteEvents() to remove all pending ngspice-related
- *      events for a specific NgSpiceContext. This is called during teardown (InstDeleteProc) to ensure
+ *      events for a specific NgSpiceContext. This is called before an explicit flush and during teardown (InstDeleteProc) to ensure
  *      that no queued NgSpiceEvent objects referencing a soon-to-be-freed context are left in the Tcl
  *      event queue.
  *
@@ -2762,6 +2772,15 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                                         -1));
         Tcl_SetObjResult(interp, res);
         code = TCL_OK;
+        goto done;
+    }
+    if (strcmp(sub, "flush") == 0) {
+        /* Remove queued notifications before detaching data. Otherwise repeated synchronous runs
+         * without an event loop retain event/context references indefinitely. Native callbacks
+         * already maintain counters and state; only live publication remains to be done here.
+         * Removing events after detachment could instead lose a newly arrived batch's wakeup. */
+        Tcl_DeleteEvents(DeleteNgSpiceEventProc, ctx);
+        code = FlushLiveData(ctx, NULL, 0);
         goto done;
     }
     if (strcmp(sub, "vectors") == 0) {

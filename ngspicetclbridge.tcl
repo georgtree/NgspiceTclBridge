@@ -361,6 +361,34 @@ proc ::ngspicetclbridge::SIM::destroy {handle args} {
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle destroy $arguments]]
 }
 
+proc ::ngspicetclbridge::SIM::flush {handle args} {
+    # Publishes pending initialization metadata and samples for this simulator into live storage.
+    # Works in both list and vector modes. Returns an empty result on success.
+    #
+    # The command processes one buffered batch without waiting for simulation completion or servicing the Tcl
+    # event loop. Samples arriving during publication remain pending for a later flush or event-loop iteration.
+    # Initialization is applied before samples. Repeated calls without new data have no effect, and queued
+    # bridge events cannot append the same samples twice. Existing notifications for this handle are removed
+    # before publication so repeated flushes do not retain an unbounded event queue. Callback counters are unchanged.
+    #
+    # Publication errors are returned directly and retained for subsequent flush/vectors calls until a new plot.
+    # RBC notifications may invoke application callbacks. Reentrant operations on this handle are rejected
+    # during publication, except destruction. Graph redraws still require normal Tk event processing.
+    #
+    # Example:
+    # ```tcl
+    # $sim command run
+    # $sim flush
+    # set data [$sim vectors]
+    # ```
+    #
+    # The handle argument is supplied automatically when called as $handle flush.
+    # Synopsis: ?-help?
+    # Returns: empty string
+    set arguments [argparse -inline -help {Publish buffered live data without processing the Tcl event loop.} {}]
+    return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle flush $arguments]]
+}
+
 proc ::ngspicetclbridge::SIM::vectors {handle args} {
     # Gets data accumulated from send_data events through the Tcl event loop.
     #  -clear - empties stored samples and returns **nothing**.
@@ -379,8 +407,8 @@ proc ::ngspicetclbridge::SIM::vectors {handle args} {
     #   Samples received afterwards continue appending; ngspice snapshot data is unaffected.
     # - Vector identities remain stable across runs. Each new plot clears retained vectors, including signals absent
     #   from that plot.
-    # - Updates require Tcl event processing; eventcounts/waitevent alone do not guarantee that queued vector
-    #   updates have been processed.
+    # - Updates require Tcl event processing or an explicit flush; eventcounts/waitevent alone do not publish
+    #   queued samples. The run helper flushes automatically before returning.
     # - In vector mode, -clear preserves vector commands and their graph bindings.
     #
     # Ownership and renaming:
@@ -488,7 +516,7 @@ proc ::ngspicetclbridge::SIM::eventcounts {handle args} {
 
 # Private dispatch adds no lifetime owner or namespace context of its own.
 proc ::ngspicetclbridge::Dispatch {handle args} {
-    set commands {command circuit plot inputpath waitevent asyncvector isrunning abort destroy vectors initvectors\
+    set commands {command circuit plot inputpath waitevent asyncvector isrunning abort destroy flush vectors initvectors\
                           messages eventcounts}
     if {![llength $args]} {
         return -code error "missing subcommand: must be [join $commands {, }]"
@@ -506,7 +534,7 @@ proc ::ngspicetclbridge::Dispatch {handle args} {
 }
 
 namespace eval ::ngspicetclbridge::SIM {
-    namespace export command circuit plot inputpath waitevent asyncvector isrunning abort destroy vectors initvectors\
+    namespace export command circuit plot inputpath waitevent asyncvector isrunning abort destroy flush vectors initvectors\
             messages eventcounts
     namespace ensemble create
 }
@@ -516,7 +544,8 @@ namespace eval ::ngspicetclbridge {
     namespace export run readVecsAsync getCircuit getScaleInfo getPlotName getCircuitTitle getPlotDate
 
     proc run {args} {
-        # Runs simulation in background thread, waits for the completion, process event in the queue and returns
+        # Runs simulation in a background thread, waits for completion and flushes live data before returning.
+        # Does not service the Tcl event loop; GUI events and redraws remain pending.
         #  sim -  simulator handle that is returned by `ngspicetclbridge::new`
         #  -nocleanup - if provided, previous ngspice plots are retained; live storage still resets for a new plot
         # Returns:
@@ -543,8 +572,7 @@ namespace eval ::ngspicetclbridge {
         if {[dict get $waited status] ne {ok}} {
             return -code error "background simulation wait [dict get $waited status]"
         }
-        update
-        $sim command bg_halt
+        $sim flush
         return
     }
     proc readVecsAsync {args} {

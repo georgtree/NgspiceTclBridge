@@ -74,6 +74,9 @@ internal data structures\&. For example:
 \fBwaitevent\fP - Blocks until an ngspice event occurs or a timeout expires, returning a result dictionary\&.
 .TP
 \(bu
+\fBflush\fP - Publishes one buffered live-data batch without processing Tcl events\&.
+.TP
+\(bu
 \fBvectors\fP, \fBinitvectors\fP, \fBmessages\fP, \fBeventcounts\fP - Return or clear data structures stored in the context\&.
 .TP
 \(bu
@@ -376,22 +379,18 @@ Inside this function, we unpack the event, verify that the NgSpiceContext still 
 the event’s gen field matches the current generation counter in the context\&. If not, the event is stale and
 immediately discarded to avoid processing old data from previous runs\&.
 .PP
-Depending on the callbackId, the procedure performs different tasks:
-.TP
-\(bu
-\fBSEND_INIT_DATA:\fP transfers initialization metadata from ctx->init_snap into ctx->vectorInit (a Tcl dictionary mapping vector names to {number N real 0/1}), resets ctx->vectorData, and frees the snapshot\&.
-.TP
-\(bu
-\fBSEND_DATA:\fP moves data rows from ctx->prod (filled in the ngspice thread) into the Tcl dictionary ctx->vectorData, appending each vector’s numeric or complex values\&. The buffer is then cleared\&.
-.TP
-\(bu
-\fBCONTROLLED_EXIT:\fP marks ctx->exited = 1 and signals ctx->exit_cv to wake any waiters\&.
-.TP
-\(bu
-\fBBG_THREAD_RUNNING:\fP updates state flags, signals ctx->bg_cv, and may call FlushPending() to run any commands queued during background thread transitions\&.
-.TP
-\(bu
-\fBAll others:\fP increment their respective event counters and append textual messages to ctx->msgq\&.
+For \fBSEND_INIT_DATA\fP and \fBSEND_DATA\fP, the handler calls FlushLiveData\&. This helper also implements
+the public $sim flush command\&. It detaches ctx->init_snap and ctx->prod together under the mutex,
+applies initialization before sample rows, and frees the detached allocations\&. Publication occurs without
+holding the mutex\&. New plots reset live storage; resume of the same plot preserves it\&.
+.PP
+Explicit flushing does not enter the Tcl event loop\&. Old queued events cannot duplicate consumed samples,
+and obsolete generations cannot consume a newer plot's data\&. New samples arriving after detachment remain
+available to subsequent events or flush calls\&. outputBusy guards publication against RBC callback reentry\&.
+.PP
+Callback counters, messages, controlled-exit flags and background worker state are updated by the native
+callbacks themselves, independently of publication\&. Flush does not alter those counters\&. Event-driven
+publication reports errors through the background error handler; explicit flush returns them directly\&.
 .PP
 Once processed, the event always returns 1 to indicate it should be removed from Tcl’s event queue\&.
 .SS "EVENT DELETION AND RESOURCE BALANCING"

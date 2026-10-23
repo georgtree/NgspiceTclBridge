@@ -61,10 +61,15 @@ RBC 0.8.1 or newer headers and runtime, including the read-only stubs API.</p>
 <span class="k">set</span><span class="w"> </span>listCopy<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">asyncvector</span><span class="w"> </span>v<span class="k">(</span><span class="nv">out</span><span class="k">)</span><span class="w"> </span><span class="o">-</span>output<span class="w"> </span>list<span class="k">]</span>
 </pre></div>
 </div>
-<p>Live vector updates run in the Tcl thread, in batches. Run the event loop to receive them. Complex signals use
+<p>Live vector updates run in the Tcl thread, in batches. Run the event loop or call <code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">flush</span></code> to publish them. Complex signals use
 complex RBC vectors. A graph can bind directly to the returned names through <code class="docutils literal notranslate"><span class="pre">-xdata</span></code> and <code class="docutils literal notranslate"><span class="pre">-ydata</span></code>; bindings
 survive clear and new runs. Use a dedicated namespace to avoid collisions such as the global Tcl <code class="docutils literal notranslate"><span class="pre">time</span></code>
 command.</p>
+<p><code class="docutils literal notranslate"><span class="pre">$sim</span> <span class="pre">flush</span></code> publishes the initialization metadata and samples buffered at entry, then returns an empty
+result. It does not wait for the solver or process the Tcl event loop. Samples arriving during publication
+remain pending. Queued bridge events cannot append consumed samples twice. RBC notifications may invoke
+callbacks, but reentrant operations on the publishing handle are rejected except destruction. Tk redraws
+occur when the application returns to its normal event loop. The <code class="docutils literal notranslate"><span class="pre">run</span></code> helper flushes before returning.</p>
 <p><code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">error</span></code> is the initial default. <code class="docutils literal notranslate"><span class="pre">replace</span></code> adopts an existing same-type RBC vector in place, retaining graph
 bindings; it never overwrites an unrelated Tcl command. Previously attached vectors are reused regardless of
 the collision policy.  Destroying the handle destroys only live vectors it created. Adopted vectors and
@@ -72,8 +77,9 @@ on-demand <code class="docutils literal notranslate"><span class="pre">asyncvect
 attached live vector. The bridge follows the same C vector and preserves ownership, clear and rerun behavior;
 <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code> keeps the original ngspice signal key and returns the new fully qualified destination. An
 ordinary Tcl <code class="docutils literal notranslate"><span class="pre">rename</span></code> does not update the RBC registry and is not supported. Do not modify, resize, replace or
-delete live vectors while they are attached. Output errors are reported once through Tcl’s background error
-handler and remain available from <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code>; a new plot retries initialization.</p>
+delete live vectors while they are attached. Event-driven output errors are reported once through Tcl’s background
+error handler. Explicit <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code> returns errors directly. Both retain failures for <code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code> and
+<code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code>; a new plot retries initialization.</p>
 <p><code class="docutils literal notranslate"><span class="pre">asyncvector</span></code> accepts <code class="docutils literal notranslate"><span class="pre">-output</span> <span class="pre">list|vector</span></code>, <code class="docutils literal notranslate"><span class="pre">-ifexists</span> <span class="pre">error|replace</span></code>, <code class="docutils literal notranslate"><span class="pre">-name</span> <span class="pre">destination</span></code>, and <code class="docutils literal notranslate"><span class="pre">-namespace</span>
 <span class="pre">name</span></code> overrides.  The per-call namespace is for vector output, resolves relative to the caller, and is created
 with missing parents.  It does not change the handle defaults or live bindings. A fully qualified <code class="docutils literal notranslate"><span class="pre">-name</span></code> takes

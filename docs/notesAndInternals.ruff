@@ -58,6 +58,7 @@ namespace eval {Notes and internals} {
           `output` fields.
         - **circuit list** - Sends a complete circuit deck to ngspice via `ngSpice_Circ()`.
         - **waitevent** - Blocks until an ngspice event occurs or a timeout expires, returning a result dictionary.
+        - **flush** - Publishes one buffered live-data batch without processing Tcl events.
         - **vectors**, **initvectors**, **messages**, **eventcounts** - Return or clear data structures stored in
           the context.
         - **plot**, **asyncvector**, **isrunning**, **abort**, **destroy** - Perform specialized inspection or control
@@ -306,15 +307,18 @@ namespace eval {Notes and internals} {
         the event’s `gen` field matches the current generation counter in the context. If not, the event is stale and
         immediately discarded to avoid processing old data from previous runs.
 
-        Depending on the `callbackId`, the procedure performs different tasks:
-        - **SEND_INIT_DATA:** transfers initialization metadata from `ctx->init_snap` into `ctx->vectorInit` (a Tcl
-          dictionary mapping vector names to `{number N real 0/1}`), resets `ctx->vectorData`, and frees the snapshot.
-        - **SEND_DATA:** moves data rows from `ctx->prod` (filled in the ngspice thread) into the Tcl dictionary
-          `ctx->vectorData`, appending each vector’s numeric or complex values. The buffer is then cleared.
-        - **CONTROLLED_EXIT:** marks `ctx->exited = 1` and signals `ctx->exit_cv` to wake any waiters.
-        - **BG_THREAD_RUNNING:** updates state flags, signals `ctx->bg_cv`, and may call `FlushPending()` to run any
-          commands queued during background thread transitions.
-        - **All others:** increment their respective event counters and append textual messages to `ctx->msgq`.
+        For **SEND_INIT_DATA** and **SEND_DATA**, the handler calls `FlushLiveData`. This helper also implements
+        the public `$sim flush` command. It detaches `ctx->init_snap` and `ctx->prod` together under the mutex,
+        applies initialization before sample rows, and frees the detached allocations. Publication occurs without
+        holding the mutex. New plots reset live storage; resume of the same plot preserves it.
+
+        Explicit flushing does not enter the Tcl event loop. Old queued events cannot duplicate consumed samples,
+        and obsolete generations cannot consume a newer plot's data. New samples arriving after detachment remain
+        available to subsequent events or flush calls. `outputBusy` guards publication against RBC callback reentry.
+
+        Callback counters, messages, controlled-exit flags and background worker state are updated by the native
+        callbacks themselves, independently of publication. Flush does not alter those counters. Event-driven
+        publication reports errors through the background error handler; explicit flush returns them directly.
 
         Once processed, the event always returns 1 to indicate it should be removed from Tcl’s event queue.
 

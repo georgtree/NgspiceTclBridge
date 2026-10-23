@@ -41,6 +41,8 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM eventcounts\fP \fI?-clear?\fP
 .br
+\fBSIM flush\fP \fI?-help?\fP
+.br
 \fBSIM initvectors\fP \fI?-clear?\fP
 .br
 \fBSIM inputpath\fP \fI-current\fP
@@ -370,7 +372,8 @@ dictionary
 \fBrun\fR (::ngspicetclbridge)
 .RE
 .PP
-Runs simulation in background thread, waits for the completion, process event in the queue and returns
+Runs simulation in a background thread, waits for completion and flushes live data before returning\&.
+Does not service the Tcl event loop; GUI events and redraws remain pending\&.
 .RS 4n
 \fBrun\fP \fI?-nocleanup? sim\fP
 .br
@@ -423,6 +426,9 @@ Deletes the instance command\&. In details:
 .TP
 \fIeventcounts\fP
 Gets or reset the cumulative event counters for this simulator instance\&.
+.TP
+\fIflush\fP
+Publishes pending initialization metadata and samples for this simulator into live storage\&. Works in both list and vector modes\&. Returns an empty result on success\&.
 .TP
 \fIinitvectors\fP
 Gets held \fBinitial vector metadata\fP (built from send_init_data) in a dict\&.
@@ -734,6 +740,52 @@ The handle argument is supplied automatically when called as \fI$handle\fP event
 returns a dict with keys as events names, and counts for each event as a value
 .PP
 .RS -4n
+\fBSIM flush\fR (::ngspicetclbridge)
+.RE
+.PP
+Publishes pending initialization metadata and samples for this simulator into live storage\&.
+Works in both list and vector modes\&. Returns an empty result on success\&.
+.RS 4n
+\fBSIM flush\fP \fI?-help?\fP
+.br
+.RE
+.PP
+\fBParameters\fR
+.RS 4n
+.TP
+handle
+Not documented\&.
+.RE
+.PP
+\fBDescription\fR
+.PP
+The command processes one buffered batch without waiting for simulation completion or servicing the Tcl
+event loop\&. Samples arriving during publication remain pending for a later flush or event-loop iteration\&.
+Initialization is applied before samples\&. Repeated calls without new data have no effect, and queued
+bridge events cannot append the same samples twice\&. Existing notifications for this handle are removed
+before publication so repeated flushes do not retain an unbounded event queue\&. Callback counters are unchanged\&.
+.PP
+Publication errors are returned directly and retained for subsequent flush/vectors calls until a new plot\&.
+RBC notifications may invoke application callbacks\&. Reentrant operations on this handle are rejected
+during publication, except destruction\&. Graph redraws still require normal Tk event processing\&.
+.PP
+Example:
+.PP
+.RS 4n
+.nf
+$sim command run
+$sim flush
+set data [$sim vectors]
+.fi
+.RE
+.PP
+The handle argument is supplied automatically when called as \fI$handle\fP flush\&.
+.PP
+\fBReturn value\fR
+.PP
+empty string
+.PP
+.RS -4n
 \fBSIM initvectors\fR (::ngspicetclbridge)
 .RE
 .PP
@@ -954,7 +1006,7 @@ Explicit -clear empties stored samples and discards already queued samples in bo
 Vector identities remain stable across runs\&. Each new plot clears retained vectors, including signals absent from that plot\&.
 .TP
 \(bu
-Updates require Tcl event processing; eventcounts/waitevent alone do not guarantee that queued vector updates have been processed\&.
+Updates require Tcl event processing or an explicit flush; eventcounts/waitevent alone do not publish queued samples\&. The run helper flushes automatically before returning\&.
 .TP
 \(bu
 In vector mode, -clear preserves vector commands and their graph bindings\&.

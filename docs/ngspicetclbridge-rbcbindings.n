@@ -28,10 +28,16 @@ set listCopy [$sim asyncvector v(out) -output list]
 .fi
 .RE
 .PP
-Live vector updates run in the Tcl thread, in batches\&. Run the event loop to receive them\&. Complex signals use
+Live vector updates run in the Tcl thread, in batches\&. Run the event loop or call $sim flush to publish them\&. Complex signals use
 complex RBC vectors\&. A graph can bind directly to the returned names through -xdata and -ydata; bindings
 survive clear and new runs\&. Use a dedicated namespace to avoid collisions such as the global Tcl time
 command\&.
+.PP
+$sim flush publishes the initialization metadata and samples buffered at entry, then returns an empty
+result\&. It does not wait for the solver or process the Tcl event loop\&. Samples arriving during publication
+remain pending\&. Queued bridge events cannot append consumed samples twice\&. RBC notifications may invoke
+callbacks, but reentrant operations on the publishing handle are rejected except destruction\&. Tk redraws
+occur when the application returns to its normal event loop\&. The run helper flushes before returning\&.
 .PP
 -ifexists error is the initial default\&. replace adopts an existing same-type RBC vector in place, retaining graph
 bindings; it never overwrites an unrelated Tcl command\&. Previously attached vectors are reused regardless of
@@ -40,8 +46,9 @@ on-demand asyncvector snapshots remain caller-owned\&. Use rbc::vector rename ol
 attached live vector\&. The bridge follows the same C vector and preserves ownership, clear and rerun behavior;
 SIM vectors keeps the original ngspice signal key and returns the new fully qualified destination\&. An
 ordinary Tcl rename does not update the RBC registry and is not supported\&. Do not modify, resize, replace or
-delete live vectors while they are attached\&. Output errors are reported once through Tcl's background error
-handler and remain available from SIM vectors; a new plot retries initialization\&.
+delete live vectors while they are attached\&. Event-driven output errors are reported once through Tcl's background
+error handler\&. Explicit SIM flush returns errors directly\&. Both retain failures for SIM vectors and
+SIM flush; a new plot retries initialization\&.
 .PP
 asyncvector accepts -output list|vector, -ifexists error|replace, -name destination, and -namespace
 name overrides\&.  The per-call namespace is for vector output, resolves relative to the caller, and is created

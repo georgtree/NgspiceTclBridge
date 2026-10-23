@@ -14,8 +14,9 @@ The package targets Tcl 9 and includes a dynamic-loading portability layer for L
 - Read simulation results as Tcl lists or, optionally, real and complex RBC vectors.
 - Stream results into live RBC vectors for graph bindings, or create independent snapshots.
 
-Ngspice callbacks enqueue work for the Tcl thread. Keep the Tcl event loop running to process messages, events and live
-vector updates. The `ngspicetclbridge::run` helper waits for completion and processes events for synchronous use.
+Ngspice callbacks buffer live samples for publication on the Tcl thread. Keep the Tcl event loop running for automatic
+updates, or call `$sim flush` to publish pending data without processing GUI, timer or idle events. The
+`ngspicetclbridge::run` helper waits for completion and flushes automatically before returning.
 
 ## Building & requirements
 
