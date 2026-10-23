@@ -37,6 +37,8 @@ ngspicetclbridge - Commands in namespace ngspicetclbridge
 .br
 \fBSIM command\fP \fI?-capture? string\fP
 .br
+\fBSIM command\fP \fI-clear\fP
+.br
 \fBSIM destroy\fP \fI?-help?\fP
 .br
 \fBSIM eventcounts\fP \fI?-clear?\fP
@@ -633,6 +635,8 @@ are not availaible as a return of command\&.
 .RS 4n
 \fBSIM command\fP \fI?-capture? string\fP
 .br
+\fBSIM command\fP \fI-clear\fP
+.br
 .RE
 .PP
 \fBParameters\fR
@@ -644,11 +648,34 @@ Not documented\&.
 -capture
 Return captured output along with the result code\&.
 .TP
+-clear
+Release retained ngspice command memory at an idle boundary\&.
+.TP
 string
-Command string\&.
+Command string; omitted with -clear\&.
 .RE
 .PP
 \fBDescription\fR
+.PP
+Command memory:
+.TP
+\(bu
+command -clear calls ngSpice_Command(NULL) and returns its result code\&. An empty string does not do this\&.
+.TP
+\(bu
+Use a handle created with -noinit (or both -nospinit and -nospiceinit), driven directly from Tcl\&.
+.TP
+\(bu
+Cleanup is rejected during background startup, execution or shutdown, native calls, and pending commands\&. It never halts a simulation or defers cleanup\&. After bg_halt returns, cleanup permits a later bg_resume\&.
+.TP
+\(bu
+Scripts, aliases, includes and control workers disable cleanup permanently for that handle\&. Detection is conservative, including matching text in comments\&. Initialization files also disable cleanup because ngspice exposes no reliable query/join for its separate control worker\&.
+.TP
+\(bu
+Cleanup discards command history, labels and unfinished control blocks\&. Only call it between complete command sequences\&. It preserves circuit state, plots, snapshots, live vectors/lists and bridge messages\&.
+.TP
+\(bu
+Unlike destroy all, vectors -clear and messages -clear, this releases the command interpreter's storage\&. The run helper does not do this automatically, so existing control-script behavior remains unchanged\&.
 .PP
 Example:
 .PP
