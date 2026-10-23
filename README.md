@@ -146,6 +146,37 @@ including repeated runs, halt/resume and controlled exit. Its mock uses POSIX th
 The tests count Tcl thread-exit handlers after joining workers; no memory-debug Tcl build is needed.
 List-mode cases run even when the bridge is built without RBC support.
 
+For Tcl-driven simulation loops, explicitly release ngspice's retained command interpreter storage between
+complete command sequences:
+
+```tcl
+set sim [::ngspicetclbridge::new -noinit -output vector $ngspiceLibrary]
+$sim circuit -string $netlist
+# Repeat these operations as needed:
+::ngspicetclbridge::run $sim
+$sim command -clear
+```
+
+`command -clear` preserves simulation data and plots. It differs from `vectors -clear`, `messages -clear`, and
+`command {destroy all}`. It requires an idle handle created with initialization files disabled. Loading scripts,
+aliases, includes or control workers permanently disables cleanup for that handle; ngspice does not expose a safe
+join/query for its separate control worker. Detection is conservative, including quoted/comment text and command
+substitutions. Cleanup discards labels and unfinished control blocks, so call it only between complete sequences.
+The `run` helper does not clear command memory automatically.
+
+The fixture suite checks NULL dispatch, invalid combinations, active-run rejection, halt/clear/resume, and data
+preservation in list/vector modes. For the actual library, a separate headless test changes diode parameters,
+reuses snapshots, and verifies that cleanup preserves values, plots and messages:
+
+```sh
+make test-command-memory-real NGSPICE_LIBRARY=/path/to/libngspice.so NGSPICE_MEMORY_RUNS=10000 TCLLIBPATH="/path/to/argparse /path/to/rbc"
+# No RBC dependency for this variant:
+make test-command-memory-real NGSPICE_LIBRARY=/path/to/libngspice.so NGSPICE_MEMORY_OUTPUT=list
+```
+
+Use the DLL filename on Windows. Linux RSS samples are printed for comparison; they are diagnostic rather than a
+portable pass/fail assertion. These checks require no memory-debug Tcl build.
+
 Optional RBC suites have separate targets: `test-rbc`, `test-rbc-graph` and `test-rbc-graph-real`. Their dependencies,
 fixture behavior and real-library configuration are documented in [the RBC guide](docs/rbcBindings.ruff); they are not
 part of ordinary `make test`.

@@ -127,7 +127,14 @@ static WORKER_RESULT Run(void *unused) {
     return 0;
 }
 
+static int commandClears;
 int ngSpice_Command(char *command) {
+    if (command == NULL) {
+        ++commandClears;
+        return 0;
+    }
+    if (!strcmp(command, "mock_clear_count")) return commandClears;
+
     if (failStart && (!strcmp(command, "bg_run") || !strcmp(command, "bg_resume"))) {
         failStart = 0;
         return 1;

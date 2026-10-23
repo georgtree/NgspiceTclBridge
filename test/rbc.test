@@ -1137,4 +1137,94 @@ test worker-cleanup-4 {synchronous callbacks leave the interpreter thread usable
     list [$s command mock_finalized] [dict get [$s vectors] v(out)] [expr {6 * 7}]
 } -cleanup {clean $s} -result {0 {0.0 2.0 4.0} 42}
 
+foreach mode {list vector} {
+    test command-clear-1.$mode {NULL cleanup preserves live data and snapshots over repeated runs} \
+        -constraints [expr {$mode eq "vector" ? "rbc" : ""}] -body {
+        set s [newSim -noinit -output $mode]
+        $s command mock_fast
+        set initial [$s command mock_clear_count]
+        for {set i 0} {$i < 20} {incr i} {
+            ::ngspicetclbridge::run $s
+            set before [$s vectors]
+            set copy [$s asyncvector v(out) -output list]
+            $s command -cl
+            if {[$s vectors] ne $before || [$s asyncvector v(out) -output list] ne $copy} {
+                error {cleanup changed simulation data}
+            }
+        }
+        list [expr {[$s command mock_clear_count] - $initial}] $copy
+    } -cleanup {clean $s} -result {20 {0.0 2.0 4.0}}
+}
+
+test command-clear-2 {active cleanup is rejected; halted cleanup preserves resume data} -body {
+    set s [newSim -noinit]
+    $s command mock_pause
+    set initial [$s command mock_clear_count]
+    set baseline [dict get [$s eventcounts] send_data]
+    $s command bg_run
+    $s waitevent send_data -since $baseline -n 3 5000
+    set rejected [catch {$s command -clear} message]
+    $s command bg_halt
+    set rc [$s command -clear]
+    set baseline [dict get [$s eventcounts] send_data]
+    $s command bg_resume
+    $s waitevent send_data -since $baseline -n 3 5000
+    $s command bg_halt
+    $s command -clear
+    $s flush
+    list $rejected $message $rc [expr {[$s command mock_clear_count] - $initial}] [dict get [$s vectors] v(out)]
+} -cleanup {clean $s} -result {1 {cannot clear command memory while simulation or command execution is active} 0 2 {0.0 2.0 4.0 6.0 8.0 10.0}}
+
+test command-clear-3 {invalid combinations never invoke native cleanup} -body {
+    set s [newSim -noinit]
+    set initial [$s command mock_clear_count]
+    set results {}
+    foreach args {{-clear run} {-capture -clear} {}} {
+        lappend results [catch {$s command {*}$args}]
+    }
+    lappend results [catch {::ngspicetclbridge::NativeCall $s command {clear {} string run}}]
+    lappend results [expr {[$s command mock_clear_count] - $initial}]
+} -cleanup {clean $s} -result {1 1 1 1 0}
+
+test command-clear-4 {initialization files disable cleanup} -body {
+    set s [newSim]
+    catch {$s command -clear} message
+    set message
+} -cleanup {clean $s} -result {command cleanup requires -noinit and no scripts, aliases, includes or control workers}
+
+foreach script {{bg_ctrl} {source example.cir} {set controlswait} {alias again bg_ctrl}} {
+    test command-clear-5.$script {opaque commands permanently disable cleanup} -body {
+        set s [newSim -noinit]
+        $s command $script
+        catch {$s command -clear} message
+        set message
+    } -cleanup {clean $s} -result {command cleanup requires -noinit and no scripts, aliases, includes or control workers}
+}
+
+foreach line {{.control} {.include other.cir} {.lib models.lib typical}} {
+    test command-clear-6.$line {circuit scripts permanently disable cleanup} -body {
+        set s [newSim -noinit]
+        $s circuit [list test $line .end]
+        $s circuit {test .end}
+        catch {$s command -clear} message
+        set message
+    } -cleanup {clean $s} -result {command cleanup requires -noinit and no scripts, aliases, includes or control workers}
+}
+
+test command-clear-7 {both initialization switches permit cleanup; empty string does not invoke NULL} -body {
+    set s [newSim -nospinit -nospiceinit]
+    set initial [$s command mock_clear_count]
+    $s command {}
+    set emptyCount [$s command mock_clear_count]
+    set rc [$s command -clear]
+    list [expr {$emptyCount - $initial}] $rc [expr {[$s command mock_clear_count] - $initial}]
+} -cleanup {clean $s} -result {0 0 1}
+
+test command-clear-8 {controlled exit rejects cleanup} -body {
+    set s [newSim -noinit]
+    $s command quit
+    catch {$s command -clear} message
+    set message
+} -cleanup {clean $s} -result {instance is shutting down}
+
 finishTests

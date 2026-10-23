@@ -14,6 +14,6 @@ set dir [file normalize [file dirname [info script]]]
 package require extexpr
 configure {*}$argv -testdir $dir
 # Optional integration suites are explicitly invoked by their separate make targets.
-configure -notfile [concat [configure -notfile] {rbc.test rbc-graph.test rbc-graph-real.test}]
+configure -notfile [concat [configure -notfile] {rbc.test rbc-graph.test rbc-graph-real.test command-memory-real.test}]
 runAllTests
 

@@ -1,0 +1,117 @@
+# Explicit real-ngspice integration; skipped by the ordinary directory runner.
+if {[lindex $argv 0] ne {--real-ngspice}} {
+    return
+}
+if {[llength $argv] != 5} {
+    error {usage: tclsh command-memory-real.test --real-ngspice bridgeLibrary ngspiceLibrary runs list|vector}
+}
+lassign [lrange $argv 1 end] bridgeLibrary ngspiceLibrary runs mode
+
+if {$ngspiceLibrary eq {}} {
+    if {![info exists ::env(NGSPICE_DLL)]} {
+        error {set NGSPICE_LIBRARY to the full ngspice library filename, or NGSPICE_DLL to its directory}
+    }
+    set filename [expr {$::tcl_platform(platform) eq {windows} ? {ngspice.dll} : {libngspice.so}}]
+    set ngspiceLibrary [file join $::env(NGSPICE_DLL) $filename]
+}
+if {![file isfile $ngspiceLibrary]} {
+    error "ngspice shared library does not exist: $ngspiceLibrary"
+}
+set ngspiceLibrary [file normalize $ngspiceLibrary]
+
+if {![string is integer -strict $runs] || ($runs < 1) || ($mode ni {list vector})} {
+    error {runs must be positive and mode must be list or vector}
+}
+
+load [file normalize $bridgeLibrary] Ngspicetclbridge
+source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
+package require tcltest
+namespace import ::tcltest::*
+set argv {}
+
+# RSS is diagnostic only: allocator caching makes a portable pass/fail threshold unreliable.
+proc residentKiB {} {
+    if {$::tcl_platform(platform) eq "windows"} {
+        set powershell [file join $::env(SystemRoot) System32 WindowsPowerShell v1.0 powershell.exe]
+        set script [format {[long]((Get-Process -Id %d).WorkingSet64 / 1024)} [pid]]
+        if {[catch {exec $powershell -NoProfile -NonInteractive -Command $script} rss]} {
+            return unavailable
+        }
+        return [string trim $rss]
+    }
+    if {![file readable /proc/self/status]} {
+        return unavailable
+    }
+    set fd [open /proc/self/status]
+    try {
+        set status [read $fd]
+    } finally {
+        close $fd
+    }
+    if {[regexp {VmRSS:\s+(\d+)} $status -> rss]} {
+        return $rss
+    }
+    return unavailable
+}
+
+test command-memory-real-1 {repeated diode simulations retain only current live data and reusable snapshots} -body {
+    set s [::ngspicetclbridge::new -noinit -output $mode -namespace ::live $ngspiceLibrary]
+    $s circuit -string {Diode IV
+        d1 anode 0 diomod
+        va anode 0 0
+        .model diomod d(is=1e-12 n=1.2 rs=0.01)
+        .dc va 0 2 0.01
+        .temp 25
+        .end}
+    puts "start: RSS=[residentKiB] KiB"
+    for {set i 1} {$i <= $runs} {incr i} {
+        $s command "altermod diomod n = [expr {1.0 + ($i % 20)*0.01}]"
+        $s command "option temp=[lindex {-50 25 175} [expr {$i % 3}]]"
+        ::ngspicetclbridge::run $s
+        if {$mode eq {vector}} {
+            set copy [$s asyncvector i(va) -name ::snapshot -ifexists replace]
+            $copy expr {-$copy}
+            set snapshotBefore [$copy range 0 end]
+        } else {
+            set copy [$s asyncvector i(va)]
+        }
+        set before [$s vectors]
+        set expected [$s asyncvector i(va) -output list]
+        set plots [$s plot -all]
+        set messages [$s messages]
+        if {[$s command -clear] != 0} {
+            error {command cleanup failed}
+        }
+        if {([$s vectors] ne $before) || ([$s asyncvector i(va) -output list] ne $expected) ||\
+                    ([$s plot -all] ne $plots) || ([$s messages] ne $messages)} {
+            error {command cleanup modified data, plots or messages}
+        }
+        if {$mode eq {vector}} {
+            if {([$copy range 0 end] ne $snapshotBefore) || ([$copy length] != 201)} {
+                error {snapshot changed during cleanup}
+            }
+            set length [[dict get $before anode] length]
+        } else {
+            set length [llength [dict get $before anode]]
+        }
+        if {$length != 201} {
+            error "unexpected live length $length"
+        }
+        $s messages -clear
+        if {($i % 1000 == 0) || ($i == $runs)} {
+            puts "run $i: RSS=[residentKiB] KiB"
+        }
+    }
+    set length
+} -cleanup {
+    if {[info exists s]} {
+        catch {$s destroy}
+    }
+    if {($mode eq {vector}) && ([info commands ::snapshot] ne {})} {
+        rbc::vector destroy ::snapshot
+    }
+} -result 201
+
+set failed $::tcltest::numTests(Failed)
+cleanupTests
+exit [expr {$failed != 0}]

@@ -97,7 +97,21 @@ proc ::ngspicetclbridge::SIM::command {handle args} {
     # deferred to the time is could be safely sent, and in that case `-capture` message and command results code
     # are not availaible as a return of `command`.
     #  -capture - Return captured output along with the result code.
-    #  string - Command string.
+    #  -clear - Release retained ngspice command memory at an idle boundary.
+    #  string - Command string; omitted with -clear.
+    #
+    # Command memory:
+    # - `command -clear` calls `ngSpice_Command(NULL)` and returns its result code. An empty string does not do this.
+    # - Use a handle created with -noinit (or both -nospinit and -nospiceinit), driven directly from Tcl.
+    # - Cleanup is rejected during background startup, execution or shutdown, native calls, and pending commands.
+    #   It never halts a simulation or defers cleanup. After bg_halt returns, cleanup permits a later bg_resume.
+    # - Scripts, aliases, includes and control workers disable cleanup permanently for that handle. Detection is
+    #   conservative, including matching text in comments. Initialization files also disable cleanup because
+    #   ngspice exposes no reliable query/join for its separate control worker.
+    # - Cleanup discards command history, labels and unfinished control blocks. Only call it between complete
+    #   command sequences. It preserves circuit state, plots, snapshots, live vectors/lists and bridge messages.
+    # - Unlike `destroy all`, `vectors -clear` and `messages -clear`, this releases the command interpreter's storage.
+    #   The run helper does not do this automatically, so existing control-script behavior remains unchanged.
     #
     # Example:
     #```tcl
@@ -108,10 +122,19 @@ proc ::ngspicetclbridge::SIM::command {handle args} {
     #
     # The handle argument is supplied automatically when called as $handle command.
     # Synopsis: ?-capture? string
+    # Synopsis: -clear
     set arguments [argparse -inline -mixed -help {Send a command to ngspice.} {
+        {-clear -help {Release command memory at an idle boundary; requires a script-free -noinit handle}}
         {-capture -help {Capture command output along with its result code}}
-        {string -help {Ngspice command line}}
+        {string? -help {Ngspice command line}}
     }]
+    if {[dict exists $arguments clear]} {
+        if {[dict exists $arguments string] || [dict exists $arguments capture]} {
+            return -code error {-clear cannot be combined with a command string or -capture}
+        }
+    } elseif {![dict exists $arguments string]} {
+        return -code error {specify a command string or -clear}
+    }
     return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle command $arguments]]
 }
 

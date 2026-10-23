@@ -1333,6 +1333,101 @@ static void EnqueuePending(NgSpiceContext *ctx, const char *cmd, int capture) {
     ctx->pending_tail = n;
     Tcl_MutexUnlock(&ctx->cmd_mu);
 }
+//***  CheckCommandCleanupSafety function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * CheckCommandCleanupSafety --
+ *
+ *      Conservatively disables command-memory cleanup after commands or circuit lines that can load scripts,
+ *      define aliases, or arrange asynchronous control execution. The shared API has no control-worker join
+ *      or parser-depth query. A disabled handle stays disabled, even after a later circuit replacement.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: simulator context; caller holds bg_mu.
+ *      const char *text   - input: command or circuit line to inspect before handing it to ngspice.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      May set commandCleanupUnsafe. Matching is deliberately conservative, including quoted text and comments.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void CheckCommandCleanupSafety(NgSpiceContext *ctx, const char *text) {
+    const char *unsafe[] = {"source", "circbyline", "bg_ctrl", "controlswait", ".control", ".include", ".inc",
+                            ".lib", "alias", "edit", "$", "`", "\\", NULL};
+    for (const char *p = text; *p; ++p) {
+        for (int i = 0; unsafe[i]; ++i) {
+            const char *a = p, *b = unsafe[i];
+            while (*a && *b) {
+                unsigned char ch = (unsigned char)*a;
+                if (ch >= 'A' && ch <= 'Z') ch += 'a' - 'A';
+                if (ch != (unsigned char)*b) break;
+                ++a;
+                ++b;
+            }
+            if (!*b) {
+                ctx->commandCleanupUnsafe = 1;
+                return;
+            }
+        }
+    }
+}
+
+//***  ClearCommandMemory function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * ClearCommandMemory --
+ *
+ *      Releases ngspice's retained command/control structures through ngSpice_Command(NULL). Unlike an empty
+ *      command string, NULL invokes cp_resetcontrol. Never queues cleanup or stops an active simulation.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: simulator context, called on its interpreter thread.
+ *      Tcl_Interp *interp - output: ngspice return code or an explanation of the unsafe boundary.
+ *
+ * Results:
+ *      TCL_OK after cleanup, TCL_ERROR if the instance is busy or control execution cannot be ruled out.
+ *
+ * Side Effects:
+ *      Frees command history, labels and unfinished control blocks; preserves plots, live data and messages.
+ *      Reserves commandActive under bg_mu so callback-dispatched commands cannot overlap the cleanup.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int ClearCommandMemory(NgSpiceContext *ctx, Tcl_Interp *interp) {
+    const char *error = NULL;
+    Tcl_MutexLock(&ctx->bg_mu);
+    Tcl_MutexLock(&ctx->cmd_mu);
+    Tcl_MutexLock(&ctx->exit_mu);
+    int exited = ctx->exited;
+    Tcl_MutexUnlock(&ctx->exit_mu);
+    if (exited || ctx->destroying || ctx->state == NGSTATE_DEAD) {
+        error = "instance is shutting down";
+    } else if (ctx->state != NGSTATE_IDLE || ctx->commandActive || ctx->pending_head || ctx->ngSpice_running()) {
+        error = "cannot clear command memory while simulation or command execution is active";
+    } else if (ctx->commandCleanupUnsafe) {
+        error = "command cleanup requires -noinit and no scripts, aliases, includes or control workers";
+    } else {
+        ++ctx->commandActive;
+    }
+    Tcl_MutexUnlock(&ctx->cmd_mu);
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    if (error) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(error, -1));
+        return TCL_ERROR;
+    }
+    int rc = ctx->ngSpice_Command(NULL);
+    Tcl_MutexLock(&ctx->bg_mu);
+    --ctx->commandActive;
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
+    return TCL_OK;
+}
+
 //***  ExecuteCommand function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -1357,6 +1452,10 @@ static void EnqueuePending(NgSpiceContext *ctx, const char *cmd, int capture) {
  *----------------------------------------------------------------------------------------------------------------------
  */
 static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
+    Tcl_MutexLock(&ctx->bg_mu);
+    ++ctx->commandActive;
+    CheckCommandCleanupSafety(ctx, cmd);
+    Tcl_MutexUnlock(&ctx->bg_mu);
     int background = strcmp(cmd, "bg_run") == 0 || strcmp(cmd, "bg_resume") == 0;
     int resume = strcmp(cmd, "resume") == 0 || strcmp(cmd, "bg_resume") == 0;
     if (background) {
@@ -1376,6 +1475,9 @@ static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
         Tcl_MutexUnlock(&ctx->mutex);
     }
     int rc = ctx->ngSpice_Command((char *)cmd);
+    Tcl_MutexLock(&ctx->bg_mu);
+    --ctx->commandActive;
+    Tcl_MutexUnlock(&ctx->bg_mu);
     if ((background && rc != 0) || (resume && !background)) {
         Tcl_MutexLock(&ctx->mutex);
         ctx->resume_pending = 0;
@@ -1857,6 +1959,7 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
         return 0;
     }
     Tcl_MutexLock(&ctx->bg_mu);
+    ++ctx->commandActive;
     if (!running) {
         ctx->bg_started = 1;
         ctx->bg_ended = 0;
@@ -1871,6 +1974,9 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
     Tcl_ConditionNotify(&ctx->bg_cv);
     Tcl_MutexUnlock(&ctx->bg_mu);
     FlushPending(ctx);
+    Tcl_MutexLock(&ctx->bg_mu);
+    --ctx->commandActive;
+    Tcl_MutexUnlock(&ctx->bg_mu);
     QueueMsg(ctx, running ? "# background thread running ended" : "# background thread running started");
     BumpAndSignal(ctx, BG_THREAD_RUNNING);
     Tcl_MutexLock(&ctx->mutex);
@@ -2562,7 +2668,8 @@ static int AsyncVector(NgSpiceContext *ctx, Tcl_Obj *args) {
  *
  *
  *   command ?-capture? string
- *      - Sends an ngspice command via ngSpice_Command().
+ *      - With -clear, calls ClearCommandMemory at a verified idle boundary.
+ *      - Otherwise sends an ngspice command via ngSpice_Command().
  *      - Normal form: "command <str>"
  *            -> just call ngSpice_Command(), result is its int return code.
  *      - Capture form: "command -capture <str>"
@@ -2668,6 +2775,15 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         goto done;
     }
     if (strcmp(sub, "command") == 0) {
+        if (Arg(args, "clear")) {
+            if (Arg(args, "string") || Arg(args, "capture")) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("-clear cannot be combined with a command string or -capture", -1));
+                code = TCL_ERROR;
+            } else {
+                code = ClearCommandMemory(ctx, interp);
+            }
+            goto done;
+        }
         if (CheckArgs(interp, args, "string") != TCL_OK) {code = TCL_ERROR; goto done;}
         int do_capture = Arg(args, "capture") != NULL;
         const char *cmd = Tcl_GetString(Arg(args, "string"));
@@ -2750,7 +2866,14 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
             }
         }
         circuit[cirLinesListLen] = NULL;
+        Tcl_MutexLock(&ctx->bg_mu);
+        ++ctx->commandActive;
+        for (Tcl_Size i = 0; i < cirLinesListLen; ++i) CheckCommandCleanupSafety(ctx, circuit[i]);
+        Tcl_MutexUnlock(&ctx->bg_mu);
         int rc = ctx->ngSpice_Circ(circuit);
+        Tcl_MutexLock(&ctx->bg_mu);
+        --ctx->commandActive;
+        Tcl_MutexUnlock(&ctx->bg_mu);
         ctx->has_circuit = 1;
         Tcl_Free(circuit);
         Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
@@ -3395,6 +3518,7 @@ static int NgSpiceNewCmd(ClientData cd, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
     NgSpiceContext *ctx = Tcl_Alloc(sizeof *ctx);
     memset(ctx, 0, sizeof *ctx);
     ctx->exited = 0;
+    ctx->commandCleanupUnsafe = selector != 3;
     MsgQ_Init(&ctx->capq);
     MsgQ_Init(&ctx->msgq);
     DataBuf_Init(&ctx->prod);

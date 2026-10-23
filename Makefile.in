@@ -18,7 +18,7 @@
 PKG_SOURCES = @PKG_SOURCES@
 PKG_OBJECTS = @PKG_OBJECTS@
 DOC_HTML_FILES = @DOC_HTML_FILES@
-DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c test/mockngspice.c test/rbc.test test/rbc-graph.test test/rbc-support.tcl test/rbc-graph-real.test
+DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c test/mockngspice.c test/rbc.test test/rbc-graph.test test/rbc-support.tcl test/rbc-graph-real.test test/command-memory-real.test
 
 PKG_STUB_SOURCES = @PKG_STUB_SOURCES@
 PKG_STUB_OBJECTS = @PKG_STUB_OBJECTS@
@@ -171,6 +171,14 @@ NGSPICE_TEST_TIMEOUT_MS ?= 180000
 
 test-rbc-graph-real: binaries
 	$(PKG_ENV) $(TCLSH) "$(srcdir)/test/rbc-graph-real.test" --real-ngspice "$(PKG_LIB_FILE)" "$(NGSPICE_LIBRARY)" "$(NGSPICE_TEST_TIMEOUT_MS)"
+
+# Headless real-ngspice command-memory regression and optional RSS diagnostics.
+NGSPICE_MEMORY_RUNS ?= 1000
+NGSPICE_MEMORY_OUTPUT ?= vector
+.PHONY: test-command-memory-real
+
+test-command-memory-real: binaries
+	$(PKG_ENV) $(TCLSH) "$(srcdir)/test/command-memory-real.test" --real-ngspice "$(PKG_LIB_FILE)" "$(NGSPICE_LIBRARY)" "$(NGSPICE_MEMORY_RUNS)" "$(NGSPICE_MEMORY_OUTPUT)"
 
 # Package installing recipes
 #========================================================================

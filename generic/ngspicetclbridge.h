@@ -227,6 +227,8 @@ typedef struct {
     /*------------------------------------------------------------------------------------------------------------------
      * Command queue and global run state
      *-----------------------------------------------------------------------------------------------------------------*/
+    int commandActive;                           /* Native command/circuit calls in flight; bg_mu protected. */
+    int commandCleanupUnsafe;                    /* Opaque scripts/control workers possible; bg_mu protected. */
     NgState state;                                /* High-level simulator state (IDLE, STARTING_BG, etc.) */
     PendingCmd *pending_head;                     /* Head of queued Tcl commands awaiting safe dispatch */
     PendingCmd *pending_tail;                     /* Tail of queued Tcl commands */

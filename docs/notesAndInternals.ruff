@@ -491,6 +491,26 @@ namespace eval {Notes and internals} {
 
         This snapshot serves as the source for `ctx->vectorInit` once the event is processed on the Tcl side.
 
+        ### Command interpreter storage
+        Ngspice retains parsed command/control structures independently of plots and bridge buffers. The public
+        `command -clear` operation passes NULL to `ngSpice_Command`, which resets this storage. An empty command
+        string does not perform the reset. Simulation data, plots, snapshots and message queues remain intact.
+
+        Cleanup runs only on the owning interpreter thread at an idle boundary, with no native command/circuit
+        call or deferred command in progress. The bridge rejects active, starting, stopping and destroying
+        instances. Native calls and callback-driven deferred dispatch participate in the same activity accounting.
+        Cleanup is never queued or used to halt a simulation. A completed halt permits cleanup before resume.
+
+        A stopped background callback alone cannot establish safety for arbitrary ngspice scripts: ngspice may
+        release a separate control worker after issuing that callback. Cleanup therefore requires initialization
+        files disabled and is permanently disabled after script/alias/include/control-worker constructs are seen.
+        Detection intentionally errs toward rejection, including text in comments and substitutions. Create a
+        fresh -noinit handle for externally driven loops. Do not share its underlying ngspice instance with external
+        API callers that can bypass this bookkeeping.
+
+        The operation discards labels and unfinished control blocks; callers must choose a boundary between
+        complete command sequences. The run helper leaves this operation explicit to preserve existing scripts.
+
         ### Native worker thread cleanup
         Ngspice creates native background threads. Tcl allocations made by the callbacks initialize thread-local
         allocator state, which is not automatically released when a native worker returns. At the end of the
