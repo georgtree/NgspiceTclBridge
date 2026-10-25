@@ -1,0 +1,192 @@
+# Explicit real-ngspice integration, no Tk or RBC requirement.
+if {[lindex $argv 0] ne {--real-events}} {
+    return
+}
+if {[llength $argv] != 4} {
+    error {usage: tclsh events-real.test --real-events bridgeLibrary ngspiceLibrary codeModelDirectory}
+}
+lassign [lrange $argv 1 end] bridgeLibrary ngspiceLibrary codeModelDirectory
+if {$ngspiceLibrary eq {}} {
+    if {![info exists ::env(NGSPICE_DLL)]} {
+        error {set NGSPICE_LIBRARY or NGSPICE_DLL}
+    }
+    set filename [expr {$::tcl_platform(platform) eq {windows} ? {ngspice.dll} : {libngspice.so}}]
+    set ngspiceLibrary [file join $::env(NGSPICE_DLL) $filename]
+}
+if {![file isfile $ngspiceLibrary]} {
+    error "ngspice library not found: $ngspiceLibrary"
+}
+load [file normalize $bridgeLibrary] Ngspicetclbridge
+source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
+package require tcltest
+namespace import ::tcltest::*
+set argv {}
+set fixtureDir [file normalize [file join [file dirname [info script]] events]]
+
+proc realEventSim {circuit} {
+    global ngspiceLibrary codeModelDirectory fixtureDir
+    # With a supplied directory, load code models explicitly. Otherwise let the installation's spinit load them.
+    set options [expr {$codeModelDirectory eq {} ? {} : {-noinit}}]
+    set s [::ngspicetclbridge::new {*}$options $ngspiceLibrary]
+    try {
+        if {$codeModelDirectory ne {}} {
+            foreach model {analog digital} {
+                set path [file join $codeModelDirectory $model.cm]
+                if {![file isfile $path]} {
+                    set path [file join $codeModelDirectory $model $model.cm]
+                }
+                if {![file isfile $path]} {
+                    error "code model not found: $path"
+                }
+                set modelPath [file normalize $path]
+                $s command "codemodel $modelPath"
+            }
+        }
+        $s inputpath $fixtureDir
+        set f [open [file join $fixtureDir $circuit]]
+        try {set netlist [read $f]} finally {close $f}
+        if {[$s circuit -string $netlist] != 0} {
+            error "circuit rejected: [$s messages]"
+        }
+        set config [$s eventnodes -all]
+        if {![llength [dict get $config selected]]} {
+            error "no event nodes; check XSPICE code models: [$s messages]"
+        }
+        return $s
+    } on error {message options} {
+        catch {$s destroy}
+        return -options $options $message
+    }
+}
+proc completeRun {s {operation bg_run}} {
+    set baseline [dict get [$s eventcounts] bg_running]
+    if {[$s command $operation] != 0} {
+        error "could not start: [$s messages]"
+    }
+    set waited [$s waitevent bg_running -since $baseline -n 2 30000]
+    if {[dict get $waited status] ne {ok}} {
+        error "simulation did not finish: $waited; [$s messages]"
+    }
+    $s command bg_halt
+    $s flush
+}
+proc require {condition message} {
+    if {![uplevel 1 [list expr $condition]]} {
+        error $message
+    }
+}
+proc histories {data} {
+    set result {}
+    dict for {name info} [dict get $data nodes] {
+        dict set result $name [expr {[dict get $data mode] eq {pernode} ? [dict get $info events] : {}}]
+    }
+    if {[dict get $data mode] eq {changes}} {
+        foreach batch [dict get $data batches] {
+            foreach row [dict get $batch events] {
+                lassign $row name time value last
+                dict lappend result $name [list $time $value $last]
+            }
+        }
+    }
+    return $result
+}
+
+foreach {circuit nodeCount stopTime numericCount} {
+    mixed-invert.cir 6 1e-6 mixed
+    digital-source.cir 11 30e-9 pure
+} {
+    test events-real-$circuit {all modes use raw events; complete snapshots, strings, counters, rerun and ownership}\
+            -body {
+        set reference {}
+        foreach mode {changes snapshot pernode} {
+            set s [realEventSim $circuit]
+            $s eventnodes -all -mode $mode
+            $s eventcounts -clear
+            completeRun $s
+            set data [$s eventdata]
+            set counts [$s eventcounts]
+            require {[dict size [dict get $data nodes]] == $nodeCount} {wrong event-node count}
+            require {[dict get $counts send_raw_evt] > 0} {no raw events}
+            require {[dict get $counts event_init] == 1} {expected one new-plot initialization}
+            require {[dict get $counts event_batch] == [dict get $counts send_data]} {final batch missing or duplicated}
+            if {$numericCount eq {pure}} {
+                require {[dict keys [$s vectors]] eq {time}} {pure digital example unexpectedly contains analog vectors}
+            } else {
+                require {[dict size [$s vectors]] > 1} {mixed example has no analog vectors}
+            }
+            if {$mode eq {changes}} {
+                set reference [histories $data]
+                set rawCount [dict get $counts send_raw_evt]
+                set saved $data
+                completeRun $s
+                puts [$s eventdata]
+                require {[histories [$s eventdata]] eq $reference} {rerun duplicates or loses raw events}
+                require {[dict get [$s eventcounts] send_raw_evt] == 2*$rawCount} {duplicate raw registration on rerun}
+                require {$saved eq $data} {returned snapshot mutated}
+            } elseif {$mode eq {snapshot}} {
+                set batches [dict get $data batches]
+                require {[llength $batches] == [dict get $counts send_data]}\
+                        {one snapshot per accepted output point required}
+                set final [lindex $batches end]
+                require {abs([dict get $final time] - $stopTime) < 1e-15} {incorrect final sample time}
+                set previous -1.0
+                foreach batch $batches {
+                    require {[dict size [dict get $batch values]] == $nodeCount} {incomplete snapshot shape}
+                    require {[dict get $batch time] >= $previous} {nonmonotonic sample times}
+                    set previous [dict get $batch time]
+                }
+                dict for {name records} $reference {
+                    if {[llength $records]} {
+                        require {[dict get $final values $name] eq [lindex $records end 1]}\
+                                "incorrect final state: $name actual=[dict get $final values $name]\
+                                        expected=[lindex $records end 1] counts=$counts"
+                    }
+                }
+            } else {
+                require {[histories $data] eq $reference} {pernode and changes histories differ}
+            }
+            set cleared [$s eventdata -clear]
+            require {[dict get $cleared batches] eq {}} {clear left batches}
+            if {$mode eq {pernode}} {
+                dict for {name info} [dict get $cleared nodes] {
+                    require {[dict get $info events] eq {}} {clear left events}
+                }
+            }
+            $s destroy
+            unset s
+        }
+        set result ok
+    } -cleanup {
+        if {[info exists s]} {
+            catch {$s destroy}
+        }
+    } -result ok
+}
+
+test events-real-halt-resume {breakpoint halt commits final events; resume retains history and reaches final time}\
+        -body {
+    set s [realEventSim mixed-invert.cir]
+    $s eventnodes -all -mode snapshot
+    $s command {stop when time >= 5e-7}
+    completeRun $s
+    set before [$s eventdata]
+    set length [llength [dict get $before batches]]
+    require {$length > 0} {halt produced no snapshots}
+    $s command {delete all}
+    completeRun $s bg_resume
+    set after [$s eventdata]
+    require {[dict get $after generation] == [dict get $before generation]} {resume reset generation}
+    require {[llength [dict get $after batches]] > $length} {resume produced no new snapshots}
+    require {[lrange [dict get $after batches] 0 $length-1] eq [dict get $before batches]}\
+            {resume changed existing snapshots}
+    require {abs([dict get [lindex [dict get $after batches] end] time]-1e-6)<1e-15} {resume did not finish}
+    set result ok
+} -cleanup {
+    if {[info exists s]} {
+        catch {$s destroy}
+    }
+} -result ok
+
+set failed $::tcltest::numTests(Failed)
+cleanupTests
+exit [expr {$failed != 0}]

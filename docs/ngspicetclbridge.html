@@ -152,6 +152,21 @@ independent snapshots after a simulation, including from a list-output handle:</
 creates fresh vectors in the selected namespace. Live vectors and snapshots have different lifetimes; see <a class="reference external" href="docs/rbcBindings.ruff">the RBC
 guide</a> for the full ownership and naming rules.</p>
 </section>
+<section id="digital-event-tests">
+<span id="r-digital-event-tests"></span><span id="r-digital20event20tests"></span><h2>Digital event tests<a class="headerlink" href="#digital-event-tests" title="Link to this heading">¶</a></h2>
+<p>Headless deterministic tests and real-ngspice tests:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-events<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/argparse /path/to/tcllib&quot;</span>
+make<span class="w"> </span>test-events-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_CODEMODEL_DIR</span><span class="o">=</span>/path/to/ngspice/models
+</pre></div>
+</div>
+<p>On Windows supply the full DLL path; <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> is also supported as a library-directory fallback. The model
+directory may contain <code class="docutils literal notranslate"><span class="pre">analog.cm</span></code> and <code class="docutils literal notranslate"><span class="pre">digital.cm</span></code> directly, or <code class="docutils literal notranslate"><span class="pre">analog/analog.cm</span></code> and <code class="docutils literal notranslate"><span class="pre">digital/digital.cm</span></code> from a
+source build. Omit it to use code models loaded by your ngspice installation’s initialization files.</p>
+<p>The real suite uses the upstream mixed-signal digital-inverter example and a purely digital source example. Their
+origins and adaptation details are in <a class="reference external" href="test/events/README.md">test/events/README.md</a>. It checks all three
+modes, independent results, complete final batches, repeated runs, counters, and breakpoint halt/resume. RBC and Tk
+are not required.</p>
+</section>
 <section id="testing">
 <span id="r-testing"></span><h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">¶</a></h2>
 <p>The ordinary Tcl suite requires <code class="docutils literal notranslate"><span class="pre">argparse</span></code>, <code class="docutils literal notranslate"><span class="pre">extexpr</span></code> and a real ngspice shared library.  Set <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to its
@@ -323,6 +338,7 @@ instead of switches names. Allows switches to appear after parameters.
 <li><a class="reference internal" href="#documentation">Documentation</a></li>
 <li><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
 <li><a class="reference internal" href="#optional-rbc-vector-output">Optional RBC vector output</a></li>
+<li><a class="reference internal" href="#digital-event-tests">Digital event tests</a></li>
 <li><a class="reference internal" href="#testing">Testing</a></li>
 <li><a class="reference internal" href="#installation-layout-and-removal">Installation layout and removal</a></li>
 <li><a class="reference internal" href="#installation-archives">Installation archives</a></li>

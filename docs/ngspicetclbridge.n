@@ -147,6 +147,25 @@ puts [$output length]
 The dictionary retains the original signal names as keys and returns fully qualified RBC vector names as values\&. #auto
 creates fresh vectors in the selected namespace\&. Live vectors and snapshots have different lifetimes; see \fIthe RBC
 guide\fP [URL: docs/rbcBindings\&.ruff] for the full ownership and naming rules\&.
+.SH "DIGITAL EVENT TESTS"
+.PP
+Headless deterministic tests and real-ngspice tests:
+.PP
+.RS 4n
+.nf
+make test-events TCLLIBPATH="/path/to/argparse /path/to/tcllib"
+make test-events-real NGSPICE_LIBRARY=/path/to/libngspice\&.so NGSPICE_CODEMODEL_DIR=/path/to/ngspice/models
+.fi
+.RE
+.PP
+On Windows supply the full DLL path; NGSPICE_DLL is also supported as a library-directory fallback\&. The model
+directory may contain analog\&.cm and digital\&.cm directly, or analog/analog\&.cm and digital/digital\&.cm from a
+source build\&. Omit it to use code models loaded by your ngspice installation's initialization files\&.
+.PP
+The real suite uses the upstream mixed-signal digital-inverter example and a purely digital source example\&. Their
+origins and adaptation details are in \fItest/events/README\&.md\fP\&. It checks all three
+modes, independent results, complete final batches, repeated runs, counters, and breakpoint halt/resume\&. RBC and Tk
+are not required\&.
 .SH TESTING
 .PP
 The ordinary Tcl suite requires argparse, extexpr and a real ngspice shared library\&.  Set NGSPICE_DLL to its

@@ -90,6 +90,61 @@ proc ::ngspicetclbridge::new {args} {
 
 namespace eval ::ngspicetclbridge::SIM {}
 
+proc ::ngspicetclbridge::SIM::eventnodes {handle args} {
+    # Discovers event nodes and selects raw event collection independently of numeric output mode.
+    # -all - Select all names returned by ngSpice_AllEvtNodes, including internal subcircuit nodes.
+    # -nodes names - Select an explicit list; an empty list disables recording.
+    # -mode mode - changes, snapshot or pernode; initially changes.
+    #
+    # Call after loading the circuit and while idle, before run/bg_run. Without options, returns supported,
+    # available, selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.
+    # Each node is registered once per handle. Changing selection or mode clears event history and known states.
+    # Resume retains registrations and histories. Disabled registrations remain alive until handle destruction.
+    # This first implementation supports externally driven transient analyses. After registering nodes, use a
+    # new handle to replace/reset/switch the circuit. Do not change circuits through scripts or aliases.
+    #
+    # All modes collect through SendRawEvtData and preserve ngspice's printable strings, including drive strength.
+    # changes publishes complete accepted-step batches; snapshot publishes every selected node at accepted analog
+    # output times, carrying unchanged values forward; pernode exposes individual events immediately.
+    # Complete batches become visible at the next analog output callback, or after completion/halt for the final
+    # batch. Pure digital transient circuits use ngspice's time-only output. There is no wall-clock sampling timer.
+    #
+    # Synopsis: ?-all|-nodes names? ?-mode changes|snapshot|pernode?
+    # Returns: dictionary describing support, available nodes, selected nodes and mode.
+    set arguments [argparse -inline -help {Discover or select raw event nodes; requires an idle simulator.} {
+        {-all -help {Select all event nodes}}
+        {-nodes= -help {List of event node names; empty disables recording}}
+        {-mode= -enum {changes snapshot pernode} -help {Publication mode}}
+    }]
+    return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle eventnodes $arguments]]
+}
+
+proc ::ngspicetclbridge::SIM::eventdata {handle args} {
+    # Reads an independent snapshot of published string-valued event data.
+    # -clear - Discard stored and pending event history; retain selection and latest known states.
+    #
+    # Result keys are mode, generation, nodes and batches. nodes maps names to dictionaries containing type.
+    # In pernode mode each node also has events: a list of {eventTime stringValue last} records.
+    # In changes mode batches contains {time sampleTime events {{node eventTime stringValue last} ...}} dictionaries.
+    # In snapshot mode batches contains {time sampleTime values {node stringValue ...} known {node ...}} dictionaries.
+    # An uninitialized node has an empty value and is absent from known; this differs from ngspice's explicit U state.
+    # last is only the end of ONE node's native batch, never an all-nodes completion marker. Event times can be
+    # out of order across nodes; callback order and repeated same-time transitions are preserved.
+    #
+    # Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or
+    # flush cannot complete a partially delivered timestep. Clear does not erase ngspice's own saved event data
+    # or reset counters; later callbacks continue recording. A fresh plot clears histories; halt/resume preserves them.
+    # Decoder errors are retained and returned here until a new plot or configuration resets them.
+    # Numeric -output/-namespace/-ifexists settings do not apply; event values are always Tcl strings.
+    #
+    # Synopsis: ?-clear?
+    # Returns: dictionary of published event data.
+    set arguments [argparse -inline -help {Read raw event strings, or clear their history.} {
+        {-clear -help {Discard event history and pending records while retaining current states}}
+    }]
+    return [uplevel 1 [list ::ngspicetclbridge::NativeCall $handle eventdata $arguments]]
+}
+
 proc ::ngspicetclbridge::SIM::command {handle args} {
     # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`). If
     # we provide `-capture` switch, it returns not only the result code, but also the next message from stdout
@@ -280,7 +335,7 @@ proc ::ngspicetclbridge::SIM::waitevent {handle args} {
         {-since= -type wideinteger -validate {$arg >= 0} -help {Count captured before starting the operation; includes\
                                                                         callbacks already received}}
         {-n= -type wideinteger -validate {$arg > 0} -help {Required event count; defaults to one}}
-        {event -enum {send_char send_stat controlled_exit send_data send_init_data bg_running}\
+        {event -enum {send_char send_stat controlled_exit send_data send_init_data bg_running send_raw_evt event_init event_batch}\
                  -help {Event to wait for}}
         {timeout? -type wideinteger -help {Timeout in milliseconds; zero or negative waits indefinitely}}
     }]
@@ -518,6 +573,10 @@ proc ::ngspicetclbridge::SIM::messages {handle args} {
 }
 
 proc ::ngspicetclbridge::SIM::eventcounts {handle args} {
+    # Raw event counters: send_raw_evt counts native callbacks (including retained disabled registrations);
+    # event_init counts event-store initialization on configuration or a new plot; event_batch counts completed
+    # raw batches, including batches without changed selected nodes. The latter two are bridge-generated events.
+    # They support waitevent -since and eventcounts -clear just like the existing callback counters.
     # Gets or reset the cumulative event counters for this simulator instance.
     #  -clear - zeros all counts and returns nothing.
     #
@@ -539,8 +598,8 @@ proc ::ngspicetclbridge::SIM::eventcounts {handle args} {
 
 # Private dispatch adds no lifetime owner or namespace context of its own.
 proc ::ngspicetclbridge::Dispatch {handle args} {
-    set commands {command circuit plot inputpath waitevent asyncvector isrunning abort destroy flush vectors initvectors\
-                          messages eventcounts}
+    set commands {eventnodes eventdata command circuit plot inputpath waitevent asyncvector isrunning abort destroy\
+                          flush vectors initvectors messages eventcounts}
     if {![llength $args]} {
         return -code error "missing subcommand: must be [join $commands {, }]"
     }
@@ -557,8 +616,8 @@ proc ::ngspicetclbridge::Dispatch {handle args} {
 }
 
 namespace eval ::ngspicetclbridge::SIM {
-    namespace export command circuit plot inputpath waitevent asyncvector isrunning abort destroy flush vectors initvectors\
-            messages eventcounts
+    namespace export eventnodes eventdata command circuit plot inputpath waitevent asyncvector isrunning abort destroy\
+            flush vectors initvectors messages eventcounts
     namespace ensemble create
 }
 

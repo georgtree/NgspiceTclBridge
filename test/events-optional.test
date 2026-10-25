@@ -1,0 +1,18 @@
+if {[lindex $argv 0] ne {--rbc-fixture}} {
+    return
+}
+package require tcltest
+namespace import ::tcltest::*
+source [file join [file dirname [info script]] rbc-support.tcl]
+
+test events-optional-1 {missing optional raw symbols preserve analog-only use} -body {
+    set s [newSim -noinit]
+    $s circuit {fixture .end}
+    set supported [dict get [$s eventnodes] supported]
+    set rc [catch {$s eventnodes -all} message]
+    $s command run
+    $s flush
+    list $supported $rc $message [dict get [$s vectors] v(out)]
+} -cleanup {clean $s} -result {0 1 {ngspice library lacks raw event support} {0.0 2.0 4.0}}
+
+finishTests

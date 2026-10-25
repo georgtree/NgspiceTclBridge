@@ -123,6 +123,24 @@ The dictionary retains the original signal names as keys and returns fully quali
 creates fresh vectors in the selected namespace. Live vectors and snapshots have different lifetimes; see [the RBC
 guide](docs/rbcBindings.ruff) for the full ownership and naming rules.
 
+## Digital event tests
+
+Headless deterministic tests and real-ngspice tests:
+
+```sh
+make test-events TCLLIBPATH="/path/to/argparse /path/to/tcllib"
+make test-events-real NGSPICE_LIBRARY=/path/to/libngspice.so NGSPICE_CODEMODEL_DIR=/path/to/ngspice/models
+```
+
+On Windows supply the full DLL path; `NGSPICE_DLL` is also supported as a library-directory fallback. The model
+directory may contain `analog.cm` and `digital.cm` directly, or `analog/analog.cm` and `digital/digital.cm` from a
+source build. Omit it to use code models loaded by your ngspice installation's initialization files.
+
+The real suite uses the upstream mixed-signal digital-inverter example and a purely digital source example. Their
+origins and adaptation details are in [test/events/README.md](test/events/README.md). It checks all three
+modes, independent results, complete final batches, repeated runs, counters, and breakpoint halt/resume. RBC and Tk
+are not required.
+
 ## Testing
 
 The ordinary Tcl suite requires `argparse`, `extexpr` and a real ngspice shared library.  Set `NGSPICE_DLL` to its

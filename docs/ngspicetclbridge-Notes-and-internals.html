@@ -559,6 +559,63 @@ API callers that can bypass this bookkeeping.</p>
 <p>The operation discards labels and unfinished control blocks; callers must choose a boundary between
 complete command sequences. The run helper leaves this operation explicit to preserve existing scripts.</p>
 </section>
+<section id="digital-event-nodes">
+<span id="r-notes-and-internals-digital-event-nodes"></span><span id="r-3a3anotes20and20internalsqzdigital20event20nodes"></span><h3>Digital event nodes<a class="headerlink" href="#digital-event-nodes" title="Link to this heading">¶</a></h3>
+<p>String-valued XSPICE events are separate from numeric vectors. All three modes use the raw event API:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="o">-</span>string<span class="w"> </span><span class="nv">$netlist</span>
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">eventnodes</span><span class="w"> </span><span class="o">-</span>all<span class="w"> </span><span class="o">-</span>mode<span class="w"> </span>changes
+<span class="c"># Alternatively: $sim eventnodes -nodes {clk reset q} -mode pernode</span>
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>run<span class="w"> </span><span class="nv">$sim</span>
+<span class="k">set</span><span class="w"> </span>digital<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">eventdata</span><span class="k">]</span>
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">eventdata</span><span class="w"> </span><span class="o">-</span>clear
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">changes</span></code> publishes complete batches of raw transitions; <code class="docutils literal notranslate"><span class="pre">snapshot</span></code> publishes all selected node states at accepted
+transient output times; <code class="docutils literal notranslate"><span class="pre">pernode</span></code> exposes each raw event immediately. Batched modes wait for the following analog
+sample callback, with the last batch committed on completion or halt. Pure digital transient circuits supply a time
+scale even without analog circuit nodes. Values preserve strength and unknown/high-impedance information as strings.</p>
+<p>A raw registration does not force an initial report from every node. Snapshot <code class="docutils literal notranslate"><span class="pre">known</span></code> lists distinguish states actually
+received from missing initial values. Raw records preserve repeated timestamps and ngspice’s predecessor records;
+they are not deduplicated or globally sorted. No mode manufactures events for unchanged nodes.</p>
+<p>New counters are <code class="docutils literal notranslate"><span class="pre">send_raw_evt</span></code> (native callbacks), <code class="docutils literal notranslate"><span class="pre">event_init</span></code> (bridge initialization), and <code class="docutils literal notranslate"><span class="pre">event_batch</span></code> (complete
+batches). All support <code class="docutils literal notranslate"><span class="pre">waitevent</span> <span class="pre">-since</span></code>. Event data is copied from C storage when requested; it does not require a Tcl
+event-loop turn. Reads and <code class="docutils literal notranslate"><span class="pre">flush</span></code> never force partial batches to be published. See the <code class="docutils literal notranslate"><span class="pre">eventnodes</span></code> and <code class="docutils literal notranslate"><span class="pre">eventdata</span></code>
+command documentation for result layouts and clear/resume behavior.</p>
+<p>This initial implementation targets externally driven transient analyses with the normal time output enabled and no
+nonzero transient output-start time. Use a new handle to replace/reset/switch a circuit after registering raw nodes;
+raw registrations are retained for the handle lifetime. Scripts/aliases that replace circuits are unsupported.
+Older libraries lacking the raw symbols still load for analog use; <code class="docutils literal notranslate"><span class="pre">eventnodes</span></code> reports <code class="docutils literal notranslate"><span class="pre">supported</span> <span class="pre">0</span></code>.</p>
+<p>Snapshot histories cost approximately nodes × samples; prefer changes/pernode for large circuits
+and clear histories when consumed.</p>
+</section>
+<section id="raw-digital-event-storage">
+<span id="r-notes-and-internals-raw-digital-event-storage"></span><span id="r-3a3anotes20and20internalsqzraw20digital20event20storage"></span><h3>Raw digital event storage<a class="headerlink" href="#raw-digital-event-storage" title="Link to this heading">¶</a></h3>
+<p>The optional ngSpice_Raw_Evt and ngSpice_Decode_Evt symbols supply string-valued event data for eventnodes
+and eventdata. Enumeration uses ngSpice_AllEvtNodes after circuit loading; ordinary event callbacks are
+not used as a data source. Node contexts are registered once and retained through clear and halt/resume.</p>
+<p>Callbacks decode and copy values into C-owned storage under the handle mutex. No Tcl objects are shared
+with the worker. eventdata builds an independent dictionary on the interpreter thread, directly from
+published storage. This read path does not depend on event-loop scheduling or numeric RBC output mode.</p>
+<p>In the inspected ngspice transient implementation, SendData precedes raw callbacks in EVTaccept. Each
+analog sample therefore closes the preceding raw batch and opens a new one. The completed-stop callback
+closes the final batch; synchronous completion does likewise. Arbitrary flush/read calls cannot seal a
+partial batch. The last flag belongs to one node, not to the timestep. Callbacks are node-major, so event
+timestamps need not increase globally; neither timestamp changes nor a quiet Tcl event queue are barriers.</p>
+<p>changes retains all raw records grouped by complete batch. snapshot retains one carried-forward state
+for each selected node per batch, with a known list to distinguish missing reports from ngspice U values.
+pernode publishes records immediately without waiting for another node or the next sample. Raw callbacks
+may include predecessor records, which are preserved. A raw registration does not guarantee that an
+unchanged node’s operating-point value is delivered immediately.</p>
+<p>event_init and event_batch are bridge-generated counters; send_raw_evt counts actual native invocations,
+including callbacks for retained registrations whose recording was disabled. Counters are independent of
+stored history, and support the usual -since and explicit counter reset semantics.</p>
+<p>A new plot clears histories and known states. Resume of the current plot keeps both. eventdata -clear
+drops stored/pending records but retains selection and latest states for subsequent carried-forward
+snapshots. Numeric vectors -clear and command -clear do not clear digital histories. Registration contexts
+are released only after callbacks cease during handle destruction. This first version requires a fresh
+handle for circuit replacement/reset/switching, and normal transient output from time zero. It does not
+support circuit-changing scripts, analysis control workers, or non-transient event batching.</p>
+</section>
 <section id="native-worker-thread-cleanup">
 <span id="r-notes-and-internals-native-worker-thread-cleanup"></span><span id="r-3a3anotes20and20internalsqznative20worker20thread20cleanup"></span><h3>Native worker thread cleanup<a class="headerlink" href="#native-worker-thread-cleanup" title="Link to this heading">¶</a></h3>
 <p>Ngspice creates native background threads. Tcl allocations made by the callbacks initialize thread-local
@@ -919,6 +976,8 @@ helper is used.</p>
 <li><a class="reference internal" href="#asynchronous-access-structures">Asynchronous access structures</a></li>
 <li><a class="reference internal" href="#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
 <li><a class="reference internal" href="#command-interpreter-storage">Command interpreter storage</a></li>
+<li><a class="reference internal" href="#digital-event-nodes">Digital event nodes</a></li>
+<li><a class="reference internal" href="#raw-digital-event-storage">Raw digital event storage</a></li>
 <li><a class="reference internal" href="#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
 <li><a class="reference internal" href="#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
 <li><a class="reference internal" href="#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>

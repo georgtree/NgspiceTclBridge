@@ -614,6 +614,74 @@ API callers that can bypass this bookkeeping\&.
 .PP
 The operation discards labels and unfinished control blocks; callers must choose a boundary between
 complete command sequences\&. The run helper leaves this operation explicit to preserve existing scripts\&.
+.SS "DIGITAL EVENT NODES"
+.PP
+String-valued XSPICE events are separate from numeric vectors\&. All three modes use the raw event API:
+.PP
+.RS 4n
+.nf
+$sim circuit -string $netlist
+$sim eventnodes -all -mode changes
+# Alternatively: $sim eventnodes -nodes {clk reset q} -mode pernode
+::ngspicetclbridge::run $sim
+set digital [$sim eventdata]
+$sim eventdata -clear
+.fi
+.RE
+.PP
+changes publishes complete batches of raw transitions; snapshot publishes all selected node states at accepted
+transient output times; pernode exposes each raw event immediately\&. Batched modes wait for the following analog
+sample callback, with the last batch committed on completion or halt\&. Pure digital transient circuits supply a time
+scale even without analog circuit nodes\&. Values preserve strength and unknown/high-impedance information as strings\&.
+.PP
+A raw registration does not force an initial report from every node\&. Snapshot known lists distinguish states actually
+received from missing initial values\&. Raw records preserve repeated timestamps and ngspice's predecessor records;
+they are not deduplicated or globally sorted\&. No mode manufactures events for unchanged nodes\&.
+.PP
+New counters are send_raw_evt (native callbacks), event_init (bridge initialization), and event_batch (complete
+batches)\&. All support waitevent -since\&. Event data is copied from C storage when requested; it does not require a Tcl
+event-loop turn\&. Reads and flush never force partial batches to be published\&. See the eventnodes and eventdata
+command documentation for result layouts and clear/resume behavior\&.
+.PP
+This initial implementation targets externally driven transient analyses with the normal time output enabled and no
+nonzero transient output-start time\&. Use a new handle to replace/reset/switch a circuit after registering raw nodes;
+raw registrations are retained for the handle lifetime\&. Scripts/aliases that replace circuits are unsupported\&.
+Older libraries lacking the raw symbols still load for analog use; eventnodes reports supported 0\&.
+.PP
+Snapshot histories cost approximately nodes × samples; prefer changes/pernode for large circuits
+and clear histories when consumed\&.
+.SS "RAW DIGITAL EVENT STORAGE"
+.PP
+The optional ngSpice_Raw_Evt and ngSpice_Decode_Evt symbols supply string-valued event data for eventnodes
+and eventdata\&. Enumeration uses ngSpice_AllEvtNodes after circuit loading; ordinary event callbacks are
+not used as a data source\&. Node contexts are registered once and retained through clear and halt/resume\&.
+.PP
+Callbacks decode and copy values into C-owned storage under the handle mutex\&. No Tcl objects are shared
+with the worker\&. eventdata builds an independent dictionary on the interpreter thread, directly from
+published storage\&. This read path does not depend on event-loop scheduling or numeric RBC output mode\&.
+.PP
+In the inspected ngspice transient implementation, SendData precedes raw callbacks in EVTaccept\&. Each
+analog sample therefore closes the preceding raw batch and opens a new one\&. The completed-stop callback
+closes the final batch; synchronous completion does likewise\&. Arbitrary flush/read calls cannot seal a
+partial batch\&. The last flag belongs to one node, not to the timestep\&. Callbacks are node-major, so event
+timestamps need not increase globally; neither timestamp changes nor a quiet Tcl event queue are barriers\&.
+.PP
+changes retains all raw records grouped by complete batch\&. snapshot retains one carried-forward state
+for each selected node per batch, with a known list to distinguish missing reports from ngspice U values\&.
+pernode publishes records immediately without waiting for another node or the next sample\&. Raw callbacks
+may include predecessor records, which are preserved\&. A raw registration does not guarantee that an
+unchanged node's operating-point value is delivered immediately\&.
+.PP
+event_init and event_batch are bridge-generated counters; send_raw_evt counts actual native invocations,
+including callbacks for retained registrations whose recording was disabled\&. Counters are independent of
+stored history, and support the usual -since and explicit counter reset semantics\&.
+.PP
+A new plot clears histories and known states\&. Resume of the current plot keeps both\&. eventdata -clear
+drops stored/pending records but retains selection and latest states for subsequent carried-forward
+snapshots\&. Numeric vectors -clear and command -clear do not clear digital histories\&. Registration contexts
+are released only after callbacks cease during handle destruction\&. This first version requires a fresh
+handle for circuit replacement/reset/switching, and normal transient output from time zero\&. It does not
+support circuit-changing scripts, analysis control workers, or non-transient event batching\&.
 .SS "NATIVE WORKER THREAD CLEANUP"
 .PP
 Ngspice creates native background threads\&. Tcl allocations made by the callbacks initialize thread-local

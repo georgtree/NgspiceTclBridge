@@ -35,11 +35,48 @@ static ngcomplex_t complexValues[10000];
 static char *names[] = {"time", "v(out)", "v(1)", NULL};
 static vector_info info[3];
 
+#ifndef MOCK_NO_RAW_EVENTS
+typedef int (RawCallback)(double, void *, void *, int);
+static RawCallback *rawCallback;
+static void *rawContext[3];
+static int rawRegistrations;
+static char *rawNames[] = {"a", "b", "x1:internal", NULL};
+
+int ngSpice_Raw_Evt(const char *name, RawCallback *callback, void *ctx) {
+    for (int i = 0; rawNames[i]; ++i) {
+        if (!strcmp(name, rawNames[i])) {
+            rawCallback = callback;
+            rawContext[i] = ctx;
+            ++rawRegistrations;
+            return 0;
+        }
+    }
+    return -1;
+}
+int ngSpice_Decode_Evt(void *value, int type, double *plot, const char **text) {
+    (void)type; (void)plot;
+    *text = value ? (const char *)value : "digital";
+    return 0;
+}
+/* Deliberately reuse a short-lived buffer: the bridge must copy the decoded string. */
+static void RawPoint(int index, double time, const char *value, int last) {
+    char temporary[16];
+    snprintf(temporary, sizeof temporary, "%s", value);
+    if (rawCallback && rawContext[index]) rawCallback(time, temporary, rawContext[index], last);
+    memset(temporary, 'X', sizeof temporary);
+}
+#endif
+
 int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendInitData *e, BGThreadRunning *f,
                  void *g) {
     (void)a;
     (void)b;
     finalized = terminalExit = burst = 0;
+#ifndef MOCK_NO_RAW_EVENTS
+    rawCallback = NULL;
+    memset(rawContext, 0, sizeof rawContext);
+    rawRegistrations = 0;
+#endif
     fast = pausedMode = resuming = nextPlot = plotId = failStart = 0;
     sendExit = c;
     sendData = d;
@@ -135,6 +172,41 @@ int ngSpice_Command(char *command) {
     }
     if (!strcmp(command, "mock_clear_count")) return commandClears;
 
+#ifndef MOCK_NO_RAW_EVENTS
+    if (!strcmp(command, "mock_evt_registrations")) return rawRegistrations;
+    if (!strcmp(command, "mock_evt_start")) {
+        running = 1;
+        sendRunning(false, 0, client);
+        Begin(1);
+        Point();
+        return 0;
+    }
+    if (!strcmp(command, "mock_evt_resume")) {
+        running = 1;
+        sendRunning(false, 0, client);
+        Point();
+        return 0;
+    }
+    if (!strcmp(command, "mock_evt_a")) {
+        RawPoint(0, 0.0, "0s", 0);
+        RawPoint(0, 0.0, "1s", 1);
+        return 0;
+    }
+    if (!strcmp(command, "mock_evt_b")) {
+        RawPoint(1, 0.0, "Uz", 1);
+        return 0;
+    }
+    if (!strcmp(command, "mock_evt_internal")) {
+        RawPoint(2, 0.0, "0r", 1);
+        return 0;
+    }
+    if (!strcmp(command, "mock_evt_boundary")) {Point(); return 0;}
+    if (!strcmp(command, "mock_evt_stop")) {
+        running = 0;
+        sendRunning(true, 0, client);
+        return 0;
+    }
+#endif
     if (failStart && (!strcmp(command, "bg_run") || !strcmp(command, "bg_resume"))) {
         failStart = 0;
         return 1;
@@ -232,8 +304,12 @@ char *ngCM_Input_Path(const char *path) { return (char *)path; }
 pevt_shared_data ngGet_Evt_NodeInfo(char *name) { return NULL; }
 
 char **ngSpice_AllEvtNodes(void) {
+#ifndef MOCK_NO_RAW_EVENTS
+    return rawNames;
+#else
     static char *empty[] = {NULL};
     return empty;
+#endif
 }
 
 int ngSpice_Init_Evt(SendEvtData *a, SendInitEvtData *b, void *c) { return 0; }

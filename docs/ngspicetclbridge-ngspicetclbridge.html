@@ -272,7 +272,11 @@ ensemble.</p>
 </dd>
 <dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20destroy"><span class="std std-ref">destroy</span></a></dt><dd><p>Deletes the instance command. In details:</p>
 </dd>
-<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"><span class="std std-ref">eventcounts</span></a></dt><dd><p>Gets or reset the cumulative event counters for this simulator instance.</p>
+<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"><span class="std std-ref">eventcounts</span></a></dt><dd><p>Raw event counters: send_raw_evt counts native callbacks (including retained disabled registrations); event_init counts event-store initialization on configuration or a new plot; event_batch counts completed raw batches, including batches without changed selected nodes. The latter two are bridge-generated events. They support waitevent -since and eventcounts -clear just like the existing callback counters. Gets or reset the cumulative event counters for this simulator instance.</p>
+</dd>
+<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20eventdata"><span class="std std-ref">eventdata</span></a></dt><dd><p>Reads an independent snapshot of published string-valued event data.</p>
+</dd>
+<dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20eventnodes"><span class="std std-ref">eventnodes</span></a></dt><dd><p>Discovers event nodes and selects raw event collection independently of numeric output mode.</p>
 </dd>
 <dt><a class="reference internal" href="#r-symbolqz3a3angspicetclbridge3a3asim20flush"><span class="std std-ref">flush</span></a></dt><dd><p>Publishes pending initialization metadata and samples for this simulator into live storage. Works in both list and vector modes. Returns an empty result on success.</p>
 </dd>
@@ -474,7 +478,11 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 </section>
 <section id="sim-eventcounts">
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"></span><span id="index-31"></span><span id="index-30"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code><a class="headerlink" href="#sim-eventcounts" title="Link to this heading">¶</a></h3>
-<p>Gets or reset the cumulative event counters for this simulator instance.</p>
+<p>Raw event counters: send_raw_evt counts native callbacks (including retained disabled registrations);
+event_init counts event-store initialization on configuration or a new plot; event_batch counts completed
+raw batches, including batches without changed selected nodes. The latter two are bridge-generated events.
+They support waitevent -since and eventcounts -clear just like the existing callback counters.
+Gets or reset the cumulative event counters for this simulator instance.</p>
 <pre class="literal-block"><strong>SIM eventcounts</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
 <dl class="field-list simple">
@@ -495,8 +503,71 @@ are not availaible as a return of <code class="docutils literal notranslate"><sp
 <p class="rubric">Return value</p>
 <p>returns a dict with keys as events names, and counts for each event as a value</p>
 </section>
+<section id="sim-eventdata">
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventdata"></span><span id="index-33"></span><span id="index-32"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code><a class="headerlink" href="#sim-eventdata" title="Link to this heading">¶</a></h3>
+<p>Reads an independent snapshot of published string-valued event data.</p>
+<pre class="literal-block"><strong>SIM eventdata</strong> <em>?-clear?</em></pre>
+<p class="rubric">Parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-clear</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Discard stored and pending event history; retain selection and latest known states.</p>
+</dd>
+</dl>
+<p class="rubric">Description</p>
+<p>Result keys are mode, generation, nodes and batches. nodes maps names to dictionaries containing type.
+In pernode mode each node also has events: a list of {eventTime stringValue last} records.
+In changes mode batches contains {time sampleTime events {{node eventTime stringValue last} …}} dictionaries.
+In snapshot mode batches contains {time sampleTime values {node stringValue …} known {node …}} dictionaries.
+An uninitialized node has an empty value and is absent from known; this differs from ngspice’s explicit U state.
+last is only the end of ONE node’s native batch, never an all-nodes completion marker. Event times can be
+out of order across nodes; callback order and repeated same-time transitions are preserved.</p>
+<p>Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or
+flush cannot complete a partially delivered timestep. Clear does not erase ngspice’s own saved event data
+or reset counters; later callbacks continue recording. A fresh plot clears histories; halt/resume preserves them.
+Decoder errors are retained and returned here until a new plot or configuration resets them.
+Numeric -output/-namespace/-ifexists settings do not apply; event values are always Tcl strings.</p>
+<p class="rubric">Return value</p>
+<p>dictionary of published event data.</p>
+</section>
+<section id="sim-eventnodes">
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventnodes"></span><span id="index-35"></span><span id="index-34"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code><a class="headerlink" href="#sim-eventnodes" title="Link to this heading">¶</a></h3>
+<p>Discovers event nodes and selects raw event collection independently of numeric output mode.</p>
+<pre class="literal-block"><strong>SIM eventnodes</strong> <em>?-all|-nodes names? ?-mode changes|snapshot|pernode?</em></pre>
+<p class="rubric">Parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">handle</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Not documented.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-all</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Select all names returned by ngSpice_AllEvtNodes, including internal subcircuit nodes.</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">-mode</span> <span class="pre">mode</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Changes, snapshot or pernode; initially changes.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">-nodes</span> <span class="pre">names</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Select an explicit list; an empty list disables recording.</p>
+</dd>
+</dl>
+<p class="rubric">Description</p>
+<p>Call after loading the circuit and while idle, before run/bg_run. Without options, returns supported,
+available, selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.
+Each node is registered once per handle. Changing selection or mode clears event history and known states.
+Resume retains registrations and histories. Disabled registrations remain alive until handle destruction.
+This first implementation supports externally driven transient analyses. After registering nodes, use a
+new handle to replace/reset/switch the circuit. Do not change circuits through scripts or aliases.</p>
+<p>All modes collect through SendRawEvtData and preserve ngspice’s printable strings, including drive strength.
+changes publishes complete accepted-step batches; snapshot publishes every selected node at accepted analog
+output times, carrying unchanged values forward; pernode exposes individual events immediately.
+Complete batches become visible at the next analog output callback, or after completion/halt for the final
+batch. Pure digital transient circuits use ngspice’s time-only output. There is no wall-clock sampling timer.</p>
+<p class="rubric">Return value</p>
+<p>dictionary describing support, available nodes, selected nodes and mode.</p>
+</section>
 <section id="sim-flush">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20flush"></span><span id="index-33"></span><span id="index-32"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code><a class="headerlink" href="#sim-flush" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20flush"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code><a class="headerlink" href="#sim-flush" title="Link to this heading">¶</a></h3>
 <p>Publishes pending initialization metadata and samples for this simulator into live storage.
 Works in both list and vector modes. Returns an empty result on success.</p>
 <pre class="literal-block"><strong>SIM flush</strong> <em>?-help?</em></pre>
@@ -526,7 +597,7 @@ during publication, except destruction. Graph redraws still require normal Tk ev
 <p>empty string</p>
 </section>
 <section id="sim-initvectors">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20initvectors"></span><span id="index-35"></span><span id="index-34"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code><a class="headerlink" href="#sim-initvectors" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20initvectors"></span><span id="index-39"></span><span id="index-38"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code><a class="headerlink" href="#sim-initvectors" title="Link to this heading">¶</a></h3>
 <p>Gets held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.</p>
 <pre class="literal-block"><strong>SIM initvectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -551,7 +622,7 @@ in the storage.</p>
 <p>dict with initial vector metadata saved in internal structure</p>
 </section>
 <section id="sim-inputpath">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20inputpath"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code><a class="headerlink" href="#sim-inputpath" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20inputpath"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code><a class="headerlink" href="#sim-inputpath" title="Link to this heading">¶</a></h3>
 <p>Gets current path for XSPICE code models if <code class="docutils literal notranslate"><span class="pre">-current</span></code> switch is provided, or set current path to value
 provided.</p>
 <pre class="literal-block"><strong>SIM inputpath</strong> <em>-current</em>
@@ -574,7 +645,7 @@ provided.</p>
 <p>current path</p>
 </section>
 <section id="sim-isrunning">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-39"></span><span id="index-38"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-43"></span><span id="index-42"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading">¶</a></h3>
 <p>Calls asynchronously to check if background thread is running.</p>
 <pre class="literal-block"><strong>SIM isrunning</strong> <em>?-help?</em></pre>
 <p class="rubric">Parameters</p>
@@ -589,7 +660,7 @@ provided.</p>
 <p><code class="docutils literal notranslate"><span class="pre">1</span></code> if thread is running, <code class="docutils literal notranslate"><span class="pre">0</span></code> otherwise.</p>
 </section>
 <section id="sim-messages">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20messages"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code><a class="headerlink" href="#sim-messages" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20messages"></span><span id="index-45"></span><span id="index-44"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code><a class="headerlink" href="#sim-messages" title="Link to this heading">¶</a></h3>
 <p>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
 <pre class="literal-block"><strong>SIM messages</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -617,7 +688,7 @@ clear the data storage.</p>
 <p>list of messages</p>
 </section>
 <section id="sim-plot">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-43"></span><span id="index-42"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-47"></span><span id="index-46"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading">¶</a></h3>
 <p>Gets current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot.</p>
 <pre class="literal-block"><strong>SIM plot</strong> <em>?-all?</em>
@@ -640,7 +711,7 @@ name of the provided plot.</p>
 <p>current plot, or list of all plots, or list of all vectors</p>
 </section>
 <section id="sim-vectors">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-45"></span><span id="index-44"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-49"></span><span id="index-48"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading">¶</a></h3>
 <p>Gets data accumulated from send_data events through the Tcl event loop.</p>
 <pre class="literal-block"><strong>SIM vectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -692,7 +763,7 @@ name of the provided plot.</p>
 <p>dict with vectors values accumulated up to this point in internal structure</p>
 </section>
 <section id="sim-waitevent">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20waitevent"></span><span id="index-47"></span><span id="index-46"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code><a class="headerlink" href="#sim-waitevent" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20waitevent"></span><span id="index-51"></span><span id="index-50"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code><a class="headerlink" href="#sim-waitevent" title="Link to this heading">¶</a></h3>
 <p>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed,
 or the timeout expires (if provided).</p>
 <pre class="literal-block"><strong>SIM waitevent</strong> <em>name ?-n N? ?-since count? ?timeout_ms?</em></pre>
@@ -912,6 +983,8 @@ A timeout returns status timeout, not a Tcl error. This command does not process
 <li><a class="reference internal" href="#sim-command"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code></a></li>
 <li><a class="reference internal" href="#sim-destroy"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code></a></li>
 <li><a class="reference internal" href="#sim-eventcounts"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code></a></li>
+<li><a class="reference internal" href="#sim-eventdata"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code></a></li>
+<li><a class="reference internal" href="#sim-eventnodes"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code></a></li>
 <li><a class="reference internal" href="#sim-flush"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code></a></li>
 <li><a class="reference internal" href="#sim-initvectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code></a></li>
 <li><a class="reference internal" href="#sim-inputpath"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code></a></li>

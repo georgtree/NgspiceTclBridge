@@ -1,0 +1,154 @@
+# Headless deterministic raw-event tests, explicitly invoked by make test-events.
+if {[lindex $argv 0] ne {--rbc-fixture}} {
+    return
+}
+package require tcltest
+namespace import ::tcltest::*
+source [file join [file dirname [info script]] rbc-support.tcl]
+
+proc eventSim {mode} {
+    set s [newSim -noinit]
+    $s circuit {fixture .end}
+    $s eventnodes -all -mode $mode
+    return $s
+}
+proc stopEvents {s} {
+    catch {$s command mock_evt_stop}
+    clean $s
+}
+
+test events-1 {discovery, internal names, one registration per node and invalid names} -body {
+    set s [eventSim changes]
+    set first [$s command mock_evt_registrations]
+    $s eventnodes -all
+    set info [$s eventnodes]
+    set rc [catch {$s eventnodes -nodes {a missing}}]
+    list $first [$s command mock_evt_registrations] [lsort [dict get $info selected]] $rc\
+            [expr {[$s eventnodes] eq $info}]
+} -cleanup {clean $s} -result {3 3 {a b x1:internal} 1 1}
+
+test events-2 {changes wait for all-node boundary; last on A does not complete B} -body {
+    set s [eventSim changes]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    set early [dict get [$s eventdata] batches]
+    $s flush
+    set flushed [dict get [$s eventdata] batches]
+    $s command mock_evt_b
+    set stillEarly [dict get [$s eventdata] batches]
+    $s command mock_evt_boundary
+    set data [$s eventdata]
+    list $early $flushed $stillEarly [dict get [lindex [dict get $data batches] 0] events]
+} -cleanup {stopEvents $s} -result {{} {} {} {{a 0.0 0s 0} {a 0.0 1s 1} {b 0.0 Uz 1}}}
+
+test events-3 {snapshots carry unchanged states and identify missing values} -body {
+    set s [eventSim snapshot]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s command mock_evt_b
+    $s command mock_evt_boundary
+    $s command mock_evt_boundary
+    set batches [dict get [$s eventdata] batches]
+    set a [lindex $batches 0]
+    set b [lindex $batches 1]
+    list [dict get $a values a] [dict get $a values b] [dict get $a values x1:internal] [lsort [dict get $a known]]\
+            [expr {[dict get $a values] eq [dict get $b values]}]
+} -cleanup {stopEvents $s} -result {1s Uz {} {a b} 1}
+
+test events-4 {pernode is visible before the next sample; strings are owned copies} -body {
+    set s [eventSim pernode]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    set old [$s eventdata]
+    $s command mock_evt_b
+    list [dict get $old nodes a events] [dict get $old nodes b events] [dict get [$s eventdata] nodes b events]
+} -cleanup {stopEvents $s} -result {{{0.0 0s 0} {0.0 1s 1}} {} {{0.0 Uz 1}}}
+
+foreach mode {changes snapshot pernode} {
+    test events-5.$mode {halt seals final batch, resume retains data, new plot resets, no duplicate registration}\
+            -body {
+        set s [eventSim $mode]
+        $s command mock_evt_start
+        $s command mock_evt_a
+        $s command mock_evt_stop
+        set before [$s eventdata]
+        set gen [dict get $before generation]
+        $s command mock_evt_resume
+        $s command mock_evt_b
+        $s command mock_evt_stop
+        set resumed [$s eventdata]
+        set base [dict get [$s eventcounts] event_init]
+        $s command mock_evt_start
+        set fresh [$s eventdata]
+        list [expr {[dict get $resumed generation] == $gen}] [expr {[dict get $fresh generation] > $gen}]\
+                [dict get [$s waitevent event_init -since $base 1] status] [dict get $fresh batches]\
+                [$s command mock_evt_registrations] [expr {$before ne $resumed}]
+    } -cleanup {stopEvents $s} -result {1 1 ok {} 3 1}
+}
+
+test events-6 {clear discards pending and committed records but later callbacks continue} -body {
+    set s [eventSim changes]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    set empty [$s eventdata -clear]
+    $s command mock_evt_b
+    $s command mock_evt_stop
+    list [dict get $empty batches] [dict get [lindex [dict get [$s eventdata] batches] 0] events]
+} -cleanup {stopEvents $s} -result {{} {{b 0.0 Uz 1}}}
+
+test events-7 {raw counters, batch counters and since semantics are independent} -body {
+    set s [eventSim changes]
+    $s eventcounts -clear
+    $s command mock_evt_start
+    set base [dict get [$s eventcounts] send_raw_evt]
+    $s command mock_evt_a
+    set early [$s eventcounts]
+    set arrived [$s waitevent send_raw_evt -since $base -n 2 1]
+    $s command mock_evt_stop
+    set done [$s eventcounts]
+    list [dict get $early send_raw_evt] [dict get $early event_batch] [dict get $arrived status]\
+            [dict get $done event_batch] [dict get $done event_init]
+} -cleanup {clean $s} -result {2 0 ok 1 1}
+
+test events-8 {configuration while running and circuit replacement are rejected} -body {
+    set s [eventSim changes]
+    $s command mock_evt_start
+    set busy [catch {$s eventnodes -mode pernode}]
+    $s command mock_evt_stop
+    list $busy [catch {$s circuit {replacement .end}}] [catch {$s command reset}] [catch {$s eventnodes -all -nodes a}]
+} -cleanup {clean $s} -result {1 1 1 1}
+
+test events-9 {selection limits histories; mode change clears and reuses registrations} -body {
+    set s [eventSim changes]
+    $s eventnodes -nodes a -mode pernode
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s command mock_evt_b
+    $s command mock_evt_stop
+    set before [$s eventdata]
+    $s eventnodes -nodes {a b} -mode snapshot
+    set after [$s eventdata]
+    list [dict keys [dict get $before nodes]] [llength [dict get $before nodes a events]]\
+            [dict get $after mode] [dict get $after batches] [$s command mock_evt_registrations]
+} -cleanup {clean $s} -result {a 2 snapshot {} 3}
+
+test events-10 {snapshot clear retains known states without publishing the cleared partial batch} -body {
+    set s [eventSim snapshot]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s eventdata -clear
+    $s command mock_evt_boundary
+    set before [$s eventdata]
+    $s command mock_evt_stop
+    set after [$s eventdata]
+    list [dict get $before batches] [dict get [lindex [dict get $after batches] 0] values a]
+} -cleanup {clean $s} -result {{} 1s}
+
+test events-11 {query after controlled exit is rejected without touching the destroyed native circuit} -body {
+    set s [eventSim changes]
+    $s command quit
+    catch {$s eventnodes} message
+    set message
+} -cleanup {clean $s} -result {event node discovery/configuration requires an idle simulator}
+
+finishTests

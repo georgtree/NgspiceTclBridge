@@ -401,6 +401,7 @@ static int NameToEvtId(Tcl_Obj *obj, int *idOut) {
     } map[] = {
         {"send_char", SEND_CHAR}, {"send_stat", SEND_STAT},           {"controlled_exit", CONTROLLED_EXIT},
         {"send_data", SEND_DATA}, {"send_init_data", SEND_INIT_DATA}, {"bg_running", BG_THREAD_RUNNING},
+        {"send_raw_evt", SEND_RAW_EVT}, {"event_init", EVENT_INIT}, {"event_batch", EVENT_BATCH},
     };
     for (size_t i = 0; i < sizeof(map) / sizeof(map[0]); i++) {
         if (strcmp(s, map[i].n) == 0) {
@@ -1428,6 +1429,658 @@ static int ClearCommandMemory(NgSpiceContext *ctx, Tcl_Interp *interp) {
     return TCL_OK;
 }
 
+/* Private raw XSPICE event storage.
+ * Worker callbacks own only C data; Tcl objects are constructed by the reader.
+ */
+typedef struct EventNode {
+    NgSpiceContext *ctx;
+    char *name, *typeName, *latest;
+    int type, selected;
+    struct EventNode *next;
+} EventNode;
+
+typedef struct EventValue {
+    EventNode *node;
+    double time;
+    char *value;
+    int last;
+    struct EventValue *next;
+} EventValue;
+
+typedef struct EventFrame {
+    double time;
+    EventValue *head, *tail;
+    struct EventFrame *next;
+} EventFrame;
+
+struct BridgeEvents {
+    EventNode *nodes;
+    EventFrame *head, *tail, *open;
+    int mode;                           /* changes, snapshot, pernode */
+    int hasSample;
+    double sampleTime;
+    char *error;
+};
+static const char *eventModes[] = {"changes", "snapshot", "pernode"};
+
+//***  EventsFreeFrames function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsFreeFrames --
+ *
+ *      Release a frame chain and its copied strings.
+ *
+ * Parameters:
+ *      EventFrame *frame - input: owned frame chain, or NULL.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Frees C storage; node registration contexts remain alive.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsFreeFrames(EventFrame *frame) {
+    while (frame) {
+        EventFrame *next = frame->next;
+        EventValue *v = frame->head;
+        while (v) {
+            EventValue *vn = v->next;
+            Tcl_Free(v->value);
+            Tcl_Free(v);
+            v = vn;
+        }
+        Tcl_Free(frame);
+        frame = next;
+    }
+}
+
+//***  EventsResetLocked function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsResetLocked --
+ *
+ *      Discard histories for a clear, selection change or new plot.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: owning handle; its mutex must be held.
+ *      int resetLatest - input: also forget known states and errors and increment event_init.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Frees pending/committed records without unregistering callbacks. A new plot increments event_init.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsResetLocked(NgSpiceContext *ctx, int resetLatest) {
+    BridgeEvents *e = ctx->events;
+    if (!e) {
+        return;
+    }
+    EventsFreeFrames(e->head);
+    EventsFreeFrames(e->open);
+    e->head = e->tail = e->open = NULL;
+    if (resetLatest) {
+        e->hasSample = 0;
+        for (EventNode *n = e->nodes; n; n = n->next) {
+            Tcl_Free(n->latest);
+            n->latest = NULL;
+        }
+        Tcl_Free(e->error);
+        e->error = NULL;
+        ++ctx->evt_counts[EVENT_INIT];
+        Tcl_ConditionNotify(&ctx->cond);
+    }
+}
+
+//***  EventsValue function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsValue --
+ *
+ *      Allocate and append one copied event value.
+ *
+ * Parameters:
+ *      EventFrame *f - input/output: destination frame.
+ *      EventNode *n - input: borrowed node registration.
+ *      double time - input: native event time.
+ *      const char *value - input: string to copy, or NULL for an unknown state.
+ *      int last - input: final report in this node's native batch.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Allocates C storage. NULL value denotes an as-yet unknown state, distinct from the string "U".
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsValue(EventFrame *f, EventNode *n, double time, const char *value, int last) {
+    EventValue *v = Tcl_Alloc(sizeof *v);
+    *v = (EventValue){n, time, value ? ckstrdup(value) : NULL, last, NULL};
+    if (f->tail) {
+        f->tail->next = v;
+    } else {
+        f->head = v;
+    }
+    f->tail = v;
+}
+
+//***  EventsCommitLocked function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsCommitLocked --
+ *
+ *      Seal an accepted-step batch, using only complete raw callback groups.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: owning handle; its mutex must be held.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Adds a committed frame, or carries all selected node states into a snapshot; bumps event_batch.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsCommitLocked(NgSpiceContext *ctx) {
+    BridgeEvents *e = ctx->events;
+    if (!e || !e->open) {
+        return;
+    }        
+    EventFrame *f = e->open;
+    e->open = NULL;
+    if (e->mode == 1) {
+        double time = f->time;
+        EventsFreeFrames(f);
+        f = Tcl_Alloc(sizeof *f);
+        *f = (EventFrame){time, NULL, NULL, NULL};
+        for (EventNode *n = e->nodes; n; n = n->next) {
+            if (n->selected) {
+                EventsValue(f, n, time, n->latest, 1);
+            }                
+        }
+    }
+    if (f->head && e->mode != 2) {
+        if (e->tail) {
+            e->tail->next = f;
+        } else {
+            e->head = f;
+        }            
+        e->tail = f;
+    } else {
+        EventsFreeFrames(f);
+    }
+    ++ctx->evt_counts[EVENT_BATCH];
+    Tcl_ConditionNotify(&ctx->cond);
+}
+
+//***  EventsBoundary function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsBoundary --
+ *
+ *      Close the previous raw batch and open the next accepted output point.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: owning handle.
+ *      double time - input: analog scale value, including a digital circuit's time-only scale.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Takes mutex. Raw callbacks for the new point occur AFTER this SendData callback in ngspice.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsBoundary(NgSpiceContext *ctx, double time) {
+    Tcl_MutexLock(&ctx->mutex);
+    BridgeEvents *e = ctx->events;
+    if (e) {
+        EventsCommitLocked(ctx);
+        e->sampleTime = time;
+        e->hasSample = 1;
+        e->open = Tcl_Alloc(sizeof *e->open);
+        *e->open = (EventFrame){time, NULL, NULL, NULL};
+    }
+    Tcl_MutexUnlock(&ctx->mutex);
+}
+
+//***  EventsFinish function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsFinish --
+ *
+ *      Seal the last raw batch after completion or halt, without waiting for another analog sample.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: handle at a completed analysis boundary.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Takes mutex and wakes event_batch waiters. Never called by an arbitrary live flush.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsFinish(NgSpiceContext *ctx) {
+    Tcl_MutexLock(&ctx->mutex);
+    EventsCommitLocked(ctx);
+    Tcl_MutexUnlock(&ctx->mutex);
+}
+
+//***  EventsRawCallback function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsRawCallback --
+ *
+ *      Receive a raw value for a registered node, on ngspice's calling thread.
+ *
+ * Parameters:
+ *      double time - input: native event time.
+ *      void *value - input: borrowed native event value.
+ *      void *user - input: stable EventNode registration context.
+ *      int last - input: final report in this node's native batch.
+ *
+ * Results:
+ *      Zero keeps registration; one removes it during handle destruction.
+ *
+ * Side Effects:
+ *      Decodes and copies strings before returning, updates latest state and send_raw_evt. No Tcl evaluation.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int EventsRawCallback(double time, void *value, void *user, int last) {
+    EventNode *n = user;
+    NgSpiceContext *ctx = n->ctx;
+    if (ctx->destroying) {
+        return 1;
+    }        
+    const char *printed = NULL;
+    int rc = ctx->rawDecode(value, n->type, NULL, &printed);
+    Tcl_MutexLock(&ctx->mutex);
+    BridgeEvents *e = ctx->events;
+    ++ctx->evt_counts[SEND_RAW_EVT];
+    Tcl_ConditionNotify(&ctx->cond);
+    if (rc || !printed) {
+        if (!e->error) {
+            e->error = ckstrdup("cannot decode raw event node value");
+        }            
+    } else if (n->selected && !e->error) {
+        Tcl_Free(n->latest);
+        n->latest = ckstrdup(printed);
+        if (!e->open) {
+            e->open = Tcl_Alloc(sizeof *e->open);
+            *e->open = (EventFrame){e->hasSample ? e->sampleTime : time, NULL, NULL, NULL};
+        }
+        if (e->mode == 2) {
+            EventFrame *f = Tcl_Alloc(sizeof *f);
+            *f = (EventFrame){time, NULL, NULL, NULL};
+            EventsValue(f, n, time, printed, last);
+            if (e->tail) {
+                e->tail->next = f;
+            } else {
+                e->head = f;
+            }                
+            e->tail = f;
+        } else if (e->mode == 0) {
+            EventsValue(e->open, n, time, printed, last);
+        }
+    }
+    Tcl_MutexUnlock(&ctx->mutex);
+    return 0;
+}
+
+//***  EventsDestroy function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsDestroy --
+ *
+ *      Release all histories and registrations after native callbacks have ceased.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: handle in final teardown after callbacks cease.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Frees C storage; ngspice owns its callback records and releases them with the circuit.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsDestroy(NgSpiceContext *ctx) {
+    BridgeEvents *e = ctx->events;
+    if (!e) {
+        return;
+    }        
+    EventsResetLocked(ctx, 0);
+    EventNode *n = e->nodes;
+    while (n) {
+        EventNode *next = n->next;
+        Tcl_Free(n->name);
+        Tcl_Free(n->typeName);
+        Tcl_Free(n->latest);
+        Tcl_Free(n);
+        n = next;
+    }
+    Tcl_Free(e->error);
+    Tcl_Free(e);
+    ctx->events = NULL;
+}
+
+//***  EventsCircuitCommand function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsCircuitCommand --
+ *
+ *      Detect direct circuit-replacement commands unsupported with retained registrations.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input: owning handle.
+ *      const char *cmd - input: ngspice command text.
+ *
+ * Results:
+ *      Nonzero if a direct replacement command would invalidate raw callback contexts.
+ *
+ * Side Effects:
+ *      None. This is an API guard, not a parser or sandbox for arbitrary ngspice scripts.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int EventsCircuitCommand(NgSpiceContext *ctx, const char *cmd) {
+    if (!ctx->events) {
+        return 0;
+    }        
+    while (*cmd == ' ' || *cmd == '\t') {
+        ++cmd;
+    }        
+    const char *blocked[] = {"source", "circbyline", "remcirc", "setcirc", "reset", NULL};
+    for (int i = 0; blocked[i]; ++i) {
+        size_t len = strlen(blocked[i]);
+        if (!strncmp(cmd, blocked[i], len) && (!cmd[len] || cmd[len] == ' ' || cmd[len] == '\t')) {
+            return 1;
+        }            
+    }
+    return 0;
+}
+
+//***  EventsResultLocked function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsResultLocked --
+ *
+ *      Copy published event data into independent Tcl dictionaries/lists.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input: owning handle; its mutex must be held.
+ *      Tcl_Interp *interp - input: interpreter used to construct result dictionaries and lists.
+ *
+ * Results:
+ *      A new unreferenced Tcl result object; caller sets it as the interpreter result.
+ *
+ * Side Effects:
+ *      Allocates Tcl objects on the interpreter thread only. Pending complete-step data stays private.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static Tcl_Obj *EventsResultLocked(NgSpiceContext *ctx, Tcl_Interp *interp) {
+    BridgeEvents *e = ctx->events;
+    Tcl_Obj *result = Tcl_NewDictObj(), *nodes = Tcl_NewDictObj(), *batches = Tcl_NewListObj(0, NULL);
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("mode", -1),
+                   Tcl_NewStringObj(e ? eventModes[e->mode] : "changes", -1));
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("generation", -1), Tcl_NewWideIntObj((Tcl_WideInt)ctx->gen));
+    if (e) {
+        for (EventNode *n = e->nodes; n; n = n->next) {
+            if (!n->selected) {
+                continue;
+            }                
+            Tcl_Obj *info = Tcl_NewDictObj();
+            Tcl_DictObjPut(interp, info, Tcl_NewStringObj("type", -1), Tcl_NewStringObj(n->typeName, -1));
+            if (e->mode == 2) {
+                Tcl_DictObjPut(interp, info, Tcl_NewStringObj("events", -1), Tcl_NewListObj(0, NULL));
+            }                
+            Tcl_DictObjPut(interp, nodes, Tcl_NewStringObj(n->name, -1), info);
+        }
+    }        
+    if (e) {
+        for (EventFrame *f = e->head; f; f = f->next) {
+            Tcl_Obj *batch = NULL, *items = NULL, *known = NULL;
+            if (e->mode != 2) {
+                batch = Tcl_NewDictObj();
+                items = e->mode == 1 ? Tcl_NewDictObj() : Tcl_NewListObj(0, NULL);
+                Tcl_DictObjPut(interp, batch, Tcl_NewStringObj("time", -1), Tcl_NewDoubleObj(f->time));
+                Tcl_DictObjPut(interp, batch, Tcl_NewStringObj(e->mode == 1 ? "values" : "events", -1), items);
+                if (e->mode == 1) {
+                    known = Tcl_NewListObj(0, NULL);
+                    Tcl_DictObjPut(interp, batch, Tcl_NewStringObj("known", -1), known);
+                }
+            }
+            for (EventValue *v = f->head; v; v = v->next) {
+                Tcl_Obj *key = Tcl_NewStringObj(v->node->name, -1);
+                Tcl_IncrRefCount(key);
+                if (e->mode == 1) {
+                    Tcl_DictObjPut(interp, items, key, Tcl_NewStringObj(v->value ? v->value : "", -1));
+                    if (v->value) {
+                        Tcl_ListObjAppendElement(interp, known, key);
+                    }                        
+                } else {
+                    Tcl_Obj *row = Tcl_NewListObj(0, NULL);
+                    if (e->mode == 0) {
+                        Tcl_ListObjAppendElement(interp, row, key);
+                    }                        
+                    Tcl_ListObjAppendElement(interp, row, Tcl_NewDoubleObj(v->time));
+                    Tcl_ListObjAppendElement(interp, row, Tcl_NewStringObj(v->value, -1));
+                    Tcl_ListObjAppendElement(interp, row, Tcl_NewBooleanObj(v->last));
+                    if (e->mode == 0) {
+                        Tcl_ListObjAppendElement(interp, items, row);
+                    }                        
+                    else {
+                        Tcl_Obj *info, *list, *eventsKey = Tcl_NewStringObj("events", -1);
+                        Tcl_IncrRefCount(eventsKey);
+                        Tcl_DictObjGet(interp, nodes, key, &info);
+                        Tcl_DictObjGet(interp, info, eventsKey, &list);
+                        Tcl_ListObjAppendElement(interp, list, row);
+                        Tcl_DecrRefCount(eventsKey);
+                    }
+                }
+                Tcl_DecrRefCount(key);
+            }
+            if (batch) {
+                Tcl_ListObjAppendElement(interp, batches, batch);
+            }                
+        }
+    }        
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("nodes", -1), nodes);
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("batches", -1), batches);
+    return result;
+}
+
+//***  EventsCommand function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsCommand --
+ *
+ *      Implement eventnodes configuration and eventdata reads/clears.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: owning handle.
+ *      Tcl_Interp *interp - output: command result or error message.
+ *      const char *sub - input: eventnodes or eventdata command name.
+ *      Tcl_Obj *args - input: validated Tcl option dictionary.
+ *
+ * Results:
+ *      TCL_OK with metadata/data, or TCL_ERROR with a diagnostic.
+ *
+ * Side Effects:
+ *      Registers each node at most once, only while idle. Configuration changes discard histories.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int EventsCommand(NgSpiceContext *ctx, Tcl_Interp *interp, const char *sub, Tcl_Obj *args) {
+    if (!strcmp(sub, "eventdata")) {
+        Tcl_MutexLock(&ctx->mutex);
+        BridgeEvents *e = ctx->events;
+        if (Arg(args, "clear"))
+            EventsResetLocked(ctx, 0);
+        if (e && e->error) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(e->error, -1));
+            Tcl_MutexUnlock(&ctx->mutex);
+            return TCL_ERROR;
+        }
+        Tcl_SetObjResult(interp, EventsResultLocked(ctx, interp));
+        Tcl_MutexUnlock(&ctx->mutex);
+        return TCL_OK;
+    }
+    int configure = Arg(args, "all") || Arg(args, "nodes") || Arg(args, "mode");
+    if (Arg(args, "all") && Arg(args, "nodes")) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("specify -all or -nodes, not both", -1));
+        return TCL_ERROR;
+    }
+    Tcl_MutexLock(&ctx->bg_mu);
+    Tcl_MutexLock(&ctx->exit_mu);
+    int exited = ctx->exited;
+    Tcl_MutexUnlock(&ctx->exit_mu);
+    Tcl_MutexLock(&ctx->cmd_mu);
+    int busy = ctx->state != NGSTATE_IDLE || ctx->commandActive || ctx->destroying || exited || ctx->pending_head ||
+               ctx->ngSpice_running();
+    Tcl_MutexUnlock(&ctx->cmd_mu);
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    if (busy) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("event node discovery/configuration requires an idle simulator", -1));
+        return TCL_ERROR;
+    }
+    int supported = ctx->rawRegister && ctx->rawDecode;
+    if (configure && (!supported || !ctx->has_circuit)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(supported ? "load a circuit before selecting event nodes"
+                                                            : "ngspice library lacks raw event support",
+                                                  -1));
+        return TCL_ERROR;
+    }
+    Tcl_Obj *available = Tcl_NewListObj(0, NULL), *selected = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(available);
+    Tcl_IncrRefCount(selected);
+    char **names = ctx->has_circuit ? ctx->ngSpice_AllEvtNodes() : NULL;
+    if (names) {
+        for (int i = 0; names[i]; ++i) {
+            Tcl_ListObjAppendElement(interp, available, Tcl_NewStringObj(names[i], -1));
+        }
+    }
+    Tcl_Obj *wanted = Arg(args, "all") ? available : Arg(args, "nodes");
+    Tcl_Size count = 0, nAvail = 0;
+    Tcl_Obj **values = NULL, **avail = NULL;
+    int code = TCL_OK, mode = ctx->events ? ctx->events->mode : 0;
+    if (Arg(args, "mode")) {
+        const char *m = Tcl_GetString(Arg(args, "mode"));
+        for (mode = 0; mode < 3 && strcmp(m, eventModes[mode]); ++mode) {
+        }
+        if (mode == 3) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid event mode", -1));
+            code = TCL_ERROR;
+            goto done;
+        }
+    }
+    if (wanted) {
+        if (Tcl_ListObjGetElements(interp, wanted, &count, &values) != TCL_OK) {
+            code = TCL_ERROR;
+            goto done;
+        }
+        Tcl_ListObjGetElements(interp, available, &nAvail, &avail);
+        for (Tcl_Size i = 0; i < count; ++i) {
+            int found = 0;
+            for (Tcl_Size j = 0; j < nAvail; ++j)
+                if (!strcmp(Tcl_GetString(values[i]), Tcl_GetString(avail[j]))) {
+                    found = 1;
+                }
+            if (!found) {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown event node: %s", Tcl_GetString(values[i])));
+                code = TCL_ERROR;
+                goto done;
+            }
+        }
+    }
+    if (configure) {
+        if (!ctx->events) {
+            ctx->events = Tcl_Alloc(sizeof *ctx->events);
+            memset(ctx->events, 0, sizeof *ctx->events);
+        }
+        BridgeEvents *e = ctx->events;
+        /* Validate all names before adding any registrations. An ngspice registration failure keeps prior nodes. */
+        for (Tcl_Size i = 0; i < count; ++i) {
+            const char *name = Tcl_GetString(values[i]);
+            EventNode *n;
+            for (n = e->nodes; n && strcmp(n->name, name); n = n->next) {
+            }
+            if (n) {
+                continue;
+            }
+            n = Tcl_Alloc(sizeof *n);
+            memset(n, 0, sizeof *n);
+            n->ctx = ctx;
+            n->name = ckstrdup(name);
+            n->type = ctx->rawRegister(name, EventsRawCallback, n);
+            if (n->type < 0) {
+                Tcl_Free(n->name);
+                Tcl_Free(n);
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("cannot register event node: %s", name));
+                code = TCL_ERROR;
+                goto done;
+            }
+            const char *typeName = NULL;
+            ctx->rawDecode(NULL, n->type, NULL, &typeName);
+            n->typeName = ckstrdup(typeName ? typeName : "unknown");
+            n->next = e->nodes;
+            e->nodes = n;
+        }
+        Tcl_MutexLock(&ctx->mutex);
+        e->mode = mode;
+        if (wanted)
+            for (EventNode *n = e->nodes; n; n = n->next) {
+                n->selected = 0;
+                for (Tcl_Size i = 0; i < count; ++i) {
+                    if (!strcmp(n->name, Tcl_GetString(values[i]))) {
+                        n->selected = 1;
+                    }
+                }
+            }
+        EventsResetLocked(ctx, 1);
+        Tcl_MutexUnlock(&ctx->mutex);
+    }
+    if (ctx->events)
+        for (EventNode *n = ctx->events->nodes; n; n = n->next) {
+            if (n->selected) {
+                Tcl_ListObjAppendElement(interp, selected, Tcl_NewStringObj(n->name, -1));
+            }
+        }
+    Tcl_Obj *result = Tcl_NewDictObj();
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("supported", -1), Tcl_NewBooleanObj(supported));
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("available", -1), available);
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("selected", -1), selected);
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("mode", -1), Tcl_NewStringObj(eventModes[mode], -1));
+    Tcl_SetObjResult(interp, result);
+done:
+    Tcl_DecrRefCount(available);
+    Tcl_DecrRefCount(selected);
+    return code;
+}
+
 //***  ExecuteCommand function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -1466,7 +2119,9 @@ static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
         Tcl_MutexUnlock(&ctx->bg_mu);
     } else if (strcmp(cmd, "bg_halt") == 0) {
         Tcl_MutexLock(&ctx->bg_mu);
-        if (ctx->state == NGSTATE_BG_ACTIVE) ctx->state = NGSTATE_STOPPING_BG;
+        if (ctx->state == NGSTATE_BG_ACTIVE) {
+            ctx->state = NGSTATE_STOPPING_BG;
+        }            
         Tcl_MutexUnlock(&ctx->bg_mu);
     }
     if (background || resume) {
@@ -1475,6 +2130,9 @@ static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
         Tcl_MutexUnlock(&ctx->mutex);
     }
     int rc = ctx->ngSpice_Command((char *)cmd);
+    if (ctx->events && !background && !ctx->ngSpice_running()) {
+        EventsFinish(ctx);
+    }        
     Tcl_MutexLock(&ctx->bg_mu);
     --ctx->commandActive;
     Tcl_MutexUnlock(&ctx->bg_mu);
@@ -1795,6 +2453,12 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
     if (!ctx || !all || (count <= 0) || (ctx->destroying)) {
         return 0;
     }
+    if (ctx->events) for (int i = 0; i < all->veccount; ++i) {
+        if (strcmp(all->vecsa[i]->name, "time") == 0) {
+            EventsBoundary(ctx, all->vecsa[i]->creal);
+            break;
+        }
+    }
     DataRow row;
     row.veccount = all->veccount;
     row.vecs = Tcl_Alloc(sizeof(DataCell) * (size_t)row.veccount);
@@ -1889,6 +2553,14 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         ctx->dataEventQueued = 0;
         ctx->outputFailed = 0;
         ++ctx->gen;
+        EventsResetLocked(ctx, 1);
+        if (ctx->events) {
+            int haveTime = 0;
+            for (int i = 0; i < vinfo->veccount; ++i) {
+                if (!strcmp(vinfo->vecs[i]->vecname, "time")) haveTime = 1;
+            }
+            if (!haveTime) ctx->events->error = ckstrdup("raw event collection currently requires transient analysis with a time scale");
+        }
     }
     uint64_t mygen = ctx->gen;
     Tcl_MutexUnlock(&ctx->mutex);
@@ -1954,6 +2626,7 @@ static int BGThreadRunningCallback(bool running, int id, void *user) {
         return 0;
     }
     Tcl_ThreadId owner = ctx->tclid;
+    if (running && ctx->events && !ctx->destroying) EventsFinish(ctx);
     if (ctx->destroying) {
         if (running) FinalizeWorkerThread(owner);
         return 0;
@@ -2236,6 +2909,7 @@ static void InstFreeProc(void *cdata) {
     if (ctx->vectorError) {
         Tcl_DecrRefCount(ctx->vectorError);
     }
+    EventsDestroy(ctx);
     FreeInitSnap(ctx->init_snap);
     Tcl_Free(ctx->livePlot);
     MsgQ_Free(&ctx->msgq);
@@ -2774,6 +3448,10 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         code = TCL_ERROR;
         goto done;
     }
+    if (strcmp(sub, "eventnodes") == 0 || strcmp(sub, "eventdata") == 0) {
+        code = EventsCommand(ctx, interp, sub, args);
+        goto done;
+    }
     if (strcmp(sub, "command") == 0) {
         if (Arg(args, "clear")) {
             if (Arg(args, "string") || Arg(args, "capture")) {
@@ -2787,6 +3465,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         if (CheckArgs(interp, args, "string") != TCL_OK) {code = TCL_ERROR; goto done;}
         int do_capture = Arg(args, "capture") != NULL;
         const char *cmd = Tcl_GetString(Arg(args, "string"));
+        if (EventsCircuitCommand(ctx, cmd)) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("create a new handle to change circuits after raw event registration", -1));
+            code = TCL_ERROR;
+            goto done;
+        }
         Tcl_MutexLock(&ctx->bg_mu);
         NgState st = ctx->state;
         Tcl_MutexUnlock(&ctx->bg_mu);
@@ -2843,6 +3526,11 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "circuit") == 0) {
+        if (ctx->events) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("create a new handle to replace a circuit after raw event registration", -1));
+            code = TCL_ERROR;
+            goto done;
+        }
         if (CheckArgs(interp, args, "value") != TCL_OK) {code = TCL_ERROR; goto done;}
         int split_string = Arg(args, "string") != NULL;
         Tcl_Size cirLinesListLen;
@@ -3190,6 +3878,9 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
                        Tcl_NewWideIntObj((Tcl_WideInt)c[SEND_INIT_DATA]));
         Tcl_DictObjPut(interp, d, Tcl_NewStringObj("bg_running", -1),
                        Tcl_NewWideIntObj((Tcl_WideInt)c[BG_THREAD_RUNNING]));
+        Tcl_DictObjPut(interp, d, Tcl_NewStringObj("send_raw_evt", -1), Tcl_NewWideIntObj((Tcl_WideInt)c[SEND_RAW_EVT]));
+        Tcl_DictObjPut(interp, d, Tcl_NewStringObj("event_init", -1), Tcl_NewWideIntObj((Tcl_WideInt)c[EVENT_INIT]));
+        Tcl_DictObjPut(interp, d, Tcl_NewStringObj("event_batch", -1), Tcl_NewWideIntObj((Tcl_WideInt)c[EVENT_BATCH]));
         Tcl_SetObjResult(interp, d);
         code = TCL_OK;
         goto done;
@@ -3388,6 +4079,11 @@ static int NgResolveAll(Tcl_Interp *interp, NgSpiceContext *ctx) {
         /* cppcheck-suppress misra-c2012-11.6 */
         *(entries[i].slot) = tmp;
     }
+    /* Older libraries remain usable for analog-only work. */
+    Tcl_InterpState saved = Tcl_SaveInterpState(interp, TCL_OK);
+    ctx->rawRegister = (BridgeRawRegister)PDl_Sym(interp, ctx->handle, "ngSpice_Raw_Evt");
+    ctx->rawDecode = (BridgeRawDecode)PDl_Sym(interp, ctx->handle, "ngSpice_Decode_Evt");
+    Tcl_RestoreInterpState(interp, saved);
     return TCL_OK;
 }
 

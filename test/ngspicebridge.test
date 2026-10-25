@@ -231,7 +231,7 @@ test test-7 {reset of events counters} -setup {
     run $s1
     $s1 eventcounts -clear
     return [$s1 eventcounts]
-} -result {send_char 0 send_stat 0 controlled_exit 0 send_data 0 send_init_data 0 bg_running 0} -cleanup {
+} -result {send_char 0 send_stat 0 controlled_exit 0 send_data 0 send_init_data 0 bg_running 0 send_raw_evt 0 event_init 0 event_batch 0} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -677,7 +677,7 @@ test test-33 {check quit command sending that triggers controlled exit of ngspic
     $s1 command quit
     update
     $s1 eventcounts
-} -result {send_char * send_stat * controlled_exit 0 send_data 0 send_init_data 0 bg_running 0} -cleanup {
+} -result {send_char * send_stat * controlled_exit 0 send_data 0 send_init_data 0 bg_running 0 send_raw_evt 0 event_init 0 event_batch 0} -cleanup {
     $s1 destroy
     unset s1
 }
@@ -689,7 +689,7 @@ test test-34 {check run command, that blocks the caller until the simulation is 
     $s1 command run
     update
     $s1 eventcounts
-} -match glob -result {send_char * send_stat * controlled_exit 0 send_data * send_init_data 1 bg_running 0} -cleanup {
+} -match glob -result {send_char * send_stat * controlled_exit 0 send_data * send_init_data 1 bg_running 0 send_raw_evt 0 event_init 0 event_batch 0} -cleanup {
     $s1 destroy
     unset s1
 }

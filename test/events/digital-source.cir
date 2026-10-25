@@ -1,0 +1,6 @@
+Pure digital source (adapted from ngspice examples/xspice/d_source/d_source.cir)
+* Keep the original eleven-output stimulus; omit the other two sources and GUI/control commands.
+a_source [a1 a2 a3 a4 a5 a6 a7 a8 a9 aa ab] d_source1
+.model d_source1 d_source (input_file="d_source-stimulus.txt")
+.tran 100ps 30ns
+.end

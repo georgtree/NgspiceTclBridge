@@ -18,7 +18,8 @@
 PKG_SOURCES = @PKG_SOURCES@
 PKG_OBJECTS = @PKG_OBJECTS@
 DOC_HTML_FILES = @DOC_HTML_FILES@
-DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c test/mockngspice.c test/rbc.test test/rbc-graph.test test/rbc-support.tcl test/rbc-graph-real.test test/command-memory-real.test
+DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c test/mockngspice.c test/rbc.test test/rbc-graph.test test/rbc-support.tcl test/rbc-graph-real.test test/command-memory-real.test test/events.test test/events-real.test test/events-optional.test test/events/LICENSE.ngspice test/events/README.md \
+        test/events/d_source-stimulus.txt test/events/digital-source.cir test/events/mixed-invert.cir
 
 PKG_STUB_SOURCES = @PKG_STUB_SOURCES@
 PKG_STUB_OBJECTS = @PKG_STUB_OBJECTS@
@@ -157,6 +158,21 @@ test-memory: $(MEMORY_TEST)
 MOCK_NGSPICE = mock$(PKG_LIB_FILE)
 $(MOCK_NGSPICE): $(srcdir)/test/mockngspice.c $(srcdir)/generic/sharedspice.h
 	$(SHLIB_LD) $(CPPFLAGS) $(DEFS) $(INCLUDES) -UUSE_TCL_STUBS $(LDFLAGS) -o $@ $(srcdir)/test/mockngspice.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
+
+ngspicetclbridge.@OBJEXT@: $(srcdir)/generic/ngspicetclbridge.h
+
+.PHONY: test-events test-events-real
+MOCK_NO_RAW = noraw$(PKG_LIB_FILE)
+$(MOCK_NO_RAW): $(srcdir)/test/mockngspice.c $(srcdir)/generic/sharedspice.h
+	$(SHLIB_LD) $(CPPFLAGS) $(DEFS) $(INCLUDES) -UUSE_TCL_STUBS -DMOCK_NO_RAW_EVENTS $(LDFLAGS) -o $@ $(srcdir)/test/mockngspice.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
+
+test-events: binaries $(MOCK_NGSPICE) $(MOCK_NO_RAW)
+	$(PKG_ENV) $(TCLSH) $(srcdir)/test/events.test --rbc-fixture $(PKG_LIB_FILE) $(MOCK_NGSPICE)
+	$(PKG_ENV) $(TCLSH) $(srcdir)/test/events-optional.test --rbc-fixture $(PKG_LIB_FILE) $(MOCK_NO_RAW)
+
+NGSPICE_CODEMODEL_DIR ?=
+test-events-real: binaries
+	$(PKG_ENV) $(TCLSH) $(srcdir)/test/events-real.test --real-events "$(PKG_LIB_FILE)" "$(NGSPICE_LIBRARY)" "$(NGSPICE_CODEMODEL_DIR)"
 
 test-rbc: binaries $(MOCK_NGSPICE)
 	$(PKG_ENV) $(TCLSH) $(srcdir)/test/rbc.test --rbc-fixture $(PKG_LIB_FILE) $(MOCK_NGSPICE)
@@ -325,7 +341,7 @@ dist-zip: dist
 # Cleaning of building files
 #========================================================================
 clean:
-	-rm -f $(MEMORY_TEST) $(MOCK_NGSPICE)
+	-rm -f $(MEMORY_TEST) $(MOCK_NGSPICE) $(MOCK_NO_RAW)
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)

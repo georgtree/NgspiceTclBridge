@@ -13,7 +13,7 @@
 #include "sharedspice.h"
 #include "portable_dl.h"
 
-enum CallbacksIds { SEND_CHAR, SEND_STAT, CONTROLLED_EXIT, SEND_DATA, SEND_INIT_DATA, BG_THREAD_RUNNING, NUM_EVTS };
+enum CallbacksIds { SEND_CHAR, SEND_STAT, CONTROLLED_EXIT, SEND_DATA, SEND_INIT_DATA, BG_THREAD_RUNNING, SEND_RAW_EVT, EVENT_INIT, EVENT_BATCH, NUM_EVTS };
 typedef enum { NGSPICE_WAIT_OK, NGSPICE_WAIT_TIMEOUT, NGSPICE_WAIT_ABORTED } wait_rc;
 /* Dvec flags from dvec.h of ngspice source files */
 enum dvec_flags {
@@ -134,8 +134,12 @@ typedef int (*ngSpice_UnlockRealloc_t)(void);
 
 //** define ngspice per-instance context structure
 typedef struct BridgeRbc BridgeRbc;
+typedef struct BridgeEvents BridgeEvents;
+typedef int (BridgeRawCallback)(double, void *, void *, int);
+typedef int (*BridgeRawRegister)(const char *, BridgeRawCallback *, void *);
+typedef int (*BridgeRawDecode)(void *, int, double *, const char **);
 
-typedef struct {
+typedef struct NgSpiceContext {
     /*------------------------------------------------------------------------------------------------------------------
      * Dynamic library and function pointers (ngspice shared library symbols)
      *-----------------------------------------------------------------------------------------------------------------*/
@@ -150,6 +154,9 @@ typedef struct {
     ngGet_Evt_NodeInfo_t ngGet_Evt_NodeInfo;       /* Event-driven node information query */
     ngSpice_AllEvtNodes_t ngSpice_AllEvtNodes;     /* Enumerate all event-driven nodes */
     ngSpice_Init_Evt_t ngSpice_Init_Evt;           /* Event-mode initialization */
+    BridgeRawRegister rawRegister;              /* Optional ngSpice_Raw_Evt symbol. */
+    BridgeRawDecode rawDecode;                  /* Optional ngSpice_Decode_Evt symbol. */
+    BridgeEvents *events;                       /* C-owned string histories; protected by mutex. */
     ngSpice_Circ_t ngSpice_Circ;                   /* Send entire circuit deck */
     ngSpice_CurPlot_t ngSpice_CurPlot;             /* Get current plot name */
     ngSpice_AllPlots_t ngSpice_AllPlots;           /* Enumerate all available plots */
