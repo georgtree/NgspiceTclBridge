@@ -644,8 +644,9 @@ event-loop turn\&. Reads and flush never force partial batches to be published\&
 command documentation for result layouts and clear/resume behavior\&.
 .PP
 This initial implementation targets externally driven transient analyses with the normal time output enabled and no
-nonzero transient output-start time\&. Use a new handle to replace/reset/switch a circuit after registering raw nodes;
-raw registrations are retained for the handle lifetime\&. Scripts/aliases that replace circuits are unsupported\&.
+nonzero transient output-start time\&. Use the circuit subcommand while idle to replace a circuit after registering
+raw nodes\&. Mode and -all are retained; explicit selections and histories are cleared\&. Direct circuit-changing
+commands and scripts/aliases remain unsupported\&.
 Older libraries lacking the raw symbols still load for analog use; eventnodes reports supported 0\&.
 .PP
 Snapshot histories cost approximately nodes × samples; prefer changes/pernode for large circuits
@@ -679,9 +680,14 @@ stored history, and support the usual -since and explicit counter reset semantic
 A new plot clears histories and known states\&. Resume of the current plot keeps both\&. eventdata -clear
 drops stored/pending records but retains selection and latest states for subsequent carried-forward
 snapshots\&. Numeric vectors -clear and command -clear do not clear digital histories\&. Registration contexts
-are released only after callbacks cease during handle destruction\&. This first version requires a fresh
-handle for circuit replacement/reset/switching, and normal transient output from time zero\&. It does not
-support circuit-changing scripts, analysis control workers, or non-transient event batching\&.
+are released after native remcirc destroys the old circuit callback chains, or during final handle teardown\&.
+Both list and string circuit loading reserve an idle command boundary and remove the previous circuit first\&.
+Replacing a circuit is destructive; a failed load does not restore the old circuit\&. The event mode and -all
+policy survive replacement, including an intermediate circuit with no digital nodes\&. Explicit -nodes
+selections do not survive\&. Automatic registration errors leave the new circuit loaded and are reported
+to the caller\&. Circuit replacement does not reset event counters; automatic -all registration increments
+event_init as an ordinary configuration does\&. Normal transient output from time zero is required\&.
+Circuit-changing scripts, analysis control workers, and non-transient event batching are unsupported\&.
 .SS "NATIVE WORKER THREAD CLEANUP"
 .PP
 Ngspice creates native background threads\&. Tcl allocations made by the callbacks initialize thread-local

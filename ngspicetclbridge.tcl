@@ -53,8 +53,10 @@ proc ::ngspicetclbridge::new {args} {
     #  -nospinit - inhibits spinit
     #  -nospiceinit - inhibits spiceinit
     #  -noinit - inhibit both spinit and spiceinit
-    #  -output - list or vector; inherits the package configuration (initially list); controls live storage and snapshots
-    #  -ifexists - error or replace for initial vector destinations; inherits the package configuration (initially error)
+    #  -output - list or vector; inherits the package configuration (initially list); controls live storage and
+    #   snapshots
+    #  -ifexists - error or replace for initial vector destinations; inherits the package configuration (initially
+    #   error)
     #  -namespace - destination for live vectors and snapshots; created at handle construction if missing
     #
     # Namespace:
@@ -96,12 +98,14 @@ proc ::ngspicetclbridge::SIM::eventnodes {handle args} {
     # -nodes names - Select an explicit list; an empty list disables recording.
     # -mode mode - changes, snapshot or pernode; initially changes.
     #
-    # Call after loading the circuit and while idle, before run/bg_run. Without options, returns supported,
-    # available, selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.
-    # Each node is registered once per handle. Changing selection or mode clears event history and known states.
-    # Resume retains registrations and histories. Disabled registrations remain alive until handle destruction.
-    # This first implementation supports externally driven transient analyses. After registering nodes, use a
-    # new handle to replace/reset/switch the circuit. Do not change circuits through scripts or aliases.
+    # Call after loading the circuit and while idle, before run/bg_run. Without options, returns supported, available,
+    # selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.  Each node is
+    # registered once per loaded circuit. Changing selection or mode clears event history and known states.  Resume
+    # retains registrations and histories. Disabled registrations remain alive until circuit replacement or handle
+    # destruction.  Event collection supports externally driven transient analyses. After registering nodes, use the
+    # circuit subcommand to replace the circuit while idle. Mode and -all are retained; explicit -nodes selections,
+    # known states and histories are cleared. Direct source/reset/remcirc/setcirc/circbyline commands and
+    # circuit-changing scripts or aliases remain unsupported.
     #
     # All modes collect through SendRawEvtData and preserve ngspice's printable strings, including drive strength.
     # changes publishes complete accepted-step batches; snapshot publishes every selected node at accepted analog
@@ -131,11 +135,11 @@ proc ::ngspicetclbridge::SIM::eventdata {handle args} {
     # last is only the end of ONE node's native batch, never an all-nodes completion marker. Event times can be
     # out of order across nodes; callback order and repeated same-time transitions are preserved.
     #
-    # Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or
-    # flush cannot complete a partially delivered timestep. Clear does not erase ngspice's own saved event data
-    # or reset counters; later callbacks continue recording. A fresh plot clears histories; halt/resume preserves them.
-    # Decoder errors are retained and returned here until a new plot or configuration resets them.
-    # Numeric -output/-namespace/-ifexists settings do not apply; event values are always Tcl strings.
+    # Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or flush
+    # cannot complete a partially delivered timestep. Clear does not erase ngspice's own saved event data or reset
+    # counters; later callbacks continue recording. A fresh plot clears histories; halt/resume preserves them.  Decoder
+    # errors are retained and returned here until a new plot or configuration resets them.  Numeric
+    # -output/-namespace/-ifexists settings do not apply; event values are always Tcl strings.
     #
     # Synopsis: ?-clear?
     # Returns: dictionary of published event data.
@@ -146,11 +150,11 @@ proc ::ngspicetclbridge::SIM::eventdata {handle args} {
 }
 
 proc ::ngspicetclbridge::SIM::command {handle args} {
-    # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`). If
-    # we provide `-capture` switch, it returns not only the result code, but also the next message from stdout
-    # of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be
-    # deferred to the time is could be safely sent, and in that case `-capture` message and command results code
-    # are not availaible as a return of `command`.
+    # Sends an arbitrary Ngspice command line (e.g., `bg_run`, `circbyline` ..., `.save`, `.tran`, `.dc`). If we provide
+    # `-capture` switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if
+    # command is send in the moment background thread is starting or stopping, it will be deferred to the time is could
+    # be safely sent, and in that case `-capture` message and command results code are not availaible as a return of
+    # `command`.
     #  -capture - Return captured output along with the result code.
     #  -clear - Release retained ngspice command memory at an idle boundary.
     #  string - Command string; omitted with -clear.
@@ -218,6 +222,11 @@ proc ::ngspicetclbridge::SIM::circuit {handle args} {
     # Returns: Ngspice result code
     #
     # The handle argument is supplied automatically when called as $handle circuit.
+    #
+    # Loading a replacement requires an idle simulator. The old circuit is removed before loading the new one; a load
+    # failure does not restore it. Raw event histories and explicit node selections are cleared. The event mode and -all
+    # selection are retained, with -all resolved against the new circuit before this call returns.  If automatic event
+    # registration fails, the new circuit remains loaded and this command reports an error.
     set arguments [argparse -inline -mixed -help {Load a circuit netlist.} {
         {-string -help {Interpret the circuit as newline-separated text instead of a Tcl list}}
         {value -help {Circuit netlist}}

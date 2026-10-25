@@ -409,16 +409,20 @@ separator between netlists lines.</p>
 </pre></div>
 </div>
 <p>The handle argument is supplied automatically when called as <code class="docutils literal notranslate"><span class="pre">$handle</span></code> circuit.</p>
+<p>Loading a replacement requires an idle simulator. The old circuit is removed before loading the new one; a load
+failure does not restore it. Raw event histories and explicit node selections are cleared. The event mode and -all
+selection are retained, with -all resolved against the new circuit before this call returns.  If automatic event
+registration fails, the new circuit remains loaded and this command reports an error.</p>
 <p class="rubric">Return value</p>
 <p>Ngspice result code</p>
 </section>
 <section id="sim-command">
 <span id="r-symbolqz3a3angspicetclbridge3a3asim20command"></span><span id="index-27"></span><span id="index-26"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code><a class="headerlink" href="#sim-command" title="Link to this heading">¶</a></h3>
-<p>Sends an arbitrary Ngspice command line (e.g., <code class="docutils literal notranslate"><span class="pre">bg_run</span></code>, <code class="docutils literal notranslate"><span class="pre">circbyline</span></code> …, <code class="docutils literal notranslate"><span class="pre">.save</span></code>, <code class="docutils literal notranslate"><span class="pre">.tran</span></code>, <code class="docutils literal notranslate"><span class="pre">.dc</span></code>). If
-we provide <code class="docutils literal notranslate"><span class="pre">-capture</span></code> switch, it returns not only the result code, but also the next message from stdout
-of Ngspice. Also, if command is send in the moment background thread is starting or stopping, it will be
-deferred to the time is could be safely sent, and in that case <code class="docutils literal notranslate"><span class="pre">-capture</span></code> message and command results code
-are not availaible as a return of <code class="docutils literal notranslate"><span class="pre">command</span></code>.</p>
+<p>Sends an arbitrary Ngspice command line (e.g., <code class="docutils literal notranslate"><span class="pre">bg_run</span></code>, <code class="docutils literal notranslate"><span class="pre">circbyline</span></code> …, <code class="docutils literal notranslate"><span class="pre">.save</span></code>, <code class="docutils literal notranslate"><span class="pre">.tran</span></code>, <code class="docutils literal notranslate"><span class="pre">.dc</span></code>). If we provide
+<code class="docutils literal notranslate"><span class="pre">-capture</span></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if
+command is send in the moment background thread is starting or stopping, it will be deferred to the time is could
+be safely sent, and in that case <code class="docutils literal notranslate"><span class="pre">-capture</span></code> message and command results code are not availaible as a return of
+<code class="docutils literal notranslate"><span class="pre">command</span></code>.</p>
 <pre class="literal-block"><strong>SIM command</strong> <em>?-capture? string</em>
 <strong>SIM command</strong> <em>-clear</em></pre>
 <p class="rubric">Parameters</p>
@@ -524,11 +528,11 @@ In snapshot mode batches contains {time sampleTime values {node stringValue …}
 An uninitialized node has an empty value and is absent from known; this differs from ngspice’s explicit U state.
 last is only the end of ONE node’s native batch, never an all-nodes completion marker. Event times can be
 out of order across nodes; callback order and repeated same-time transitions are preserved.</p>
-<p>Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or
-flush cannot complete a partially delivered timestep. Clear does not erase ngspice’s own saved event data
-or reset counters; later callbacks continue recording. A fresh plot clears histories; halt/resume preserves them.
-Decoder errors are retained and returned here until a new plot or configuration resets them.
-Numeric -output/-namespace/-ifexists settings do not apply; event values are always Tcl strings.</p>
+<p>Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or flush
+cannot complete a partially delivered timestep. Clear does not erase ngspice’s own saved event data or reset
+counters; later callbacks continue recording. A fresh plot clears histories; halt/resume preserves them.  Decoder
+errors are retained and returned here until a new plot or configuration resets them.  Numeric
+-output/-namespace/-ifexists settings do not apply; event values are always Tcl strings.</p>
 <p class="rubric">Return value</p>
 <p>dictionary of published event data.</p>
 </section>
@@ -552,12 +556,14 @@ Numeric -output/-namespace/-ifexists settings do not apply; event values are alw
 </dd>
 </dl>
 <p class="rubric">Description</p>
-<p>Call after loading the circuit and while idle, before run/bg_run. Without options, returns supported,
-available, selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.
-Each node is registered once per handle. Changing selection or mode clears event history and known states.
-Resume retains registrations and histories. Disabled registrations remain alive until handle destruction.
-This first implementation supports externally driven transient analyses. After registering nodes, use a
-new handle to replace/reset/switch the circuit. Do not change circuits through scripts or aliases.</p>
+<p>Call after loading the circuit and while idle, before run/bg_run. Without options, returns supported, available,
+selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.  Each node is
+registered once per loaded circuit. Changing selection or mode clears event history and known states.  Resume
+retains registrations and histories. Disabled registrations remain alive until circuit replacement or handle
+destruction.  Event collection supports externally driven transient analyses. After registering nodes, use the
+circuit subcommand to replace the circuit while idle. Mode and -all are retained; explicit -nodes selections,
+known states and histories are cleared. Direct source/reset/remcirc/setcirc/circbyline commands and
+circuit-changing scripts or aliases remain unsupported.</p>
 <p>All modes collect through SendRawEvtData and preserve ngspice’s printable strings, including drive strength.
 changes publishes complete accepted-step batches; snapshot publishes every selected node at accepted analog
 output times, carrying unchanged values forward; pernode exposes individual events immediately.

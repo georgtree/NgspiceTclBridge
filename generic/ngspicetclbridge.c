@@ -1457,6 +1457,7 @@ struct BridgeEvents {
     EventNode *nodes;
     EventFrame *head, *tail, *open;
     int mode;                           /* changes, snapshot, pernode */
+    int selectAll;                      /* Reapply -all after circuit replacement. */
     int hasSample;
     double sampleTime;
     char *error;
@@ -1753,7 +1754,7 @@ static int EventsRawCallback(double time, void *value, void *user, int last) {
  *      Release all histories and registrations after native callbacks have ceased.
  *
  * Parameters:
- *      NgSpiceContext *ctx - input/output: handle in final teardown after callbacks cease.
+ *      NgSpiceContext *ctx - input/output: handle after native circuit destruction or final teardown; callbacks must have ceased.
  *
  * Results:
  *      None.
@@ -2051,6 +2052,7 @@ static int EventsCommand(NgSpiceContext *ctx, Tcl_Interp *interp, const char *su
         }
         Tcl_MutexLock(&ctx->mutex);
         e->mode = mode;
+        if (wanted) e->selectAll = Arg(args, "all") != NULL;
         if (wanted)
             for (EventNode *n = e->nodes; n; n = n->next) {
                 n->selected = 0;
@@ -2079,6 +2081,89 @@ done:
     Tcl_DecrRefCount(available);
     Tcl_DecrRefCount(selected);
     return code;
+}
+
+//***  ReplaceCircuit function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * ReplaceCircuit --
+ *
+ *      Replaces the native circuit at an idle boundary and renews circuit-owned raw event registrations.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: owning handle, on its interpreter thread.
+ *      Tcl_Interp *interp - output: native return code or boundary/registration error.
+ *      char **circuit - input: NULL-terminated circuit lines, borrowed until this function returns.
+ *
+ * Results:
+ *      TCL_OK with the native load result, or TCL_ERROR if busy or automatic registration fails.
+ *
+ * Side Effects:
+ *      Reserves commandActive before removing the circuit. Native remcirc destroys raw callback records before
+ *      their bridge contexts are freed. Clears digital histories and explicit selection, retaining mode and -all.
+ *      Replacement is destructive: a failed load does not restore the previous circuit. Direct circuit-changing
+ *      scripts remain unsupported. Re-registration occurs after releasing the command reservation while idle.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int ReplaceCircuit(NgSpiceContext *ctx, Tcl_Interp *interp, char **circuit) {
+    Tcl_MutexLock(&ctx->bg_mu);
+    Tcl_MutexLock(&ctx->cmd_mu);
+    Tcl_MutexLock(&ctx->exit_mu);
+    int busy = ctx->exited || ctx->destroying || ctx->state != NGSTATE_IDLE || ctx->commandActive ||
+               ctx->pending_head || ctx->ngSpice_running();
+    Tcl_MutexUnlock(&ctx->exit_mu);
+    Tcl_MutexUnlock(&ctx->cmd_mu);
+    if (!busy) {
+        ++ctx->commandActive;
+    }        
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    if (busy) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("circuit replacement requires an idle simulator", -1));
+        return TCL_ERROR;
+    }
+    int hadEvents = ctx->events != NULL;
+    int mode = hadEvents ? ctx->events->mode : 0;
+    int selectAll = hadEvents ? ctx->events->selectAll : 0;
+    int rc = 0;
+    if (ctx->has_circuit) {
+        rc = ctx->ngSpice_Command("remcirc");
+        if (rc != 0) {
+            goto release;
+        }            
+        ctx->has_circuit = 0;
+    }
+    /* Evt_Info_destroy has now released the native callback chain. */
+    EventsDestroy(ctx);
+    if (hadEvents) {
+        ctx->events = Tcl_Alloc(sizeof *ctx->events);
+        memset(ctx->events, 0, sizeof *ctx->events);
+        ctx->events->mode = mode;
+        ctx->events->selectAll = selectAll;
+    }
+    for (int i = 0; circuit[i]; ++i) {
+        CheckCommandCleanupSafety(ctx, circuit[i]);
+    }        
+    rc = ctx->ngSpice_Circ(circuit);
+    /* Even a failed parse may leave a partial native circuit requiring remcirc next time. */
+    ctx->has_circuit = 1;
+release:
+    Tcl_MutexLock(&ctx->bg_mu);
+    --ctx->commandActive;
+    Tcl_MutexUnlock(&ctx->bg_mu);
+    if (rc == 0 && selectAll) {
+        Tcl_Obj *options = Tcl_NewDictObj();
+        Tcl_IncrRefCount(options);
+        Tcl_DictObjPut(interp, options, Tcl_NewStringObj("all", -1), Tcl_NewObj());
+        int code = EventsCommand(ctx, interp, "eventnodes", options);
+        Tcl_DecrRefCount(options);
+        if (code != TCL_OK) {
+            return code;
+        }            
+    }
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
+    return TCL_OK;
 }
 
 //***  ExecuteCommand function
@@ -3466,7 +3551,7 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         int do_capture = Arg(args, "capture") != NULL;
         const char *cmd = Tcl_GetString(Arg(args, "string"));
         if (EventsCircuitCommand(ctx, cmd)) {
-            Tcl_SetObjResult(interp, Tcl_NewStringObj("create a new handle to change circuits after raw event registration", -1));
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("use the circuit subcommand to replace a circuit after raw event registration", -1));
             code = TCL_ERROR;
             goto done;
         }
@@ -3526,46 +3611,35 @@ static int InstObjCmd(ClientData cdata, Tcl_Interp *interp, Tcl_Size objc, Tcl_O
         }
     }
     if (strcmp(sub, "circuit") == 0) {
-        if (ctx->events) {
-            Tcl_SetObjResult(interp, Tcl_NewStringObj("create a new handle to replace a circuit after raw event registration", -1));
-            code = TCL_ERROR;
-            goto done;
-        }
         if (CheckArgs(interp, args, "value") != TCL_OK) {code = TCL_ERROR; goto done;}
         int split_string = Arg(args, "string") != NULL;
         Tcl_Size cirLinesListLen;
         char **circuit;
-        if (split_string == 1) {
+        if (split_string) {
             circuit = splitStringByNewline(Tcl_GetString(Arg(args, "value")), &cirLinesListLen);
-        } else {
-            Tcl_Obj **cirLinesElems;
-            if (Tcl_ListObjGetElements(interp, Arg(args, "value"), &cirLinesListLen, &cirLinesElems) != TCL_OK) {
-                Tcl_SetObjResult(interp, Tcl_NewStringObj("error getting circuit list", -1));
+            if (!circuit) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("cannot allocate circuit lines", -1));
                 code = TCL_ERROR;
                 goto done;
             }
-            if (ctx->has_circuit == 1) {
-                ctx->ngSpice_Command("remcirc");
-                ctx->has_circuit = 0;
+        } else {
+            Tcl_Obj **cirLinesElems;
+            if (Tcl_ListObjGetElements(interp, Arg(args, "value"), &cirLinesListLen, &cirLinesElems) != TCL_OK) {
+                code = TCL_ERROR;
+                goto done;
             }
-            circuit = Tcl_Alloc(((size_t)cirLinesListLen + (size_t)1) * sizeof(char *));
-            for (Tcl_Size i = 0; i < cirLinesListLen; ++i) {
-                circuit[i] = Tcl_GetString(cirLinesElems[i]);
-            }
+            circuit = Tcl_Alloc(((size_t)cirLinesListLen + 1) * sizeof(char *));
+            for (Tcl_Size i = 0; i < cirLinesListLen; ++i) circuit[i] = Tcl_GetString(cirLinesElems[i]);
+        }
+        if (split_string) {
+            circuit = Tcl_Realloc(circuit, ((size_t)cirLinesListLen + 1) * sizeof(char *));
         }
         circuit[cirLinesListLen] = NULL;
-        Tcl_MutexLock(&ctx->bg_mu);
-        ++ctx->commandActive;
-        for (Tcl_Size i = 0; i < cirLinesListLen; ++i) CheckCommandCleanupSafety(ctx, circuit[i]);
-        Tcl_MutexUnlock(&ctx->bg_mu);
-        int rc = ctx->ngSpice_Circ(circuit);
-        Tcl_MutexLock(&ctx->bg_mu);
-        --ctx->commandActive;
-        Tcl_MutexUnlock(&ctx->bg_mu);
-        ctx->has_circuit = 1;
+        code = ReplaceCircuit(ctx, interp, circuit);
+        if (split_string) {
+            for (Tcl_Size i = 0; i < cirLinesListLen; ++i) Tcl_Free(circuit[i]);
+        }
         Tcl_Free(circuit);
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(rc));
-        code = TCL_OK;
         goto done;
     }
     if (strcmp(sub, "inputpath") == 0) {

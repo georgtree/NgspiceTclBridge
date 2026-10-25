@@ -119,7 +119,6 @@ foreach {circuit nodeCount stopTime numericCount} {
                 set rawCount [dict get $counts send_raw_evt]
                 set saved $data
                 completeRun $s
-                puts [$s eventdata]
                 require {[histories [$s eventdata]] eq $reference} {rerun duplicates or loses raw events}
                 require {[dict get [$s eventcounts] send_raw_evt] == 2*$rawCount} {duplicate raw registration on rerun}
                 require {$saved eq $data} {returned snapshot mutated}
@@ -180,6 +179,54 @@ test events-real-halt-resume {breakpoint halt commits final events; resume retai
     require {[lrange [dict get $after batches] 0 $length-1] eq [dict get $before batches]}\
             {resume changed existing snapshots}
     require {abs([dict get [lindex [dict get $after batches] end] time]-1e-6)<1e-15} {resume did not finish}
+    set result ok
+} -cleanup {
+    if {[info exists s]} {
+        catch {$s destroy}
+    }
+} -result ok
+
+test events-real-replace {one handle replaces mixed, digital and analog circuits in both input forms} -body {
+    set s [realEventSim mixed-invert.cir]
+    foreach mode {changes snapshot pernode} {
+        $s eventnodes -all -mode $mode
+        foreach circuit {digital-source.cir mixed-invert.cir digital-source.cir} form {string list string} {
+            set f [open [file join $fixtureDir $circuit]]
+            try {
+                set deck [read $f]
+            } finally {
+                close $f
+            }
+            if {$form eq {string}} {
+                require {[$s circuit -string $deck] == 0} {replacement failed}
+            } else {
+                require {[$s circuit [split [string trim $deck] \n]] == 0} {replacement failed}
+            }
+            set info [$s eventnodes]
+            set expected [expr {$circuit eq {mixed-invert.cir} ? 6 : 11}]
+            require {[llength [dict get $info selected]] == $expected} {all did not follow new nodes}
+            require {[dict get $info mode] eq $mode} {mode lost}
+            require {[dict get [$s eventdata] batches] eq {}} {old batches survived}
+            $s eventcounts -clear
+            completeRun $s
+            require {[dict get [$s eventcounts] send_raw_evt] > 0} {new circuit did not deliver events}
+            set data [$s eventdata]
+            require {[dict size [dict get $data nodes]] == $expected} {old nodes survived}
+        }
+        # -all remains selected across a circuit with no digital nodes.
+        $s circuit -string "analog only\nv1 in 0 1\nr1 in 0 1k\n.tran 1n 10n\n.end"
+        require {[dict get [$s eventnodes] selected] eq {}} {analog circuit retained digital nodes}
+        completeRun $s
+    }
+    set f [open [file join $fixtureDir mixed-invert.cir]]
+    try {set deck [read $f]} finally {close $f}
+    $s circuit -string $deck
+    require {[llength [dict get [$s eventnodes] selected]] == 6} {all lost across analog circuit}
+    $s eventnodes -nodes [lrange [dict get [$s eventnodes] available] 0 0]
+    $s circuit -string $deck
+    require {[dict get [$s eventnodes] selected] eq {}} {explicit selection survived replacement}
+    $s eventnodes -all
+    completeRun $s
     set result ok
 } -cleanup {
     if {[info exists s]} {

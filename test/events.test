@@ -110,12 +110,13 @@ test events-7 {raw counters, batch counters and since semantics are independent}
             [dict get $done event_batch] [dict get $done event_init]
 } -cleanup {clean $s} -result {2 0 ok 1 1}
 
-test events-8 {configuration while running and circuit replacement are rejected} -body {
+test events-8 {configuration and circuit replacement while running are rejected} -body {
     set s [eventSim changes]
     $s command mock_evt_start
     set busy [catch {$s eventnodes -mode pernode}]
+    set replaceBusy [catch {$s circuit {replacement .end}}]
     $s command mock_evt_stop
-    list $busy [catch {$s circuit {replacement .end}}] [catch {$s command reset}] [catch {$s eventnodes -all -nodes a}]
+    list $busy $replaceBusy [catch {$s command reset}] [catch {$s eventnodes -all -nodes a}]
 } -cleanup {clean $s} -result {1 1 1 1}
 
 test events-9 {selection limits histories; mode change clears and reuses registrations} -body {
@@ -150,5 +151,42 @@ test events-11 {query after controlled exit is rejected without touching the des
     catch {$s eventnodes} message
     set message
 } -cleanup {clean $s} -result {event node discovery/configuration requires an idle simulator}
+
+test events-replace-1 {replacement clears records and renews all registrations, preserving mode} -body {
+    set s [eventSim pernode]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s command mock_evt_stop
+    set saved [$s eventdata]
+    $s circuit -string "replacement\n.end"
+    set empty [$s eventdata]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s command mock_evt_stop
+    list [dict get $empty mode] [dict get $empty nodes a events] [$s command mock_evt_registrations]\
+            [expr {[dict get [$s eventdata] nodes a events] eq [dict get $saved nodes a events]}]
+} -cleanup {clean $s} -result {pernode {} 6 1}
+
+test events-replace-2 {explicit selection clears; mode remains; later selection registers only once} -body {
+    set s [eventSim snapshot]
+    $s eventnodes -nodes a
+    $s circuit {replacement .end}
+    set info [$s eventnodes]
+    $s eventnodes -nodes b
+    $s eventnodes -nodes b
+    list [dict get $info mode] [dict get $info selected] [$s command mock_evt_registrations]
+} -cleanup {clean $s} -result {snapshot {} 4}
+
+test events-replace-3 {failed replacement leaves empty event data and allows retry with retained all policy} -body {
+    set s [eventSim changes]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s command mock_evt_stop
+    set rc [$s circuit -string "mock_bad_deck\nr1 1 0 1k\nv1 1 0 1\n.end"]
+    set empty [$s eventdata]
+    $s circuit -string "good\nr1 1 0 1k\nv1 1 0 1\n.end"
+    list $rc [dict get $empty nodes] [dict get $empty batches] [llength [dict get [$s eventnodes] selected]]\
+            [$s command mock_evt_registrations]
+} -cleanup {clean $s} -result {1 {} {} 3 6}
 
 finishTests

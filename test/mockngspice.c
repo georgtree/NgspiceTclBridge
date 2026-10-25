@@ -173,6 +173,10 @@ int ngSpice_Command(char *command) {
     if (!strcmp(command, "mock_clear_count")) return commandClears;
 
 #ifndef MOCK_NO_RAW_EVENTS
+    if (!strcmp(command, "remcirc")) {
+        memset(rawContext, 0, sizeof rawContext);
+        return 0;
+    }
     if (!strcmp(command, "mock_evt_registrations")) return rawRegistrations;
     if (!strcmp(command, "mock_evt_start")) {
         running = 1;
@@ -314,7 +318,9 @@ char **ngSpice_AllEvtNodes(void) {
 
 int ngSpice_Init_Evt(SendEvtData *a, SendInitEvtData *b, void *c) { return 0; }
 
-int ngSpice_Circ(char **circuit) { return 0; }
+int ngSpice_Circ(char **circuit) {
+    return circuit && circuit[0] && !strcmp(circuit[0], "mock_bad_deck") ? 1 : 0;
+}
 
 char *ngSpice_CurPlot(void) { return "tran1"; }
 
