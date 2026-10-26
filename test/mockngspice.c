@@ -41,7 +41,7 @@ static int staticMissing;
 typedef int (RawCallback)(double, void *, void *, int);
 static RawCallback *rawCallback;
 static void *rawContext[3];
-static int rawRegistrations;
+static int rawRegistrations, rawWorker;
 static char *rawNames[] = {"a", "b", "x1:internal", NULL};
 
 int ngSpice_Raw_Evt(const char *name, RawCallback *callback, void *ctx) {
@@ -78,7 +78,7 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
     staticMissing = 0;
     rawCallback = NULL;
     memset(rawContext, 0, sizeof rawContext);
-    rawRegistrations = 0;
+    rawRegistrations = rawWorker = 0;
 #endif
     fast = pausedMode = resuming = nextPlot = plotId = failStart = 0;
     sendExit = c;
@@ -169,6 +169,12 @@ static WORKER_RESULT Run(void *unused) {
             break;
         }
         Point();
+#ifndef MOCK_NO_RAW_EVENTS
+        if (rawWorker) {
+            RawPoint(0, times[length - 1], "1s", 1);
+            RawPoint(1, times[length - 1], "Uz", 1);
+        }
+#endif
         if (!burst) Tcl_Sleep(2);
     }
     Tcl_MutexLock(&mutex);
@@ -207,6 +213,7 @@ int ngSpice_Command(char *command) {
         return 0;
     }
     if (!strcmp(command, "mock_ac")) {StaticBegin("ac1"); StaticPoint(); return 0;}
+    if (!strcmp(command, "mock_evt_worker")) {rawWorker = 1; return 0;}
     if (!strcmp(command, "mock_evt_registrations")) return rawRegistrations;
     if (!strcmp(command, "mock_evt_start")) {
         running = 1;

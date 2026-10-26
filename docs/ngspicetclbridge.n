@@ -164,8 +164,20 @@ source build\&. Omit it to use code models loaded by your ngspice installation's
 .PP
 The real suite uses the upstream mixed-signal digital-inverter example and a purely digital source example\&. Their
 origins and adaptation details are in \fItest/events/README\&.md\fP\&. It checks all three
-modes, independent results, complete final batches, repeated runs, counters, and breakpoint halt/resume\&. RBC and Tk
-are not required\&.
+modes, independent results, complete final batches, counters, repeated halt/resume, clear/resume, circuit replacement,
+and transient/OP/DC transitions\&. Deterministic worker tests cover clearing committed and pending data while running\&.
+RBC and Tk are not required\&.
+.PP
+For longer repeat-run and clear checks with RSS diagnostics:
+.PP
+.RS 4n
+.nf
+make test-events-memory-real NGSPICE_LIBRARY=/path/to/libngspice\&.so NGSPICE_CODEMODEL_DIR=/path/to/ngspice/models NGSPICE_EVENT_RUNS=1000
+.fi
+.RE
+.PP
+The default is 200 iterations per circuit/mode combination\&. See \fItest/events/README\&.md\fP
+for cleanup policy, platform support, and the upstream plot-name reuse fix required by the new real regressions\&.
 .SH TESTING
 .PP
 The ordinary Tcl suite requires argparse, extexpr and a real ngspice shared library\&.  Set NGSPICE_DLL to its

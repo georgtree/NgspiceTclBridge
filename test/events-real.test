@@ -2,10 +2,16 @@
 if {[lindex $argv 0] ne {--real-events}} {
     return
 }
-if {[llength $argv] != 4} {
-    error {usage: tclsh events-real.test --real-events bridgeLibrary ngspiceLibrary codeModelDirectory}
+if {[llength $argv] ni {4 5}} {
+    error {usage: tclsh events-real.test --real-events bridgeLibrary ngspiceLibrary codeModelDirectory ?stressRuns?}
 }
-lassign [lrange $argv 1 end] bridgeLibrary ngspiceLibrary codeModelDirectory
+lassign [lrange $argv 1 end] bridgeLibrary ngspiceLibrary codeModelDirectory stressRuns
+if {$stressRuns eq {}} {
+    set stressRuns 0
+}
+if {![string is integer -strict $stressRuns] || $stressRuns < 0} {
+    error {stressRuns must be a nonnegative integer}
+}
 if {$ngspiceLibrary eq {}} {
     if {![info exists ::env(NGSPICE_DLL)]} {
         error {set NGSPICE_LIBRARY or NGSPICE_DLL}
@@ -162,28 +168,92 @@ foreach {circuit nodeCount stopTime numericCount} {
     } -result ok
 }
 
-test events-real-halt-resume {breakpoint halt commits final events; resume retains history and reaches final time}\
-        -body {
-    set s [realEventSim mixed-invert.cir]
-    $s eventnodes -all -mode snapshot
-    $s command {stop when time >= 5e-7}
-    completeRun $s
-    set before [$s eventdata]
-    set length [llength [dict get $before batches]]
-    require {$length > 0} {halt produced no snapshots}
-    $s command {delete all}
-    completeRun $s bg_resume
-    set after [$s eventdata]
-    require {[llength [dict get $after batches]] > $length} {resume produced no new snapshots}
-    require {[lrange [dict get $after batches] 0 $length-1] eq [dict get $before batches]}\
-            {resume changed existing snapshots}
-    require {abs([dict get [lindex [dict get $after batches] end] time]-1e-6)<1e-15} {resume did not finish}
-    set result ok
-} -cleanup {
-    if {[info exists s]} {
-        catch {$s destroy}
+# Breakpoints stop at accepted points, avoiding a race against short simulations.
+# Compare node histories with an uninterrupted run and snapshots with native accepted points.
+foreach {circuit stopTime} {mixed-invert.cir 1e-6 digital-source.cir 30e-9} {
+    foreach mode {changes snapshot pernode} {
+        test events-real-resume-$circuit-$mode {two halt/resume cycles match an uninterrupted run} -body {
+            set s [realEventSim $circuit]
+            $s eventnodes -all -mode $mode
+            completeRun $s
+            set reference [$s eventdata]
+            $s command "stop when time >= [expr {$stopTime * 0.3}]"
+            $s eventcounts -clear
+            completeRun $s
+            set first [$s eventdata]
+            require {$first ne $reference} {first halt did not interrupt simulation}
+            $s command {delete all}
+            $s command "stop when time >= [expr {$stopTime * 0.65}]"
+            completeRun $s bg_resume
+            set second [$s eventdata]
+            set secondTime [lindex [dict get [$s vectors] time] end]
+            require {$secondTime >= $stopTime * (0.65 - 1e-12) && $secondTime < $stopTime}\
+                    "second halt did not reach its breakpoint: $secondTime target=[expr {$stopTime * 0.65}]"
+            if {$mode eq {pernode}} {
+                dict for {name info} [dict get $first nodes] {
+                    set n [llength [dict get $info events]]
+                    require {[lrange [dict get $second nodes $name events] 0 $n-1] eq [dict get $info events]}\
+                            {resume changed node prefix}
+                }
+            } else {
+                set n [llength [dict get $first batches]]
+                require {[lrange [dict get $second batches] 0 $n-1] eq [dict get $first batches]}\
+                        {resume changed batch prefix}
+            }
+            $s command {delete all}
+            completeRun $s bg_resume
+            set final [$s eventdata]
+            if {$mode eq {snapshot}} {
+                # ngspice may change its accepted-point grid after resume.
+                require {[lmap b [dict get $final batches] {dict get $b time}] eq [dict get [$s vectors] time]}\
+                        {snapshots differ from accepted native points}
+                require {[dict get [lindex [dict get $final batches] end] values] eq\
+                                 [dict get [lindex [dict get $reference batches] end] values]}\
+                        {final states changed after resume}
+            } else {
+                require {[histories $final] eq [histories $reference]}\
+                        {halt/resume lost, duplicated or changed node events}
+            }
+            require {[dict get [$s eventcounts] event_init] == 1} {resume initialized a new plot}
+            require {[dict get [$s eventcounts] event_batch] == [dict get [$s eventcounts] send_data]}\
+                    {halt/resume batch count differs from accepted points}
+            # Clear at a halted boundary, then resume: the retained prefix must not return.
+            $s command "stop when time >= [expr {$stopTime * 0.3}]"
+            completeRun $s
+            set prefix [$s eventdata]
+            set cleared [$s eventdata -clear]
+            require {[dict get $cleared batches] eq {}} {clear retained batches}
+            $s command {delete all}
+            completeRun $s bg_resume
+            set suffix [$s eventdata]
+            if {$mode eq {pernode}} {
+                dict for {name info} [dict get $reference nodes] {
+                    set n [llength [dict get $prefix nodes $name events]]
+                    require {[dict get $suffix nodes $name events] eq [lrange [dict get $info events] $n end]}\
+                            "clear/resume changed history for $name"
+                }
+            } elseif {$mode eq {changes}} {
+                set joined $suffix
+                dict set joined batches [concat [dict get $prefix batches] [dict get $suffix batches]]
+                require {[histories $joined] eq [histories $reference]} {clear/resume changed node history}
+            } else {
+                set n [llength [dict get $prefix batches]]
+                require {[lmap b [dict get $suffix batches] {dict get $b time}] eq\
+                                 [lrange [dict get [$s vectors] time] $n end]}\
+                        {cleared snapshots returned or accepted points missing}
+                require {[dict get [lindex [dict get $suffix batches] end] values] eq\
+                                 [dict get [lindex [dict get $reference batches] end] values]}\
+                        {clear lost carried states}
+            }
+            set result ok
+        } -cleanup {
+            if {[info exists s]} {
+                catch {$s destroy}
+                unset s
+            }
+        } -result ok
     }
-} -result ok
+}
 
 test events-real-replace {one handle replaces mixed, digital and analog circuits in both input forms} -body {
     set s [realEventSim mixed-invert.cir]
@@ -298,6 +368,116 @@ test events-real-static {OP/DC all modes, subcircuit nodes, nested coordinates, 
         catch {$s destroy}
     }
 } -result ok
+
+foreach mode {changes snapshot pernode} {
+    test events-real-analysis-cycle-$mode {same circuit cycles transient OP DC transient with explicit selection}\
+            -body {
+        set s [realEventSim op-dc.cir]
+        $s eventnodes -nodes xlogic.d -mode $mode
+        set reference {}
+        $s eventcounts -clear
+        for {set cycle 0} {$cycle < 3} {incr cycle} {
+            set observed {}
+            foreach command {{tran 1n 10n} op {dc vin 0 2 1} {tran 1n 10n}} analysis {tran op dc tran} {
+                $s command {alter vin dc = 0}
+                require {[$s command $command] == 0} {analysis failed}
+                $s flush
+                set data [$s eventdata]
+                require {[dict get $data analysis] eq $analysis} {previous analysis survived}
+                require {[dict keys [dict get $data nodes]] eq {xlogic.d}} {explicit selection changed}
+                lappend observed $data
+            }
+            if {$cycle == 0} {set reference $observed}
+            require {$observed eq $reference} "analysis cycle $cycle retained stale history or changed states"
+            $s command {destroy all}
+            $s messages -clear
+            if {$codeModelDirectory ne {}} {$s command -clear}
+        }
+        require {[dict get [$s eventcounts] event_init] == 12} {wrong number of plot initializations}
+        set result ok
+    } -cleanup {if {[info exists s]} {catch {$s destroy}; unset s}} -result ok
+}
+
+# No RSS pass/fail threshold: native/Tcl allocators may retain freed arenas.
+# Exact histories and empty storage are assertions; RSS is a long-run diagnostic.
+if {$stressRuns > 0} {
+    source [file join [file dirname [info script]] rss-support.tcl]
+    foreach circuit {mixed-invert.cir digital-source.cir op-dc.cir} {
+        foreach mode {changes snapshot pernode} {
+            test events-real-stress-$circuit-$mode {repeated runs and clears keep only the current history} -body {
+                set s [realEventSim $circuit]
+                $s eventnodes -all -mode $mode
+                puts "$circuit/$mode start: RSS=[residentKiB] KiB"
+                set f [open [file join $fixtureDir $circuit]]
+                try {
+                    set deck [read $f]
+                } finally {
+                    close $f
+                }
+                # The conservative command cleanup guard rejects d_source and spinit.
+                set clearCommands [expr {$codeModelDirectory ne {} && $circuit ne {digital-source.cir}}]
+                if {!$clearCommands} {
+                    puts "$circuit/$mode: command allocator cleanup unavailable; RSS includes it"
+                }
+                set reference {}
+                for {set i 1} {$i <= $stressRuns} {incr i} {
+                    # Synchronous execution exercises the same callbacks without a new worker per run.
+                    require {[$s command run] == 0} {run failed}
+                    $s flush
+                    set data [$s eventdata]
+                    if {$circuit eq {op-dc.cir}} {
+                        require {[dict get $data analysis] eq {op}} {OP data missing}
+                        $s command {dc vin 0 2 1}
+                        $s flush
+                        set data [$s eventdata]
+                        # Restore the source for the next OP run.
+                        $s command {alter vin dc = 0}
+                    }
+                    if {$i == 1} {
+                        set reference $data
+                    }
+                    require {$data eq $reference} "run $i retained stale history or changed states"
+                    set empty [$s eventdata -clear]
+                    require {[dict get $empty batches] eq {}} {batches survived clear}
+                    if {$mode eq {pernode}} {
+                        dict for {name info} [dict get $empty nodes] {
+                            require {[dict get $info events] eq {}} {node history survived clear}
+                        }
+                    }
+                    # Clear other owners too, so RSS is not simply retained plots/messages/numeric samples.
+                    $s vectors -clear
+                    $s command {destroy all}
+                    $s messages -clear
+                    if {$clearCommands} {
+                        $s command -clear
+                    }
+                    # Native event jobs outlive numeric plots. Release them in bounded
+                    # groups, exercising same-handle circuit replacement and registration.
+                    if {$i % 25 == 0 || $i == $stressRuns} {
+                        require {[$s circuit -string $deck] == 0} {stress replacement failed}
+                        set replaced [$s eventdata]
+                        require {[dict get $replaced batches] eq {}} {replacement retained batches}
+                        require {[dict get [$s eventnodes] mode] eq $mode} {replacement lost mode}
+                        if {$mode eq {pernode}} {
+                            dict for {name info} [dict get $replaced nodes] {
+                                require {[dict get $info events] eq {}} {replacement retained node history}
+                            }
+                        }
+                    }
+                    if {$i == 25 || $i % 100 == 0 || $i == $stressRuns} {
+                        puts "$circuit/$mode run $i: RSS=[residentKiB] KiB"
+                    }
+                }
+                set result ok
+            } -cleanup {
+                if {[info exists s]} {
+                    catch {$s destroy}
+                    unset s
+                }
+            } -result ok
+        }
+    }
+}
 
 set failed $::tcltest::numTests(Failed)
 cleanupTests

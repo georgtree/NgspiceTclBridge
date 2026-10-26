@@ -138,8 +138,18 @@ source build. Omit it to use code models loaded by your ngspice installation's i
 
 The real suite uses the upstream mixed-signal digital-inverter example and a purely digital source example. Their
 origins and adaptation details are in [test/events/README.md](test/events/README.md). It checks all three
-modes, independent results, complete final batches, repeated runs, counters, and breakpoint halt/resume. RBC and Tk
-are not required.
+modes, independent results, complete final batches, counters, repeated halt/resume, clear/resume, circuit replacement,
+and transient/OP/DC transitions. Deterministic worker tests cover clearing committed and pending data while running.
+RBC and Tk are not required.
+
+For longer repeat-run and clear checks with RSS diagnostics:
+
+```sh
+make test-events-memory-real NGSPICE_LIBRARY=/path/to/libngspice.so NGSPICE_CODEMODEL_DIR=/path/to/ngspice/models NGSPICE_EVENT_RUNS=1000
+```
+
+The default is 200 iterations per circuit/mode combination. See [test/events/README.md](test/events/README.md)
+for cleanup policy, platform support, and the upstream plot-name reuse fix required by the new real regressions.
 
 ## Testing
 

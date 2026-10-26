@@ -232,4 +232,67 @@ test events-static-coordinate-error {nested expressions do not silently produce 
     set message
 } -cleanup {clean $s} -result {nested DC event coordinates require literal numeric sweep limits and nonzero steps}
 
+foreach mode {changes snapshot pernode} {
+    test events-clear-worker-$mode {clear while worker is active discards committed and pending records} -body {
+        set s [eventSim $mode]
+        $s command mock_evt_worker
+        $s command mock_pause
+        set base [dict get [$s eventcounts] send_raw_evt]
+        $s command bg_run
+        set waited [$s waitevent send_raw_evt -since $base -n 6 5000]
+        if {[dict get $waited status] ne {ok}} {error {worker did not deliver raw events}}
+        # The fixture waits after three samples until bg_halt; it is still running.
+        set active [$s isrunning]
+        set before [$s eventdata]
+        set counts [$s eventcounts]
+        set empty [$s eventdata -clear]
+        $s flush
+        set afterFlush [$s eventdata]
+        $s command bg_halt
+        set afterHalt [$s eventdata]
+        set base [dict get [$s eventcounts] send_raw_evt]
+        $s command bg_resume
+        set waited [$s waitevent send_raw_evt -since $base -n 6 5000]
+        if {[dict get $waited status] ne {ok}} {error {resumed worker did not deliver raw events}}
+        $s command bg_halt
+        $s flush
+        set resumed [$s eventdata]
+        if {$mode eq {pernode}} {
+            set records [dict get $resumed nodes a events]
+            set fresh [expr {[llength $records] == 3 && [lindex $records 0 0] > 0.2}]
+        } else {
+            set records [dict get $resumed batches]
+            set fresh [expr {[llength $records] == 3 && [dict get [lindex $records 0] time] > 0.2}]
+        }
+        set emptyNodes 1
+        if {$mode eq {pernode}} {
+            dict for {name info} [dict get $empty nodes] {
+                if {[dict get $info events] ne {}} {set emptyNodes 0}
+            }
+        }
+        list $active [expr {$before ne $empty}] [dict get $empty batches] $emptyNodes \
+            [expr {$afterFlush eq $empty && $afterHalt eq $empty}] $fresh \
+            [expr {[dict get [$s eventcounts] event_init] == [dict get $counts event_init]}]
+    } -cleanup {catch {$s command bg_halt}; clean $s} -result {1 1 {} 1 1 1 1}
+
+    test events-analysis-cycle-$mode {same handle cycles tran OP DC tran without history or state contamination} -body {
+        set s [eventSim $mode]
+        set results {}
+        $s eventcounts -clear
+        for {set cycle 0} {$cycle < 3} {incr cycle} {
+            $s command mock_evt_start
+            $s command mock_evt_a
+            $s command mock_evt_stop
+            set tran [$s eventdata]
+            $s command op
+            set op [$s eventdata]
+            $s command {dc vin 0 2 1 vbias 10 20 10}
+            set dc [$s eventdata]
+            if {$cycle == 0} {set expected [list $tran $op $dc]}
+            lappend results [expr {[list $tran $op $dc] eq $expected}]
+        }
+        list $results [dict get [$s eventcounts] event_init] [$s command mock_evt_registrations]
+    } -cleanup {clean $s} -result {{1 1 1} 9 3}
+}
+
 finishTests

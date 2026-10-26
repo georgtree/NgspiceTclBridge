@@ -164,8 +164,15 @@ directory may contain <code class="docutils literal notranslate"><span class="pr
 source build. Omit it to use code models loaded by your ngspice installation’s initialization files.</p>
 <p>The real suite uses the upstream mixed-signal digital-inverter example and a purely digital source example. Their
 origins and adaptation details are in <a class="reference external" href="test/events/README.md">test/events/README.md</a>. It checks all three
-modes, independent results, complete final batches, repeated runs, counters, and breakpoint halt/resume. RBC and Tk
-are not required.</p>
+modes, independent results, complete final batches, counters, repeated halt/resume, clear/resume, circuit replacement,
+and transient/OP/DC transitions. Deterministic worker tests cover clearing committed and pending data while running.
+RBC and Tk are not required.</p>
+<p>For longer repeat-run and clear checks with RSS diagnostics:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-events-memory-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_CODEMODEL_DIR</span><span class="o">=</span>/path/to/ngspice/models<span class="w"> </span><span class="nv">NGSPICE_EVENT_RUNS</span><span class="o">=</span><span class="m">1000</span>
+</pre></div>
+</div>
+<p>The default is 200 iterations per circuit/mode combination. See <a class="reference external" href="test/events/README.md">test/events/README.md</a>
+for cleanup policy, platform support, and the upstream plot-name reuse fix required by the new real regressions.</p>
 </section>
 <section id="testing">
 <span id="r-testing"></span><h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">¶</a></h2>
