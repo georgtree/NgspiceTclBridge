@@ -156,6 +156,9 @@ typedef struct NgSpiceContext {
     ngSpice_Init_Evt_t ngSpice_Init_Evt;           /* Event-mode initialization */
     BridgeRawRegister rawRegister;              /* Optional ngSpice_Raw_Evt symbol. */
     BridgeRawDecode rawDecode;                  /* Optional ngSpice_Decode_Evt symbol. */
+    double eventDcParams[2][3], eventDeckDcParams[2][3];
+    int eventDcValid, eventDeckDcValid;
+    char *eventDcNames[2], *eventDeckDcNames[2]; /* Inner/outer DC sweep names. */
     BridgeEvents *events;                       /* C-owned string histories; protected by mutex. */
     ngSpice_Circ_t ngSpice_Circ;                   /* Send entire circuit deck */
     ngSpice_CurPlot_t ngSpice_CurPlot;             /* Get current plot name */

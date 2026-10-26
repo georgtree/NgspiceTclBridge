@@ -561,7 +561,7 @@ complete command sequences. The run helper leaves this operation explicit to pre
 </section>
 <section id="digital-event-nodes">
 <span id="r-notes-and-internals-digital-event-nodes"></span><span id="r-3a3anotes20and20internalsqzdigital20event20nodes"></span><h3>Digital event nodes<a class="headerlink" href="#digital-event-nodes" title="Link to this heading">¶</a></h3>
-<p>String-valued XSPICE events are separate from numeric vectors. All three modes use the raw event API:</p>
+<p>String-valued XSPICE events are separate from numeric vectors. All three transient modes use the raw event API:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="o">-</span>string<span class="w"> </span><span class="nv">$netlist</span>
 <span class="nv">$sim</span><span class="w"> </span><span class="nv">eventnodes</span><span class="w"> </span><span class="o">-</span>all<span class="w"> </span><span class="o">-</span>mode<span class="w"> </span>changes
 <span class="c"># Alternatively: $sim eventnodes -nodes {clk reset q} -mode pernode</span>
@@ -581,7 +581,7 @@ they are not deduplicated or globally sorted. No mode manufactures events for un
 batches). All support <code class="docutils literal notranslate"><span class="pre">waitevent</span> <span class="pre">-since</span></code>. Event data is copied from C storage when requested; it does not require a Tcl
 event-loop turn. Reads and <code class="docutils literal notranslate"><span class="pre">flush</span></code> never force partial batches to be published. See the <code class="docutils literal notranslate"><span class="pre">eventnodes</span></code> and <code class="docutils literal notranslate"><span class="pre">eventdata</span></code>
 command documentation for result layouts and clear/resume behavior.</p>
-<p>This initial implementation targets externally driven transient analyses with the normal time output enabled and no
+<p>Transient event collection targets externally driven analyses with the normal time output enabled and no
 nonzero transient output-start time. Use the circuit subcommand while idle to replace a circuit after registering
 raw nodes. Mode and -all are retained; explicit selections and histories are cleared. Direct circuit-changing
 commands and scripts/aliases remain unsupported.
@@ -620,7 +620,14 @@ policy survive replacement, including an intermediate circuit with no digital no
 selections do not survive. Automatic registration errors leave the new circuit loaded and are reported
 to the caller. Circuit replacement does not reset event counters; automatic -all registration increments
 event_init as an ordinary configuration does. Normal transient output from time zero is required.
-Circuit-changing scripts, analysis control workers, and non-transient event batching are unsupported.</p>
+Circuit-changing scripts and analysis control workers are unsupported. OP/DC collection uses the native
+node-history query from SendData after EVTop_save, rather than ordinary event callbacks. The latter retain
+an obsolete node dictionary across circuit replacement and omit internal subcircuit nodes in the inspected
+ngspice source. The query path copies values on the solver thread; read errors become sticky eventdata errors.
+The companion native cleanup patch releases the query pointer array and final cache. No native allocation
+is freed by the bridge. DC metadata is captured from a single deck directive or direct dc command; nested
+literal sweeps advance the outer coordinate at observed primary-scale rollover. Analysis and coordinate metadata are
+copied into Tcl only on read. See Digital events data for the public OP/DC layouts.</p>
 </section>
 <section id="native-worker-thread-cleanup">
 <span id="r-notes-and-internals-native-worker-thread-cleanup"></span><span id="r-3a3anotes20and20internalsqznative20worker20thread20cleanup"></span><h3>Native worker thread cleanup<a class="headerlink" href="#native-worker-thread-cleanup" title="Link to this heading">¶</a></h3>

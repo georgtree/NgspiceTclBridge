@@ -19,7 +19,7 @@ PKG_SOURCES = @PKG_SOURCES@
 PKG_OBJECTS = @PKG_OBJECTS@
 DOC_HTML_FILES = @DOC_HTML_FILES@
 DIST_TEST_FILES = @DIST_TEST_FILES@ test/memory.c test/mockngspice.c test/rbc.test test/rbc-graph.test test/rbc-support.tcl test/rbc-graph-real.test test/command-memory-real.test test/events.test test/events-real.test test/events-optional.test test/events/LICENSE.ngspice test/events/README.md \
-        test/events/d_source-stimulus.txt test/events/digital-source.cir test/events/mixed-invert.cir
+        test/events/d_source-stimulus.txt test/events/digital-source.cir test/events/mixed-invert.cir test/events/op-dc.cir
 
 PKG_STUB_SOURCES = @PKG_STUB_SOURCES@
 PKG_STUB_OBJECTS = @PKG_STUB_OBJECTS@
@@ -159,7 +159,7 @@ MOCK_NGSPICE = mock$(PKG_LIB_FILE)
 $(MOCK_NGSPICE): $(srcdir)/test/mockngspice.c $(srcdir)/generic/sharedspice.h
 	$(SHLIB_LD) $(CPPFLAGS) $(DEFS) $(INCLUDES) -UUSE_TCL_STUBS $(LDFLAGS) -o $@ $(srcdir)/test/mockngspice.c @TCL_LIB_SPEC@ @TCL_LIBS@ $(LIBS)
 
-ngspicetclbridge.@OBJEXT@: $(srcdir)/generic/ngspicetclbridge.h
+ngspicetclbridge.@OBJEXT@ ngspicetclbridgeRbc.@OBJEXT@: $(srcdir)/generic/ngspicetclbridge.h
 
 .PHONY: test-events test-events-real
 MOCK_NO_RAW = noraw$(PKG_LIB_FILE)

@@ -616,7 +616,7 @@ The operation discards labels and unfinished control blocks; callers must choose
 complete command sequences\&. The run helper leaves this operation explicit to preserve existing scripts\&.
 .SS "DIGITAL EVENT NODES"
 .PP
-String-valued XSPICE events are separate from numeric vectors\&. All three modes use the raw event API:
+String-valued XSPICE events are separate from numeric vectors\&. All three transient modes use the raw event API:
 .PP
 .RS 4n
 .nf
@@ -643,7 +643,7 @@ batches)\&. All support waitevent -since\&. Event data is copied from C storage 
 event-loop turn\&. Reads and flush never force partial batches to be published\&. See the eventnodes and eventdata
 command documentation for result layouts and clear/resume behavior\&.
 .PP
-This initial implementation targets externally driven transient analyses with the normal time output enabled and no
+Transient event collection targets externally driven analyses with the normal time output enabled and no
 nonzero transient output-start time\&. Use the circuit subcommand while idle to replace a circuit after registering
 raw nodes\&. Mode and -all are retained; explicit selections and histories are cleared\&. Direct circuit-changing
 commands and scripts/aliases remain unsupported\&.
@@ -687,7 +687,14 @@ policy survive replacement, including an intermediate circuit with no digital no
 selections do not survive\&. Automatic registration errors leave the new circuit loaded and are reported
 to the caller\&. Circuit replacement does not reset event counters; automatic -all registration increments
 event_init as an ordinary configuration does\&. Normal transient output from time zero is required\&.
-Circuit-changing scripts, analysis control workers, and non-transient event batching are unsupported\&.
+Circuit-changing scripts and analysis control workers are unsupported\&. OP/DC collection uses the native
+node-history query from SendData after EVTop_save, rather than ordinary event callbacks\&. The latter retain
+an obsolete node dictionary across circuit replacement and omit internal subcircuit nodes in the inspected
+ngspice source\&. The query path copies values on the solver thread; read errors become sticky eventdata errors\&.
+The companion native cleanup patch releases the query pointer array and final cache\&. No native allocation
+is freed by the bridge\&. DC metadata is captured from a single deck directive or direct dc command; nested
+literal sweeps advance the outer coordinate at observed primary-scale rollover\&. Analysis and coordinate metadata are
+copied into Tcl only on read\&. See Digital events data for the public OP/DC layouts\&.
 .SS "NATIVE WORKER THREAD CLEANUP"
 .PP
 Ngspice creates native background threads\&. Tcl allocations made by the callbacks initialize thread-local

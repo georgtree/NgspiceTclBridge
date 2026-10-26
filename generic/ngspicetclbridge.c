@@ -1,4 +1,7 @@
 #include "ngspicetclbridge.h"
+#include <ctype.h>
+#include <math.h>
+#include <limits.h>
 
 //***  Arg function
 /*
@@ -1451,17 +1454,24 @@ typedef struct EventFrame {
     double time;
     EventValue *head, *tail;
     struct EventFrame *next;
+    int point, coordinateCount;
+    char *coordinateNames[2];
+    double coordinateValues[2];
 } EventFrame;
 
 struct BridgeEvents {
     EventNode *nodes;
     EventFrame *head, *tail, *open;
     int mode;                           /* changes, snapshot, pernode */
+    int analysis;                       /* 0 none, 1 tran, 2 op, 3 dc, 4 unsupported. */
     int selectAll;                      /* Reapply -all after circuit replacement. */
+    int dcHavePoint;
+    double dcPrevious, dcOuter;
     int hasSample;
     double sampleTime;
     char *error;
 };
+static const char *eventAnalyses[] = {"none", "tran", "op", "dc", "unsupported"};
 static const char *eventModes[] = {"changes", "snapshot", "pernode"};
 
 //***  EventsFreeFrames function
@@ -1493,6 +1503,7 @@ static void EventsFreeFrames(EventFrame *frame) {
             Tcl_Free(v);
             v = vn;
         }
+        for (int i = 0; i < frame->coordinateCount; ++i) Tcl_Free(frame->coordinateNames[i]);
         Tcl_Free(frame);
         frame = next;
     }
@@ -1709,6 +1720,10 @@ static int EventsRawCallback(double time, void *value, void *user, int last) {
     NgSpiceContext *ctx = n->ctx;
     if (ctx->destroying) {
         return 1;
+    }
+    if (ctx->events && ctx->events->analysis != 1) {
+        BumpAndSignal(ctx, SEND_RAW_EVT);
+        return 0;
     }        
     const char *printed = NULL;
     int rc = ctx->rawDecode(value, n->type, NULL, &printed);
@@ -1821,6 +1836,297 @@ static int EventsCircuitCommand(NgSpiceContext *ctx, const char *cmd) {
     return 0;
 }
 
+//***  EventsCoordinates function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsCoordinates --
+ *
+ *      Copies the sweep coordinates of a stored OP/DC point into a Tcl dictionary.
+ *
+ * Parameters:
+ *      EventFrame *frame - input: immutable stored frame, protected by the context mutex.
+ *
+ * Results:
+ *      A new unreferenced dictionary. OP points have no coordinates.
+ *
+ * Side Effects:
+ *      Allocates Tcl objects on the interpreter thread only.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static Tcl_Obj *EventsCoordinates(EventFrame *frame) {
+    Tcl_Obj *result = Tcl_NewDictObj();
+    for (int i = 0; i < frame->coordinateCount; ++i) {
+        Tcl_DictObjPut(NULL, result, Tcl_NewStringObj(frame->coordinateNames[i], -1),
+                       Tcl_NewDoubleObj(frame->coordinateValues[i]));
+    }
+    return result;
+}
+
+//***  EventsSweepNames function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsSweepNames --
+ *
+ *      Remembers source names from a DC directive or command for coordinate labeling.
+ *
+ * Parameters:
+ *      char **names - input/output: two owned names, inner sweep followed by outer sweep.
+ *      double parameters[2][3] - output: start, stop and step for each sweep, with SPICE suffixes.
+ *      const char *text - input: text after dc or .dc; standard four-word sweep groups.
+ *
+ * Results:
+ *      Nonzero for literal numeric limits; zero for unsupported or malformed sweep syntax.
+ *
+ * Side Effects:
+ *      Replaces owned C strings. Unsupported syntax leaves no names, diagnosed when collecting DC points.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static int EventsSweepNames(char **names, double parameters[2][3], const char *text) {
+    for (int i = 0; i < 2; ++i) {
+        Tcl_Free(names[i]);
+        names[i] = NULL;
+    }
+    int word = 0, valid = 1;
+    while (*text && word < 8) {
+        while (*text == ' ' || *text == '\t') {
+            ++text;
+        }
+        if (!*text || *text == '$' || *text == ';') {
+            break;
+        }
+        const char *start = text;
+        while (*text && *text != ' ' && *text != '\t') {
+            ++text;
+        }
+        if (word == 0 || word == 4) {
+            size_t length = (size_t)(text - start);
+            char *name = Tcl_Alloc(length + 1);
+            memcpy(name, start, length);
+            name[length] = 0;
+            for (size_t i = 0; i < length; ++i) {
+                name[i] = (char)tolower((unsigned char)name[i]);
+            }
+            names[word / 4] = name;
+        } else {
+            char *end;
+            double value = strtod(start, &end), multiplier = 1.0;
+            if (end == start) {
+                valid = 0;
+            }
+            if (end < text) {
+                int suffix = tolower((unsigned char)*end);
+                switch (suffix) {
+                case 't':
+                    multiplier = 1e12;
+                    break;
+                case 'g':
+                    multiplier = 1e9;
+                    break;
+                case 'k':
+                    multiplier = 1e3;
+                    break;
+                case 'm':
+                    multiplier = text - end >= 3 && tolower((unsigned char)end[1]) == 'e' &&
+                                         tolower((unsigned char)end[2]) == 'g'
+                                     ? 1e6
+                                     : 1e-3;
+                    if (text - end >= 3 && tolower((unsigned char)end[1]) == 'i' &&
+                        tolower((unsigned char)end[2]) == 'l') {
+                        multiplier = 25.4e-6;
+                    }
+                    break;
+                case 'u':
+                    multiplier = 1e-6;
+                    break;
+                case 'n':
+                    multiplier = 1e-9;
+                    break;
+                case 'p':
+                    multiplier = 1e-12;
+                    break;
+                case 'f':
+                    multiplier = 1e-15;
+                    break;
+                default:
+                    if (!isalpha((unsigned char)*end)) {
+                        valid = 0;
+                    }
+                }
+                for (const char *q = end; q < text; ++q) {
+                    if (!isalpha((unsigned char)*q)) {
+                        valid = 0;
+                    }
+                }
+            }
+            parameters[word / 4][word % 4 - 1] = value * multiplier;
+            if (!isfinite(value * multiplier)) {
+                valid = 0;
+            }
+        }
+        ++word;
+    }
+    while (*text == ' ' || *text == '\t') {
+        ++text;
+    }
+    if (*text && *text != '$' && *text != ';') {
+        valid = 0;
+    }
+    if (word != 4 && word != 8) {
+        for (int i = 0; i < 2; ++i) {
+            Tcl_Free(names[i]);
+            names[i] = NULL;
+        }
+        valid = 0;
+    }
+    return valid;
+}
+
+//***  EventsCopySweepNames function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsCopySweepNames --
+ *
+ *      Restores the deck's DC coordinate names before run or bg_run.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: idle handle, before calling ngspice.
+ *
+ * Results:
+ *      None.
+ *
+ * Side Effects:
+ *      Replaces active coordinate names with owned copies.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsCopySweepNames(NgSpiceContext *ctx) {
+    memcpy(ctx->eventDcParams, ctx->eventDeckDcParams, sizeof ctx->eventDcParams);
+    ctx->eventDcValid = ctx->eventDeckDcValid;
+    for (int i = 0; i < 2; ++i) {
+        Tcl_Free(ctx->eventDcNames[i]);
+        ctx->eventDcNames[i] = ctx->eventDeckDcNames[i] ? ckstrdup(ctx->eventDeckDcNames[i]) : NULL;
+    }
+}
+
+//***  EventsStaticPoint function
+/*
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ * EventsStaticPoint --
+ *
+ *      Samples settled OP/DC event states at SendData, after ngspice saves the event solution.
+ *
+ * Parameters:
+ *      NgSpiceContext *ctx - input/output: context on the simulation callback thread.
+ *      pvecvaluesall all - input: accepted numeric point, including its DC scale.
+ *
+ * Results:
+ *      None. Retrieval failures are retained for eventdata.
+ *
+ * Side Effects:
+ *      Copies native strings immediately, retains no borrowed pointers, and commits a complete point under mutex.
+ *      Does not evaluate Tcl or enable ordinary event callbacks. Native query calls execute on the solver thread.
+ *      Unlike transient callbacks, static changes/pernode modes suppress unchanged states.
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static void EventsStaticPoint(NgSpiceContext *ctx, pvecvaluesall all) {
+    Tcl_MutexLock(&ctx->mutex);
+    BridgeEvents *e = ctx->events;
+    if (!e || e->error) {
+        Tcl_MutexUnlock(&ctx->mutex);
+        return;
+    }
+    EventFrame *frame = Tcl_Alloc(sizeof *frame);
+    memset(frame, 0, sizeof *frame);
+    frame->point = all->vecindex;
+    if (e->analysis == 3) {
+        if (!ctx->eventDcNames[0] || ctx->eventDcValid < 0) {
+            e->error =
+                ckstrdup("DC event coordinates require one .dc directive in circuit input or a direct dc command");
+            goto failed;
+        }
+        int scale = -1;
+        for (int i = 0; i < all->veccount; ++i) {
+            if (all->vecsa[i]->is_scale) {
+                scale = i;
+                break;
+            }
+        }
+        if (scale < 0) {
+            e->error = ckstrdup("DC output has no sweep scale");
+            goto failed;
+        }
+        frame->coordinateCount = ctx->eventDcNames[1] ? 2 : 1;
+        for (int i = 0; i < frame->coordinateCount; ++i) {
+            frame->coordinateNames[i] = ckstrdup(ctx->eventDcNames[i]);
+        }
+        frame->coordinateValues[0] = all->vecsa[scale]->creal;
+        if (frame->coordinateCount == 2) {
+            double step = ctx->eventDcParams[0][2];
+            if (!ctx->eventDcValid || step == 0.0 || ctx->eventDcParams[1][2] == 0.0) {
+                e->error =
+                    ckstrdup("nested DC event coordinates require literal numeric sweep limits and nonzero steps");
+                goto failed;
+            }
+            double primary = frame->coordinateValues[0];
+            if (!e->dcHavePoint) {
+                if (all->vecindex != 0) {
+                    e->error = ckstrdup("select event nodes before starting a nested DC sweep");
+                    goto failed;
+                }
+                e->dcOuter = ctx->eventDcParams[1][0];
+            } else if ((step > 0.0 && primary <= e->dcPrevious) || (step < 0.0 && primary >= e->dcPrevious)) {
+                e->dcOuter += ctx->eventDcParams[1][2];
+            }
+            e->dcHavePoint = 1;
+            e->dcPrevious = primary;
+            frame->coordinateValues[1] = e->dcOuter;
+        }
+    }
+    for (EventNode *n = e->nodes; n; n = n->next) {
+        if (!n->selected) {
+            continue;
+        }
+        Tcl_MutexUnlock(&ctx->mutex);
+        pevt_shared_data info = ctx->ngGet_Evt_NodeInfo(n->name);
+        Tcl_MutexLock(&ctx->mutex);
+        if (!info || info->num_steps < 1 || !info->evt_dect[info->num_steps - 1]->node_value) {
+            e->error = ckstrdup("cannot read settled event node state");
+            goto failed;
+        }
+        const char *value = info->evt_dect[info->num_steps - 1]->node_value;
+        int changed = !n->latest || strcmp(n->latest, value);
+        if (e->mode == 1 || changed) {
+            EventsValue(frame, n, 0.0, value, 1);
+        }
+        Tcl_Free(n->latest);
+        n->latest = ckstrdup(value);
+    }
+    if (frame->head || e->mode == 1) {
+        if (e->tail) {
+            e->tail->next = frame;
+        } else {
+            e->head = frame;
+        }
+        e->tail = frame;
+    } else {
+        EventsFreeFrames(frame);
+    }
+    ++ctx->evt_counts[EVENT_BATCH];
+    Tcl_ConditionNotify(&ctx->cond);
+    Tcl_MutexUnlock(&ctx->mutex);
+    return;
+failed:
+    EventsFreeFrames(frame);
+    Tcl_MutexUnlock(&ctx->mutex);
+}
+
 //***  EventsResultLocked function
 /*
  *----------------------------------------------------------------------------------------------------------------------
@@ -1846,6 +2152,8 @@ static Tcl_Obj *EventsResultLocked(NgSpiceContext *ctx, Tcl_Interp *interp) {
     Tcl_Obj *result = Tcl_NewDictObj(), *nodes = Tcl_NewDictObj(), *batches = Tcl_NewListObj(0, NULL);
     Tcl_DictObjPut(interp, result, Tcl_NewStringObj("mode", -1),
                    Tcl_NewStringObj(e ? eventModes[e->mode] : "changes", -1));
+    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("analysis", -1),
+                   Tcl_NewStringObj(eventAnalyses[e ? e->analysis : 0], -1));
     if (e) {
         for (EventNode *n = e->nodes; n; n = n->next) {
             if (!n->selected) {
@@ -1865,7 +2173,12 @@ static Tcl_Obj *EventsResultLocked(NgSpiceContext *ctx, Tcl_Interp *interp) {
             if (e->mode != 2) {
                 batch = Tcl_NewDictObj();
                 items = e->mode == 1 ? Tcl_NewDictObj() : Tcl_NewListObj(0, NULL);
-                Tcl_DictObjPut(interp, batch, Tcl_NewStringObj("time", -1), Tcl_NewDoubleObj(f->time));
+                if (e->analysis == 1) {
+                    Tcl_DictObjPut(interp, batch, Tcl_NewStringObj("time", -1), Tcl_NewDoubleObj(f->time));
+                } else {
+                    Tcl_DictObjPut(interp, batch, Tcl_NewStringObj("point", -1), Tcl_NewIntObj(f->point));
+                    Tcl_DictObjPut(interp, batch, Tcl_NewStringObj("coordinates", -1), EventsCoordinates(f));
+                }
                 Tcl_DictObjPut(interp, batch, Tcl_NewStringObj(e->mode == 1 ? "values" : "events", -1), items);
                 if (e->mode == 1) {
                     known = Tcl_NewListObj(0, NULL);
@@ -1885,9 +2198,17 @@ static Tcl_Obj *EventsResultLocked(NgSpiceContext *ctx, Tcl_Interp *interp) {
                     if (e->mode == 0) {
                         Tcl_ListObjAppendElement(interp, row, key);
                     }                        
-                    Tcl_ListObjAppendElement(interp, row, Tcl_NewDoubleObj(v->time));
-                    Tcl_ListObjAppendElement(interp, row, Tcl_NewStringObj(v->value, -1));
-                    Tcl_ListObjAppendElement(interp, row, Tcl_NewBooleanObj(v->last));
+                    if (e->analysis == 1) {
+                        Tcl_ListObjAppendElement(interp, row, Tcl_NewDoubleObj(v->time));
+                        Tcl_ListObjAppendElement(interp, row, Tcl_NewStringObj(v->value, -1));
+                        Tcl_ListObjAppendElement(interp, row, Tcl_NewBooleanObj(v->last));
+                    } else if (e->mode == 0) {
+                        Tcl_ListObjAppendElement(interp, row, Tcl_NewStringObj(v->value, -1));
+                    } else {
+                        Tcl_DictObjPut(interp, row, Tcl_NewStringObj("point", -1), Tcl_NewIntObj(f->point));
+                        Tcl_DictObjPut(interp, row, Tcl_NewStringObj("coordinates", -1), EventsCoordinates(f));
+                        Tcl_DictObjPut(interp, row, Tcl_NewStringObj("value", -1), Tcl_NewStringObj(v->value, -1));
+                    }
                     if (e->mode == 0) {
                         Tcl_ListObjAppendElement(interp, items, row);
                     }                        
@@ -2141,9 +2462,23 @@ static int ReplaceCircuit(NgSpiceContext *ctx, Tcl_Interp *interp, char **circui
         ctx->events->mode = mode;
         ctx->events->selectAll = selectAll;
     }
+    ctx->eventDeckDcValid = 0;
+    for (int i = 0; i < 2; ++i) {
+        Tcl_Free(ctx->eventDeckDcNames[i]); ctx->eventDeckDcNames[i] = NULL;
+    }
+    int dcDirectives = 0;
     for (int i = 0; circuit[i]; ++i) {
         CheckCommandCleanupSafety(ctx, circuit[i]);
-    }        
+        const char *line = circuit[i];
+        while (*line == ' ' || *line == '\t') ++line;
+        if (*line == '.' && tolower((unsigned char)line[1]) == 'd' &&
+            tolower((unsigned char)line[2]) == 'c' && (line[3] == ' ' || line[3] == '\t')) {
+            ctx->eventDeckDcValid = EventsSweepNames(ctx->eventDeckDcNames, ctx->eventDeckDcParams, line + 4);
+            ++dcDirectives;
+        }
+    }
+    if (dcDirectives > 1) ctx->eventDeckDcValid = -1;
+    EventsCopySweepNames(ctx);
     rc = ctx->ngSpice_Circ(circuit);
     /* Even a failed parse may leave a partial native circuit requiring remcirc next time. */
     ctx->has_circuit = 1;
@@ -2189,6 +2524,11 @@ release:
  *----------------------------------------------------------------------------------------------------------------------
  */
 static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
+    if (!strncmp(cmd, "dc ", 3) || !strncmp(cmd, "dc\t", 3)) {
+        ctx->eventDcValid = EventsSweepNames(ctx->eventDcNames, ctx->eventDcParams, cmd + 3);
+    } else if (!strcmp(cmd, "run") || !strcmp(cmd, "bg_run")) {
+        EventsCopySweepNames(ctx);
+    }        
     Tcl_MutexLock(&ctx->bg_mu);
     ++ctx->commandActive;
     CheckCommandCleanupSafety(ctx, cmd);
@@ -2205,7 +2545,7 @@ static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
         Tcl_MutexLock(&ctx->bg_mu);
         if (ctx->state == NGSTATE_BG_ACTIVE) {
             ctx->state = NGSTATE_STOPPING_BG;
-        }            
+        }
         Tcl_MutexUnlock(&ctx->bg_mu);
     }
     if (background || resume) {
@@ -2216,7 +2556,7 @@ static int ExecuteCommand(NgSpiceContext *ctx, const char *cmd) {
     int rc = ctx->ngSpice_Command((char *)cmd);
     if (ctx->events && !background && !ctx->ngSpice_running()) {
         EventsFinish(ctx);
-    }        
+    }
     Tcl_MutexLock(&ctx->bg_mu);
     --ctx->commandActive;
     Tcl_MutexUnlock(&ctx->bg_mu);
@@ -2537,7 +2877,10 @@ static int SendDataCallback(pvecvaluesall all, int count, int id, void *user) {
     if (!ctx || !all || (count <= 0) || (ctx->destroying)) {
         return 0;
     }
-    if (ctx->events) for (int i = 0; i < all->veccount; ++i) {
+    if (ctx->events && (ctx->events->analysis == 2 || ctx->events->analysis == 3)) {
+        EventsStaticPoint(ctx, all);
+    }
+    if (ctx->events && ctx->events->analysis == 1) for (int i = 0; i < all->veccount; ++i) {
         if (strcmp(all->vecsa[i]->name, "time") == 0) {
             EventsBoundary(ctx, all->vecsa[i]->creal);
             break;
@@ -2639,11 +2982,18 @@ static int SendInitDataCallback(pvecinfoall vinfo, int id, void *user) {
         ++ctx->gen;
         EventsResetLocked(ctx, 1);
         if (ctx->events) {
-            int haveTime = 0;
-            for (int i = 0; i < vinfo->veccount; ++i) {
-                if (!strcmp(vinfo->vecs[i]->vecname, "time")) haveTime = 1;
+            const char *type = vinfo->type ? vinfo->type : "";
+            int analysis = !strncmp(type, "tran", 4) ? 1 :
+                           !strncmp(type, "op", 2) ? 2 : !strncmp(type, "dc", 2) ? 3 : 4;
+            ctx->events->analysis = analysis;
+            ctx->events->dcHavePoint = 0;
+            if (analysis == 1) {
+                int haveTime = 0;
+                for (int i = 0; i < vinfo->veccount; ++i)
+                    if (!strcmp(vinfo->vecs[i]->vecname, "time")) haveTime = 1;
+                if (!haveTime) ctx->events->error = ckstrdup("transient event collection requires a time scale");
             }
-            if (!haveTime) ctx->events->error = ckstrdup("raw event collection currently requires transient analysis with a time scale");
+            if (analysis == 4) ctx->events->error = ckstrdup("digital event data supports only tran, op and dc analyses");
         }
     }
     uint64_t mygen = ctx->gen;
@@ -2994,6 +3344,10 @@ static void InstFreeProc(void *cdata) {
         Tcl_DecrRefCount(ctx->vectorError);
     }
     EventsDestroy(ctx);
+    for (int i = 0; i < 2; ++i) {
+        Tcl_Free(ctx->eventDcNames[i]);
+        Tcl_Free(ctx->eventDeckDcNames[i]);
+    }
     FreeInitSnap(ctx->init_snap);
     Tcl_Free(ctx->livePlot);
     MsgQ_Free(&ctx->msgq);

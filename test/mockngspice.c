@@ -34,6 +34,8 @@ static double times[10000], values[10000];
 static ngcomplex_t complexValues[10000];
 static char *names[] = {"time", "v(out)", "v(1)", NULL};
 static vector_info info[3];
+static int staticPointIndex;
+static int staticMissing;
 
 #ifndef MOCK_NO_RAW_EVENTS
 typedef int (RawCallback)(double, void *, void *, int);
@@ -73,6 +75,7 @@ int ngSpice_Init(SendChar *a, SendStat *b, ControlledExit *c, SendData *d, SendI
     (void)b;
     finalized = terminalExit = burst = 0;
 #ifndef MOCK_NO_RAW_EVENTS
+    staticMissing = 0;
     rawCallback = NULL;
     memset(rawContext, 0, sizeof rawContext);
     rawRegistrations = 0;
@@ -114,6 +117,25 @@ static void Point(void) {
     vecvaluesall row = {3, n, ptrs};
     sendData(&row, 3, 0, client);
 }
+
+#ifndef MOCK_NO_RAW_EVENTS
+/* Static event fixtures deliver metadata and settled state before each numeric point. */
+static void StaticBegin(const char *type) {
+    staticPointIndex = 0;
+    vecinfo col = {0, "v-sweep", true, NULL, NULL};
+    pvecinfo cols[] = {&col};
+    vecinfoall metadata = {"Static Analysis", "fixture", "", (char *)type, 1, cols};
+    sendInit(&metadata, 0, client);
+}
+static void StaticPoint(void) {
+    vecvalues value = {"v-sweep", staticPointIndex % 3, 0, true, false};
+    pvecvalues values[] = {&value};
+    vecvaluesall point = {1, staticPointIndex, values};
+    sendData(&point, 1, 0, client);
+    ++staticPointIndex;
+}
+
+#endif
 
 /* The fixture deliberately uses native threads without Tcl_ExitThread. This exit handler
  * observes cleanup by the bridge, rather than hiding missing cleanup in the fixture. */
@@ -177,6 +199,14 @@ int ngSpice_Command(char *command) {
         memset(rawContext, 0, sizeof rawContext);
         return 0;
     }
+    if (!strcmp(command, "mock_static_missing")) {staticMissing = 1; return 0;}
+    if (!strcmp(command, "op")) {StaticBegin("op1"); StaticPoint(); return 0;}
+    if (!strncmp(command, "dc ", 3)) {
+        StaticBegin("dc1");
+        for (int i = 0; i < 6; ++i) StaticPoint();
+        return 0;
+    }
+    if (!strcmp(command, "mock_ac")) {StaticBegin("ac1"); StaticPoint(); return 0;}
     if (!strcmp(command, "mock_evt_registrations")) return rawRegistrations;
     if (!strcmp(command, "mock_evt_start")) {
         running = 1;
@@ -305,7 +335,18 @@ int ngSpice_Init_Sync(GetVSRCData *a, GetISRCData *b, GetSyncData *c, int *d, vo
 
 char *ngCM_Input_Path(const char *path) { return (char *)path; }
 
-pevt_shared_data ngGet_Evt_NodeInfo(char *name) { return NULL; }
+pevt_shared_data ngGet_Evt_NodeInfo(char *name) {
+    static char buffer[8];
+    static evt_data entry;
+    static pevt_data entries[] = {&entry};
+    static evt_shared_data result = {entries, 1};
+    if (staticMissing) return NULL;
+    const char *value = !strcmp(name, "a") ? (staticPointIndex % 3 == 0 ? "0s" : "1s") :
+                        !strcmp(name, "b") ? "Uz" : "Us";
+    strcpy(buffer, value);
+    entry.node_value = buffer;
+    return &result;
+}
 
 char **ngSpice_AllEvtNodes(void) {
 #ifndef MOCK_NO_RAW_EVENTS

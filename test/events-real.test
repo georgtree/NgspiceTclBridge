@@ -233,6 +233,72 @@ test events-real-replace {one handle replaces mixed, digital and analog circuits
     }
 } -result ok
 
+test events-real-static {OP/DC all modes, subcircuit nodes, nested coordinates, rerun and transient recovery} -body {
+    set s [realEventSim op-dc.cir]
+    foreach mode {snapshot changes pernode} {
+        $s eventnodes -all -mode $mode
+        $s command op
+        set op [$s eventdata]
+        require {[dict get $op analysis] eq {op}} {wrong OP analysis}
+        require {[lsort [dict keys [dict get $op nodes]]] eq {xlogic.d xlogic.e}} {subcircuit nodes missing}
+        $s command {dc vin 0 2 1}
+        set dc [$s eventdata]
+        require {[dict get $dc analysis] eq {dc}} {wrong DC analysis}
+        if {$mode eq {snapshot}} {
+            set states [lmap b [dict get $dc batches] {dict get $b values xlogic.d}]
+            require {$states eq {0s Us 1s}} {ADC sweep states incorrect}
+        } elseif {$mode eq {changes}} {
+            require {[llength [dict get $dc batches]] == 3} {DC changes missing}
+        } else {
+            set states [lmap row [dict get $dc nodes xlogic.d events] {dict get $row value}]
+            require {$states eq {0s Us 1s}} {pernode states incorrect}
+        }
+        $s command {dc vin 2 0 -1}
+        set descending [$s eventdata]
+        if {$mode eq {snapshot}} {
+            require {[lmap b [dict get $descending batches] {dict get $b values xlogic.d}] eq {1s Us 0s}}\
+                    {descending DC states incorrect}
+        }
+        $s eventdata -clear
+        require {[dict get [$s eventdata] batches] eq {}} {clear failed}
+        # Keep both ADC inputs below threshold during nested rollover to avoid ngspice's
+        # mixed-signal operating-point alternation limit, independent of bridge collection.
+        $s command {dc vin 0 0.4 0.2 vbias 0 0.2 0.2}
+        set nested [$s eventdata]
+        if {$mode eq {snapshot}} {
+            set batches [dict get $nested batches]
+            require {[llength $batches] == 6} {nested sweep did not finish}
+            require {[dict get [lindex $batches end] coordinates] eq {vin 0.4 vbias 0.2}} {outer coordinate lost}
+            require {[dict get [lindex $batches end] point] == 5} {wrong point index}
+        } elseif {$mode eq {changes}} {
+            require {[llength [dict get $nested batches]] == 1} {unchanged DC states not suppressed}
+        } else {
+            require {[llength [dict get $nested nodes xlogic.d events]] == 1} {unchanged node reports retained}
+        }
+    }
+    # Test deck-based background DC collection, followed by unsupported AC and recovery to tran.
+    $s eventnodes -all -mode snapshot
+    set f [open [file join $fixtureDir op-dc.cir]]
+    try {
+        set deck [read $f]
+    } finally {
+        close $f
+    }
+    $s circuit -string [string map [list .op {.dc vin 0 0.4 0.2 vbias 0 0.2 0.2}] $deck]
+    completeRun $s
+    require {[llength [dict get [$s eventdata] batches]] == 6} {deck DC failed}
+    $s command {ac lin 2 1 2}
+    require {[catch {$s eventdata}]} {AC must not masquerade as a DC snapshot}
+    $s circuit -string [string map [list .op {.tran 1n 10n}] $deck]
+    completeRun $s
+    require {[dict get [$s eventdata] analysis] eq {tran}} {transient did not recover}
+    set result ok
+} -cleanup {
+    if {[info exists s]} {
+        catch {$s destroy}
+    }
+} -result ok
+
 set failed $::tcltest::numTests(Failed)
 cleanupTests
 exit [expr {$failed != 0}]

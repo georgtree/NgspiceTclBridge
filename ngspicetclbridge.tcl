@@ -102,12 +102,13 @@ proc ::ngspicetclbridge::SIM::eventnodes {handle args} {
     # selected and mode. Raw symbols are optional; unsupported libraries retain analog functionality.  Each node is
     # registered once per loaded circuit. Changing selection or mode clears event history and known states.  Resume
     # retains registrations and histories. Disabled registrations remain alive until circuit replacement or handle
-    # destruction.  Event collection supports externally driven transient analyses. After registering nodes, use the
+    # destruction.  Event collection supports externally driven transient, operating-point and DC sweep analyses. After registering nodes, use the
     # circuit subcommand to replace the circuit while idle. Mode and -all are retained; explicit -nodes selections,
     # known states and histories are cleared. Direct source/reset/remcirc/setcirc/circbyline commands and
     # circuit-changing scripts or aliases remain unsupported.
     #
-    # All modes collect through SendRawEvtData and preserve ngspice's printable strings, including drive strength.
+    # Transient modes collect through SendRawEvtData; OP/DC modes read settled node histories at numeric output
+    # points. All modes preserve ngspice's printable strings, including drive strength.
     # changes publishes complete accepted-step batches; snapshot publishes every selected node at accepted analog
     # output times, carrying unchanged values forward; pernode exposes individual events immediately.
     # Complete batches become visible at the next analog output callback, or after completion/halt for the final
@@ -127,13 +128,20 @@ proc ::ngspicetclbridge::SIM::eventdata {handle args} {
     # Reads an independent snapshot of published string-valued event data.
     # -clear - Discard stored and pending event history; retain selection and latest known states.
     #
-    # Result keys are mode, nodes and batches. nodes maps names to dictionaries containing type.
-    # In pernode mode each node also has events: a list of {eventTime stringValue last} records.
+    # Result keys are mode, analysis, nodes and batches. nodes maps names to dictionaries containing type.
+    # For transient analysis, in pernode mode each node also has events: a list of {eventTime stringValue last} records.
     # In changes mode batches contains {time sampleTime events {{node eventTime stringValue last} ...}} dictionaries.
     # In snapshot mode batches contains {time sampleTime values {node stringValue ...} known {node ...}} dictionaries.
     # An uninitialized node has an empty value and is absent from known; this differs from ngspice's explicit U state.
     # last is only the end of ONE node's native batch, never an all-nodes completion marker. Event times can be
     # out of order across nodes; callback order and repeated same-time transitions are preserved.
+    #
+    # analysis is none before plot initialization, then tran, op or dc. Unsupported analyses report an error.
+    # OP/DC batches use point (zero-based output index) and coordinates (sweep-name/value dictionary; empty for OP)
+    # instead of time. Snapshot batches retain values and known; changes batches contain {node value} records.
+    # OP/DC pernode events are dictionaries with point, coordinates and value. They have no time or last fields.
+    # OP/DC changes and pernode record initial states and subsequent value changes; snapshot records every point.
+    # See the Digital events data guide for examples and the native query cleanup prerequisite for repeated OP/DC use.
     #
     # Data is copied from mutex-protected C storage on this call; no Tcl event-loop turn is required. A read or flush
     # cannot complete a partially delivered timestep. Clear does not erase ngspice's own saved event data or reset

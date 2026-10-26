@@ -1,0 +1,12 @@
+Mixed-signal operating point and DC sweep
+vin in 0 0
+vbias bias 0 0
+rload in 0 1k
+rload2 bias 0 1k
+xlogic in bias logic
+.subckt logic in bias
+adc [in bias] [d e] adcmod
+.model adcmod adc_bridge(in_low=0.5 in_high=1.5)
+.ends
+.op
+.end

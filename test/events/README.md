@@ -12,3 +12,6 @@ Load the analog and digital code-model libraries, and set the bridge inputpath t
 these netlists. `make test-events-real` does this automatically when NGSPICE_CODEMODEL_DIR is supplied.
 
 Original license notices are in LICENSE.ngspice. The adaptation adds no restriction to the upstream examples.
+
+`op-dc.cir` is a bridge test fixture (not an upstream example). It uses two ADC inputs inside a subcircuit
+to check settled OP/DC states, nested sweep coordinates and internal node names.

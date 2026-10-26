@@ -82,7 +82,7 @@ foreach mode {changes snapshot pernode} {
         list [lsort [dict keys $resumed]] [lsort [dict keys $fresh]]\
                 [dict get [$s waitevent event_init -since $base 1] status] [dict get $fresh batches]\
                 [$s command mock_evt_registrations] [expr {$before ne $resumed}]
-    } -cleanup {stopEvents $s} -result {{batches mode nodes} {batches mode nodes} ok {} 3 1}
+    } -cleanup {stopEvents $s} -result {{analysis batches mode nodes} {analysis batches mode nodes} ok {} 3 1}
 }
 
 test events-6 {clear discards pending and committed records but later callbacks continue} -body {
@@ -187,5 +187,49 @@ test events-replace-3 {failed replacement leaves empty event data and allows ret
     list $rc [dict get $empty nodes] [dict get $empty batches] [llength [dict get [$s eventnodes] selected]]\
             [$s command mock_evt_registrations]
 } -cleanup {clean $s} -result {1 {} {} 3 6}
+
+foreach mode {changes snapshot pernode} {
+    test events-static-$mode {OP/DC coordinates, complete points, owned strings and mode-specific suppression} -body {
+        set s [eventSim $mode]
+        $s command op
+        set op [$s eventdata]
+        $s command {dc vin 0 2 1 vbias 10 20 10}
+        set dc [$s eventdata]
+        set counts [$s eventcounts]
+        if {$mode eq {pernode}} {
+            set records [dict get $dc nodes a events]
+            set last [lindex $records end]
+            set detail [list [llength $records] [dict get $last point] [dict get $last coordinates]]
+        } else {
+            set records [dict get $dc batches]
+            set last [lindex $records end]
+            set detail [list [llength $records] [dict get $last point] [dict get $last coordinates]]
+        }
+        list [dict get $op analysis] [dict get $dc analysis] $detail [dict get $counts send_raw_evt] \
+            [dict get $counts event_batch] [lsort [dict keys [dict get $dc nodes]]]
+    } -cleanup {clean $s} -result [list op dc [expr {$mode eq {snapshot} ? {6 5 {vin 2.0 vbias 20.0}} :\
+                                                             {4 4 {vin 1.0 vbias 20.0}}}] 0 7 {a b x1:internal}]
+}
+
+test events-static-errors {unsupported analysis and query failure are sticky; a new transient clears the error} -body {
+    set s [eventSim snapshot]
+    $s command mock_ac
+    set ac [catch {$s eventdata}]
+    $s command mock_static_missing
+    $s command op
+    set missing [catch {$s eventdata}]
+    set cleared [catch {$s eventdata -clear}]
+    $s command mock_evt_start
+    $s command mock_evt_a
+    $s command mock_evt_stop
+    list $ac $missing $cleared [dict get [$s eventdata] analysis]
+} -cleanup {clean $s} -result {1 1 1 tran}
+
+test events-static-coordinate-error {nested expressions do not silently produce wrong outer coordinates} -body {
+    set s [eventSim snapshot]
+    $s command {dc vin 0 {limit} 1 vbias 0 1 1}
+    catch {$s eventdata} message
+    set message
+} -cleanup {clean $s} -result {nested DC event coordinates require literal numeric sweep limits and nonzero steps}
 
 finishTests

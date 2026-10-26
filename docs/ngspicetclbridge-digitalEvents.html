@@ -59,11 +59,14 @@ in the loaded ngspice library, and the circuit’s XSPICE code models must be lo
 returns supported, available, selected and mode. Discovery and configuration require an idle simulator. An
 empty <code class="docutils literal notranslate"><span class="pre">-nodes</span> <span class="pre">{}</span></code> selection disables recording. Configuration changes clear the stored history and known states.</p>
 <p><code class="docutils literal notranslate"><span class="pre">eventdata</span></code> returns the currently retained history, not just records added since the previous read. Every
-result has three top-level keys: mode, nodes and batches. It is an independent Tcl value; subsequent runs,
+result has four top-level keys: mode, analysis, nodes and batches. It is an independent Tcl value; subsequent runs,
 callbacks and clears do not change a result already returned to your script. No Tcl event-loop turn is
 required to read the published data. Event output does not use RBC vectors or vector naming options.</p>
-<section id="choosing-a-mode">
-<span id="r-digitalevents-choosing-a-mode"></span><span id="r-3a3adigitaleventsqzchoosing20a20mode"></span><h3>Choosing a mode<a class="headerlink" href="#choosing-a-mode" title="Link to this heading">¶</a></h3>
+<p>analysis is none before a plot starts, then tran, op or dc. Starting another analysis replaces the current
+event result. AC/noise and other unsupported plots cause eventdata to report an error; their operating-point
+preparation is not presented as a frequency-dependent digital response.</p>
+<section id="choosing-a-transient-mode">
+<span id="r-digitalevents-choosing-a-transient-mode"></span><span id="r-3a3adigitaleventsqzchoosing20a20transient20mode"></span><h3>Choosing a transient mode<a class="headerlink" href="#choosing-a-transient-mode" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">changes</span></code>: record native event reports grouped into complete sampling batches. Use it for transition logs.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: record all selected node states at each accepted transient output point. Use it for aligned state tables; unchanged values are carried forward.</p></li>
@@ -77,6 +80,7 @@ types may use different representations. The type field names the native event t
 <section id="changes-complete-batches-of-event-reports">
 <span id="r-digitalevents-changes-complete-batches-of-event-reports"></span><span id="r-3a3adigitaleventsqz60changes603a20complete20batches20of20event20reports"></span><h3><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports<a class="headerlink" href="#changes-complete-batches-of-event-reports" title="Link to this heading">¶</a></h3>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>changes
+<span class="nv">analysis</span><span class="w"> </span>tran
 <span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}</span><span class="w"> </span>out<span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}}</span>
 <span class="nv">batches</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="k">{</span><span class="nb">time</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">clk</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span><span class="mi">1</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}</span><span class="w"> </span><span class="k">{</span><span class="nv">out</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span><span class="mi">0</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
@@ -105,6 +109,7 @@ callback order; events from different nodes are not necessarily globally sorted 
 <section id="snapshot-all-selected-states-at-each-output-point">
 <span id="r-digitalevents-snapshot-all-selected-states-at-each-output-point"></span><span id="r-3a3adigitaleventsqz60snapshot603a20all20selected20states20at20each20output20point"></span><h3><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point<a class="headerlink" href="#snapshot-all-selected-states-at-each-output-point" title="Link to this heading">¶</a></h3>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>snapshot
+<span class="nv">analysis</span><span class="w"> </span>tran
 <span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}</span><span class="w"> </span>out<span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}}</span>
 <span class="nv">batches</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="k">{</span><span class="nb">time</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span>values<span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="mi">1</span>s<span class="w"> </span>out<span class="w"> </span><span class="k">{}}</span><span class="w"> </span>known<span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="k">}}</span>
@@ -134,6 +139,7 @@ pernode. The snapshot is a carried-forward state, not an interpolation of the di
 <section id="pernode-immediately-available-node-histories">
 <span id="r-digitalevents-pernode-immediately-available-node-histories"></span><span id="r-3a3adigitaleventsqz60pernode603a20immediately20available20node20histories"></span><h3><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories<a class="headerlink" href="#pernode-immediately-available-node-histories" title="Link to this heading">¶</a></h3>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>pernode
+<span class="nv">analysis</span><span class="w"> </span>tran
 <span class="nv">nodes</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">0.0</span><span class="w"> </span><span class="mi">0</span>s<span class="w"> </span><span class="mi">0</span><span class="k">}</span><span class="w"> </span><span class="k">{</span><span class="nv">1e-9</span><span class="w"> </span><span class="mi">1</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
 <span class="w">    </span><span class="nv">out</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">1.5e-9</span><span class="w"> </span><span class="mi">0</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
@@ -152,13 +158,83 @@ can be at different stages of delivery during a run; this mode provides no all-n
 </pre></div>
 </div>
 </section>
+<section id="operating-point-and-dc-sweep">
+<span id="r-digitalevents-operating-point-and-dc-sweep"></span><span id="r-3a3adigitaleventsqzoperating20point20and20dc20sweep"></span><h3>Operating point and DC sweep<a class="headerlink" href="#operating-point-and-dc-sweep" title="Link to this heading">¶</a></h3>
+<p>The same <code class="docutils literal notranslate"><span class="pre">eventnodes</span></code> and <code class="docutils literal notranslate"><span class="pre">eventdata</span></code> commands support OP and DC. Selection, clear, ownership and circuit
+replacement rules are unchanged. The bridge samples settled node histories at each numeric output point,
+including internal subcircuit nodes. OP/DC points are available immediately after that callback, without
+the one-output-point publication delay used for transient batches.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">eventnodes</span><span class="w"> </span><span class="o">-</span>all<span class="w"> </span><span class="o">-</span>mode<span class="w"> </span>snapshot
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span>op
+<span class="k">set</span><span class="w"> </span>operatingPoint<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">eventdata</span><span class="k">]</span>
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="k">{</span><span class="nv">dc</span><span class="w"> </span>vin<span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">1</span><span class="k">}</span>
+<span class="k">set</span><span class="w"> </span>sweep<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">eventdata</span><span class="k">]</span>
+</pre></div>
+</div>
+<p>For an ADC bridge with thresholds 0.5 V and 1.5 V, a DC snapshot result can look like this:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>snapshot
+<span class="nv">analysis</span><span class="w"> </span>dc
+<span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>d<span class="k">}}</span>
+<span class="nv">batches</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">0.0</span><span class="k">}</span><span class="w"> </span>values<span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="mi">0</span>s<span class="k">}</span><span class="w"> </span>known<span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="k">}}</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">1.0</span><span class="k">}</span><span class="w"> </span>values<span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="w"> </span>Us<span class="k">}</span><span class="w"> </span>known<span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="k">}}</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">2.0</span><span class="k">}</span><span class="w"> </span>values<span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="mi">1</span>s<span class="k">}</span><span class="w"> </span>known<span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="k">}}</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">point</span></code> is the zero-based numeric output index in this plot. It continues across nested sweep branches and is not reset by eventdata -clear. It is not a simulation timestamp.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">coordinates</span></code> maps sweep names to values in native units: volts, amperes, ohms or degrees Celsius. An OP result has analysis op and one point with coordinates <code class="docutils literal notranslate"><span class="pre">{}</span></code>. It has no time coordinate.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">values</span></code> maps every selected node to its settled string state. known lists the nodes successfully read; a native <code class="docutils literal notranslate"><span class="pre">U</span></code> state is a known reported value, not missing data.</p></li>
+</ul>
+<p>For a nested sweep such as <code class="docutils literal notranslate"><span class="pre">dc</span> <span class="pre">vin</span> <span class="pre">0</span> <span class="pre">0.4</span> <span class="pre">0.2</span> <span class="pre">vbias</span> <span class="pre">0</span> <span class="pre">0.2</span> <span class="pre">0.2</span></code>, the last snapshot has point 5 and coordinates
+<code class="docutils literal notranslate"><span class="pre">{vin</span> <span class="pre">0.4</span> <span class="pre">vbias</span> <span class="pre">0.2}</span></code>. The primary coordinate comes from ngspice’s output scale. The outer coordinate starts at
+the declared outer limit and advances when the primary scale wraps to its next branch. Repeated primary values
+therefore remain distinguishable. Nested sweep limits must be literal numbers, optionally with SPICE suffixes;
+parameter expressions, altered sweep definitions and compressed/filtered output are not supported. Use one
+<code class="docutils literal notranslate"><span class="pre">.dc</span></code> directive in circuit input, or a direct dc command; includes, aliases and multiple <code class="docutils literal notranslate"><span class="pre">.dc</span></code> directives
+cannot reliably provide coordinate metadata and are outside this interface. A retrieval failure is reported by
+<code class="docutils literal notranslate"><span class="pre">eventdata</span></code> rather than returning a partly filled point.</p>
+<p>OP/DC changes mode records the first known state and subsequent value changes. Empty points are omitted:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>changes
+<span class="nv">analysis</span><span class="w"> </span>dc
+<span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>d<span class="k">}}</span>
+<span class="nv">batches</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">0.0</span><span class="k">}</span><span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="mi">0</span>s<span class="k">}}}</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">1.0</span><span class="k">}</span><span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">xlogic.d</span><span class="w"> </span>Us<span class="k">}}}</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">2.0</span><span class="k">}</span><span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="mi">1</span>s<span class="k">}}}</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+<p>OP/DC pernode mode stores those changes under each node. Each record is a dictionary:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>pernode
+<span class="nv">analysis</span><span class="w"> </span>dc
+<span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">xlogic.d</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>d<span class="w"> </span>events<span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">0.0</span><span class="k">}</span><span class="w"> </span>value<span class="w"> </span><span class="mi">0</span>s<span class="k">}</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">1.0</span><span class="k">}</span><span class="w"> </span>value<span class="w"> </span>Us<span class="k">}</span>
+<span class="w">    </span><span class="k">{</span><span class="nv">point</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span>coordinates<span class="w"> </span><span class="k">{</span><span class="nv">vin</span><span class="w"> </span><span class="mf">2.0</span><span class="k">}</span><span class="w"> </span>value<span class="w"> </span><span class="mi">1</span>s<span class="k">}</span>
+<span class="k">}}}</span>
+<span class="nv">batches</span><span class="w"> </span><span class="k">{}</span>
+</pre></div>
+</div>
+<p>OP uses the same mode-dependent layouts, with only the initial state and an empty coordinates dictionary.
+There is no last flag in OP/DC records: these are settled states, not native transient callback groups.
+No transient delay, pulse width or glitch history can be inferred from a DC sweep.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>batch<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$sweep</span><span class="w"> </span>batches<span class="k">]</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;[dict get </span><span class="o">$</span><span class="s2">batch coordinates vin] V: [dict get </span><span class="o">$</span><span class="s2">batch values xlogic.d]&quot;</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+<p>OP/DC collection uses <code class="docutils literal notranslate"><span class="pre">ngGet_Evt_NodeInfo</span></code>. Queries copy native event history, so their cost
+grows with stored history; this initial implementation favors correctness over large-sweep performance.</p>
+</section>
 <section id="publication-clearing-and-repeated-runs">
 <span id="r-digitalevents-publication-clearing-and-repeated-runs"></span><span id="r-3a3adigitaleventsqzpublication2c20clearing20and20repeated20runs"></span><h3>Publication, clearing and repeated runs<a class="headerlink" href="#publication-clearing-and-repeated-runs" title="Link to this heading">¶</a></h3>
-<p>All modes receive data through the same raw callback. In changes and snapshot, the next analog sample
+<p>All transient modes receive data through the same raw callback. In changes and snapshot, the next analog sample
 callback publishes the preceding batch; completion or halt publishes the final batch. The raw callback’s
 last flag alone cannot complete a batch across all nodes. Reading eventdata or calling flush does not
 publish a partial batch. Purely digital transient circuits use ngspice’s time-only output for this boundary.
-These modes require normal transient output from time zero; there is no wall-clock sampling interval.</p>
+Transient collection requires normal output from time zero; there is no wall-clock sampling interval.</p>
 <p><code class="docutils literal notranslate"><span class="pre">eventdata</span> <span class="pre">-clear</span></code> discards committed and pending history, retaining node selection and latest known states.
 It returns the cleared result, not the discarded records. Later callbacks continue recording; snapshot can
 carry forward retained states. To consume history, read it before clearing it. Reads and clears are separate
@@ -168,10 +244,11 @@ calls: pause the simulation first if records arriving between those calls must n
 while idle clears history and explicit <code class="docutils literal notranslate"><span class="pre">-nodes</span></code> selection, retains the mode, and re-registers <code class="docutils literal notranslate"><span class="pre">-all</span></code> against the
 new nodes. Direct circuit-changing commands and scripts are unsupported once event collection is configured.</p>
 <p><code class="docutils literal notranslate"><span class="pre">eventcounts</span></code> exposes <code class="docutils literal notranslate"><span class="pre">send_raw_evt</span></code> (native callback invocations), <code class="docutils literal notranslate"><span class="pre">event_init</span></code> (bridge initialization) and
-<code class="docutils literal notranslate"><span class="pre">event_batch</span></code> (complete batch boundaries). All support <code class="docutils literal notranslate"><span class="pre">waitevent</span> <span class="pre">-since</span></code>. <code class="docutils literal notranslate"><span class="pre">event_batch</span></code> includes boundaries
-with no changes, so it need not equal the number of stored changes batches. Disabled node registrations
-remain until circuit destruction and can still contribute to <code class="docutils literal notranslate"><span class="pre">send_raw_evt</span></code>. Clearing history does not reset
-these counters. Decoder errors are reported by <code class="docutils literal notranslate"><span class="pre">eventdata</span></code> until configuration or a new plot resets them.</p>
+<code class="docutils literal notranslate"><span class="pre">event_batch</span></code> (complete transient batch boundaries or accepted OP/DC output points). All support <code class="docutils literal notranslate"><span class="pre">waitevent</span>
+<span class="pre">-since</span></code>. <code class="docutils literal notranslate"><span class="pre">event_batch</span></code> includes boundaries with no changes, so it need not equal the number of stored changes
+batches. Disabled node registrations remain until circuit destruction and can still contribute to
+<code class="docutils literal notranslate"><span class="pre">send_raw_evt</span></code>. Clearing history does not reset these counters. Decoder errors are reported by <code class="docutils literal notranslate"><span class="pre">eventdata</span></code>
+until configuration or a new plot resets them.</p>
 <hr class="docutils" />
 <p class="centered">
 <strong>Copyright (c) George Yashin</strong></p></section>
@@ -190,10 +267,11 @@ these counters. Decoder errors are reported by <code class="docutils literal not
     <ul>
 <li><a class="reference internal" href="#">Digital events data</a><ul>
 <li><a class="reference internal" href="#r-digitalevents-digital-events-data">Digital events data</a><ul>
-<li><a class="reference internal" href="#choosing-a-mode">Choosing a mode</a></li>
+<li><a class="reference internal" href="#choosing-a-transient-mode">Choosing a transient mode</a></li>
 <li><a class="reference internal" href="#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
 <li><a class="reference internal" href="#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
 <li><a class="reference internal" href="#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
+<li><a class="reference internal" href="#operating-point-and-dc-sweep">Operating point and DC sweep</a></li>
 <li><a class="reference internal" href="#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
 </ul>
 </li>
