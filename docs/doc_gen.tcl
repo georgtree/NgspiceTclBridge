@@ -7,6 +7,7 @@ set projectRoot [file normalize [file join $docDir ..]]
 source [file join $docDir doc_include.tcl]
 source [file join $docDir startPage.ruff]
 source [file join $docDir rbcBindings.ruff]
+source [file join $docDir digitalEvents.ruff]
 source [file join $docDir notesAndInternals.ruff]
 source [file join $docDir troubleshooting.ruff]
 source [file join $docDir examples.ruff]
@@ -25,7 +26,8 @@ set commonNroff [list -title $title -sortnamespaces false -preamble $startPage -
                          {^(Native.*|Dispatch)$} -product ngspicetclbridge -diagrammer "ditaa --border-width 1"\
                          -version $packageVersion -copyright "George Yashin" {*}$::argv]
 
-set namespaces [list ::rbcBindings ::Examples ::Troubleshooting ::ngspicetclbridge {::Notes and internals}]
+set namespaces [list ::rbcBindings ::digitalEvents ::Examples ::Troubleshooting ::ngspicetclbridge\
+                        {::Notes and internals}]
 
 foreach ns $namespaces {
     set preambleVar "${ns}::_ruff_preamble"

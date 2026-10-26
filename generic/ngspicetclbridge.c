@@ -1846,7 +1846,6 @@ static Tcl_Obj *EventsResultLocked(NgSpiceContext *ctx, Tcl_Interp *interp) {
     Tcl_Obj *result = Tcl_NewDictObj(), *nodes = Tcl_NewDictObj(), *batches = Tcl_NewListObj(0, NULL);
     Tcl_DictObjPut(interp, result, Tcl_NewStringObj("mode", -1),
                    Tcl_NewStringObj(e ? eventModes[e->mode] : "changes", -1));
-    Tcl_DictObjPut(interp, result, Tcl_NewStringObj("generation", -1), Tcl_NewWideIntObj((Tcl_WideInt)ctx->gen));
     if (e) {
         for (EventNode *n = e->nodes; n; n = n->next) {
             if (!n->selected) {

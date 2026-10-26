@@ -72,7 +72,6 @@ foreach mode {changes snapshot pernode} {
         $s command mock_evt_a
         $s command mock_evt_stop
         set before [$s eventdata]
-        set gen [dict get $before generation]
         $s command mock_evt_resume
         $s command mock_evt_b
         $s command mock_evt_stop
@@ -80,10 +79,10 @@ foreach mode {changes snapshot pernode} {
         set base [dict get [$s eventcounts] event_init]
         $s command mock_evt_start
         set fresh [$s eventdata]
-        list [expr {[dict get $resumed generation] == $gen}] [expr {[dict get $fresh generation] > $gen}]\
+        list [lsort [dict keys $resumed]] [lsort [dict keys $fresh]]\
                 [dict get [$s waitevent event_init -since $base 1] status] [dict get $fresh batches]\
                 [$s command mock_evt_registrations] [expr {$before ne $resumed}]
-    } -cleanup {stopEvents $s} -result {1 1 ok {} 3 1}
+    } -cleanup {stopEvents $s} -result {{batches mode nodes} {batches mode nodes} ok {} 3 1}
 }
 
 test events-6 {clear discards pending and committed records but later callbacks continue} -body {

@@ -248,4 +248,6 @@ Public commands documentation:
 .br
 ngspicetclbridge-rbcbindings(n)
 .br
+ngspicetclbridge-digitalevents(n)
+.br
 ngspicetclbridge-ngspicetclbridge(n)

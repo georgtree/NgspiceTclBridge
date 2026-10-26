@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Digital events data &#8212; ngspicetclbridge  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=f11ead97" />
+    
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Examples" href="ngspicetclbridge-Examples.html" />
+    <link rel="prev" title="RBC vectors support" href="ngspicetclbridge-rbcBindings.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-Examples.html" title="Examples"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Digital events data</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="digital-events-data">
+<span id="r-digital-events-data"></span><span id="r-digital20events20data"></span><span id="r-namespaceqz3a3adigitalevents"></span><h1>Digital events data<a class="headerlink" href="#digital-events-data" title="Link to this heading">¶</a></h1>
+<section id="r-digitalevents-digital-events-data">
+<span id="r-3a3adigitaleventsqzdigital20events20data"></span><span id="id1"></span><h2>Digital events data<a class="headerlink" href="#r-digitalevents-digital-events-data" title="Link to this heading">¶</a></h2>
+<p>Digital XSPICE nodes produce string values rather than numeric vectors. Their data is collected separately
+from analog voltages/currents, regardless of the handle’s <code class="docutils literal notranslate"><span class="pre">-output</span></code> setting. The raw event API must be present
+in the loaded ngspice library, and the circuit’s XSPICE code models must be loaded.</p>
+<p>Load the circuit, select the nodes and publication mode, then run the simulation:</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>sim<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="nv">$ngspiceLibrary</span><span class="k">]</span>
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="o">-</span>string<span class="w"> </span><span class="nv">$netlist</span>
+<span class="nv">$sim</span><span class="w"> </span><span class="nv">eventnodes</span><span class="w"> </span><span class="o">-</span>all<span class="w"> </span><span class="o">-</span>mode<span class="w"> </span>changes
+<span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>run<span class="w"> </span><span class="nv">$sim</span>
+<span class="k">set</span><span class="w"> </span>data<span class="w"> </span><span class="k">[</span><span class="nv">$sim</span><span class="w"> </span><span class="nv">eventdata</span><span class="k">]</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">-nodes</span> <span class="pre">{clk</span> <span class="pre">out}</span></code> instead of <code class="docutils literal notranslate"><span class="pre">-all</span></code> to record particular nodes. Calling <code class="docutils literal notranslate"><span class="pre">eventnodes</span></code> without options
+returns supported, available, selected and mode. Discovery and configuration require an idle simulator. An
+empty <code class="docutils literal notranslate"><span class="pre">-nodes</span> <span class="pre">{}</span></code> selection disables recording. Configuration changes clear the stored history and known states.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eventdata</span></code> returns the currently retained history, not just records added since the previous read. Every
+result has three top-level keys: mode, nodes and batches. It is an independent Tcl value; subsequent runs,
+callbacks and clears do not change a result already returned to your script. No Tcl event-loop turn is
+required to read the published data. Event output does not use RBC vectors or vector naming options.</p>
+<section id="choosing-a-mode">
+<span id="r-digitalevents-choosing-a-mode"></span><span id="r-3a3adigitaleventsqzchoosing20a20mode"></span><h3>Choosing a mode<a class="headerlink" href="#choosing-a-mode" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">changes</span></code>: record native event reports grouped into complete sampling batches. Use it for transition logs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: record all selected node states at each accepted transient output point. Use it for aligned state tables; unchanged values are carried forward.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: record each node’s native event reports as soon as they arrive. Use it for individual waveforms or monitoring that must not wait for a complete batch across nodes.</p></li>
+</ul>
+<p>The following outputs are illustrative, formatted across lines for readability. Times are in seconds for
+transient analysis. Value strings are supplied by ngspice’s event-type decoder: for example, digital values can
+contain logic state and drive strength, such as <code class="docutils literal notranslate"><span class="pre">0s</span></code>, <code class="docutils literal notranslate"><span class="pre">1s</span></code> or <code class="docutils literal notranslate"><span class="pre">Uz</span></code>. Preserve the complete string; other event
+types may use different representations. The type field names the native event type, such as digital.</p>
+</section>
+<section id="changes-complete-batches-of-event-reports">
+<span id="r-digitalevents-changes-complete-batches-of-event-reports"></span><span id="r-3a3adigitaleventsqz60changes603a20complete20batches20of20event20reports"></span><h3><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports<a class="headerlink" href="#changes-complete-batches-of-event-reports" title="Link to this heading">¶</a></h3>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>changes
+<span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}</span><span class="w"> </span>out<span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}}</span>
+<span class="nv">batches</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">{</span><span class="nb">time</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">clk</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span><span class="mi">1</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}</span><span class="w"> </span><span class="k">{</span><span class="nv">out</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span><span class="mi">0</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
+<span class="w">    </span><span class="k">{</span><span class="nb">time</span><span class="w"> </span><span class="mi">2</span>e-9<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">out</span><span class="w"> </span><span class="mf">1.5</span>e-9<span class="w"> </span><span class="mi">1</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">nodes</span></code> maps each selected node name to its metadata dictionary. <code class="docutils literal notranslate"><span class="pre">batches</span></code> is an ordered list of dictionaries:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">time</span></code>: the transient output point associated with this batch.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">events</span></code>: records in the form <code class="docutils literal notranslate"><span class="pre">{node</span> <span class="pre">eventTime</span> <span class="pre">value</span> <span class="pre">last}</span></code>. <code class="docutils literal notranslate"><span class="pre">node</span></code> is the original ngspice node name; <code class="docutils literal notranslate"><span class="pre">eventTime</span></code> is the time of that native event, which may differ from the batch time; <code class="docutils literal notranslate"><span class="pre">value</span></code> is its string.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">last</span></code>: 1 marks the last report in that particular node’s native callback group; 0 means more reports for that node follow. It does not indicate that all nodes have been delivered, or that simulation has ended.</p></li>
+</ul>
+<p>Empty batches are omitted. Native predecessor records, repeated timestamps and repeated values are
+preserved, so changes does not mean every row has a value different from the previous row. Records retain
+callback order; events from different nodes are not necessarily globally sorted by <code class="docutils literal notranslate"><span class="pre">eventTime</span></code>.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>batch<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$data</span><span class="w"> </span>batches<span class="k">]</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">foreach</span><span class="w"> </span>event<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$batch</span><span class="w"> </span>events<span class="k">]</span><span class="w"> </span><span class="k">{</span>
+<span class="w">        </span><span class="nb">lassign</span><span class="w"> </span><span class="nv">$event</span><span class="w"> </span>node<span class="w"> </span>eventTime<span class="w"> </span>value<span class="w"> </span>last
+<span class="w">        </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;</span><span class="o">$</span><span class="s2">node at </span><span class="o">$</span><span class="s2">eventTime: </span><span class="o">$</span><span class="s2">value&quot;</span>
+<span class="w">    </span><span class="k">}</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+</section>
+<section id="snapshot-all-selected-states-at-each-output-point">
+<span id="r-digitalevents-snapshot-all-selected-states-at-each-output-point"></span><span id="r-3a3adigitaleventsqz60snapshot603a20all20selected20states20at20each20output20point"></span><h3><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point<a class="headerlink" href="#snapshot-all-selected-states-at-each-output-point" title="Link to this heading">¶</a></h3>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>snapshot
+<span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}</span><span class="w"> </span>out<span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}}</span>
+<span class="nv">batches</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">{</span><span class="nb">time</span><span class="w"> </span><span class="mi">1</span>e-9<span class="w"> </span>values<span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="mi">1</span>s<span class="w"> </span>out<span class="w"> </span><span class="k">{}}</span><span class="w"> </span>known<span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="k">}}</span>
+<span class="w">    </span><span class="k">{</span><span class="nb">time</span><span class="w"> </span><span class="mi">2</span>e-9<span class="w"> </span>values<span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="mi">1</span>s<span class="w"> </span>out<span class="w"> </span><span class="mi">0</span>s<span class="k">}</span><span class="w"> </span>known<span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span>out<span class="k">}}</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+<p>Each batch contains <code class="docutils literal notranslate"><span class="pre">time</span></code>, <code class="docutils literal notranslate"><span class="pre">values</span></code> and <code class="docutils literal notranslate"><span class="pre">known</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">time</span></code>: the accepted transient output time for this snapshot.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">values</span></code>: a dictionary containing every selected node and its latest received value. Nodes without a new report retain their previous value; a node with no report yet has an empty string.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">known</span></code>: the names of nodes whose values have actually been received. Consult this list to distinguish a missing initial value from an explicit unknown/high-impedance state reported by ngspice.</p></li>
+</ul>
+<p>Registering a node does not force ngspice to report an initial value. In the first example snapshot, <code class="docutils literal notranslate"><span class="pre">out</span></code> has
+not reported yet; in the second it has reported <code class="docutils literal notranslate"><span class="pre">0s</span></code>, while <code class="docutils literal notranslate"><span class="pre">clk</span></code> is carried forward as <code class="docutils literal notranslate"><span class="pre">1s</span></code>. Snapshots record
+one batch per accepted output point, even if nothing changes. This can require much more memory than changes or
+pernode. The snapshot is a carried-forward state, not an interpolation of the digital history.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>batch<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$data</span><span class="w"> </span>batches<span class="k">]</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="k">set</span><span class="w"> </span>time<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$batch</span><span class="w"> </span>time<span class="k">]</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="k">{{</span><span class="nv">out</span><span class="k">}</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$batch</span><span class="w"> </span>known<span class="k">]}</span><span class="w"> </span><span class="k">{</span>
+<span class="w">        </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;</span><span class="o">$</span><span class="s2">time: [dict get </span><span class="o">$</span><span class="s2">batch values out]&quot;</span>
+<span class="w">    </span><span class="k">}</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+</section>
+<section id="pernode-immediately-available-node-histories">
+<span id="r-digitalevents-pernode-immediately-available-node-histories"></span><span id="r-3a3adigitaleventsqz60pernode603a20immediately20available20node20histories"></span><h3><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories<a class="headerlink" href="#pernode-immediately-available-node-histories" title="Link to this heading">¶</a></h3>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>pernode
+<span class="nv">nodes</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">0.0</span><span class="w"> </span><span class="mi">0</span>s<span class="w"> </span><span class="mi">0</span><span class="k">}</span><span class="w"> </span><span class="k">{</span><span class="nv">1e-9</span><span class="w"> </span><span class="mi">1</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
+<span class="w">    </span><span class="nv">out</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="w"> </span>events<span class="w"> </span><span class="k">{{</span><span class="nv">1.5e-9</span><span class="w"> </span><span class="mi">0</span>s<span class="w"> </span><span class="mi">1</span><span class="k">}}}</span>
+<span class="k">}</span>
+<span class="nv">batches</span><span class="w"> </span><span class="k">{}</span>
+</pre></div>
+</div>
+<p>Each node dictionary adds events, a list of <code class="docutils literal notranslate"><span class="pre">{eventTime</span> <span class="pre">value</span> <span class="pre">last}</span></code> records. The node name is already the
+dictionary key, so it is omitted from each record. These fields have the same meanings as in changes.
+batches is always empty. A selected node with no reports has events <code class="docutils literal notranslate"><span class="pre">{}</span></code>. Histories for different nodes
+can be at different stages of delivery during a run; this mode provides no all-nodes completion boundary.</p>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>event<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$data</span><span class="w"> </span>nodes<span class="w"> </span>clk<span class="w"> </span>events<span class="k">]</span><span class="w"> </span><span class="k">{</span>
+<span class="w">    </span><span class="nb">lassign</span><span class="w"> </span><span class="nv">$event</span><span class="w"> </span>eventTime<span class="w"> </span>value<span class="w"> </span>last
+<span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;</span><span class="o">$</span><span class="s2">eventTime: </span><span class="o">$</span><span class="s2">value&quot;</span>
+<span class="k">}</span>
+</pre></div>
+</div>
+</section>
+<section id="publication-clearing-and-repeated-runs">
+<span id="r-digitalevents-publication-clearing-and-repeated-runs"></span><span id="r-3a3adigitaleventsqzpublication2c20clearing20and20repeated20runs"></span><h3>Publication, clearing and repeated runs<a class="headerlink" href="#publication-clearing-and-repeated-runs" title="Link to this heading">¶</a></h3>
+<p>All modes receive data through the same raw callback. In changes and snapshot, the next analog sample
+callback publishes the preceding batch; completion or halt publishes the final batch. The raw callback’s
+last flag alone cannot complete a batch across all nodes. Reading eventdata or calling flush does not
+publish a partial batch. Purely digital transient circuits use ngspice’s time-only output for this boundary.
+These modes require normal transient output from time zero; there is no wall-clock sampling interval.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eventdata</span> <span class="pre">-clear</span></code> discards committed and pending history, retaining node selection and latest known states.
+It returns the cleared result, not the discarded records. Later callbacks continue recording; snapshot can
+carry forward retained states. To consume history, read it before clearing it. Reads and clears are separate
+calls: pause the simulation first if records arriving between those calls must not be discarded.</p>
+<p>A new plot clears history and known states. Halt/resume of the same plot preserves them. Numeric <code class="docutils literal notranslate"><span class="pre">vectors</span>
+<span class="pre">-clear</span></code> and <code class="docutils literal notranslate"><span class="pre">command</span> <span class="pre">-clear</span></code> do not clear digital history. Replacing a circuit through the circuit subcommand
+while idle clears history and explicit <code class="docutils literal notranslate"><span class="pre">-nodes</span></code> selection, retains the mode, and re-registers <code class="docutils literal notranslate"><span class="pre">-all</span></code> against the
+new nodes. Direct circuit-changing commands and scripts are unsupported once event collection is configured.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eventcounts</span></code> exposes <code class="docutils literal notranslate"><span class="pre">send_raw_evt</span></code> (native callback invocations), <code class="docutils literal notranslate"><span class="pre">event_init</span></code> (bridge initialization) and
+<code class="docutils literal notranslate"><span class="pre">event_batch</span></code> (complete batch boundaries). All support <code class="docutils literal notranslate"><span class="pre">waitevent</span> <span class="pre">-since</span></code>. <code class="docutils literal notranslate"><span class="pre">event_batch</span></code> includes boundaries
+with no changes, so it need not equal the number of stored changes batches. Disabled node registrations
+remain until circuit destruction and can still contribute to <code class="docutils literal notranslate"><span class="pre">send_raw_evt</span></code>. Clearing history does not reset
+these counters. Decoder errors are reported by <code class="docutils literal notranslate"><span class="pre">eventdata</span></code> until configuration or a new plot resets them.</p>
+<hr class="docutils" />
+<p class="centered">
+<strong>Copyright (c) George Yashin</strong></p></section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Digital events data</a><ul>
+<li><a class="reference internal" href="#r-digitalevents-digital-events-data">Digital events data</a><ul>
+<li><a class="reference internal" href="#choosing-a-mode">Choosing a mode</a></li>
+<li><a class="reference internal" href="#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
+<li><a class="reference internal" href="#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
+<li><a class="reference internal" href="#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
+<li><a class="reference internal" href="#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="ngspicetclbridge-rbcBindings.html"
+                          title="previous chapter">RBC vectors support</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="ngspicetclbridge-Examples.html"
+                          title="next chapter">Examples</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/ngspicetclbridge-digitalEvents.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ngspicetclbridge-Examples.html" title="Examples"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Digital events data</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright George Yashin.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

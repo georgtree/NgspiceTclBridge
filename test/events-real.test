@@ -174,7 +174,6 @@ test events-real-halt-resume {breakpoint halt commits final events; resume retai
     $s command {delete all}
     completeRun $s bg_resume
     set after [$s eventdata]
-    require {[dict get $after generation] == [dict get $before generation]} {resume reset generation}
     require {[llength [dict get $after batches]] > $length} {resume produced no new snapshots}
     require {[lrange [dict get $after batches] 0 $length-1] eq [dict get $before batches]}\
             {resume changed existing snapshots}

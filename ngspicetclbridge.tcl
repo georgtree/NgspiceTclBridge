@@ -127,7 +127,7 @@ proc ::ngspicetclbridge::SIM::eventdata {handle args} {
     # Reads an independent snapshot of published string-valued event data.
     # -clear - Discard stored and pending event history; retain selection and latest known states.
     #
-    # Result keys are mode, generation, nodes and batches. nodes maps names to dictionaries containing type.
+    # Result keys are mode, nodes and batches. nodes maps names to dictionaries containing type.
     # In pernode mode each node also has events: a list of {eventTime stringValue last} records.
     # In changes mode batches contains {time sampleTime events {{node eventTime stringValue last} ...}} dictionaries.
     # In snapshot mode batches contains {time sampleTime values {node stringValue ...} known {node ...}} dictionaries.

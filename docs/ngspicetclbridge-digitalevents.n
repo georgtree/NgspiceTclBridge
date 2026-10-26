@@ -1,0 +1,193 @@
+'\"
+'\" '\" Copyright (c) George Yashin
+'\"
+.TH "digitalEvents" 3tcl 0\&.5 "ngspicetclbridge" "Tcl NgspiceTclBridge package"
+.SH NAME
+digitalEvents - Commands in namespace digitalEvents
+.SH "DIGITAL EVENTS DATA"
+.SH "DIGITAL EVENTS DATA"
+.PP
+Digital XSPICE nodes produce string values rather than numeric vectors\&. Their data is collected separately
+from analog voltages/currents, regardless of the handle's -output setting\&. The raw event API must be present
+in the loaded ngspice library, and the circuit's XSPICE code models must be loaded\&.
+.PP
+Load the circuit, select the nodes and publication mode, then run the simulation:
+.PP
+.RS 4n
+.nf
+set sim [::ngspicetclbridge::new $ngspiceLibrary]
+$sim circuit -string $netlist
+$sim eventnodes -all -mode changes
+::ngspicetclbridge::run $sim
+set data [$sim eventdata]
+.fi
+.RE
+.PP
+Use -nodes {clk out} instead of -all to record particular nodes\&. Calling eventnodes without options
+returns supported, available, selected and mode\&. Discovery and configuration require an idle simulator\&. An
+empty -nodes {} selection disables recording\&. Configuration changes clear the stored history and known states\&.
+.PP
+eventdata returns the currently retained history, not just records added since the previous read\&. Every
+result has three top-level keys: mode, nodes and batches\&. It is an independent Tcl value; subsequent runs,
+callbacks and clears do not change a result already returned to your script\&. No Tcl event-loop turn is
+required to read the published data\&. Event output does not use RBC vectors or vector naming options\&.
+.SS "CHOOSING A MODE"
+.TP
+\(bu
+changes: record native event reports grouped into complete sampling batches\&. Use it for transition logs\&.
+.TP
+\(bu
+snapshot: record all selected node states at each accepted transient output point\&. Use it for aligned state tables; unchanged values are carried forward\&.
+.TP
+\(bu
+pernode: record each node's native event reports as soon as they arrive\&. Use it for individual waveforms or monitoring that must not wait for a complete batch across nodes\&.
+.PP
+The following outputs are illustrative, formatted across lines for readability\&. Times are in seconds for
+transient analysis\&. Value strings are supplied by ngspice's event-type decoder: for example, digital values can
+contain logic state and drive strength, such as 0s, 1s or Uz\&. Preserve the complete string; other event
+types may use different representations\&. The type field names the native event type, such as digital\&.
+.SS "CHANGES: COMPLETE BATCHES OF EVENT REPORTS"
+.PP
+.RS 4n
+.nf
+mode changes
+nodes {clk {type digital} out {type digital}}
+batches {
+    {time 1e-9 events {{clk 1e-9 1s 1} {out 1e-9 0s 1}}}
+    {time 2e-9 events {{out 1\&.5e-9 1s 1}}}
+}
+.fi
+.RE
+.PP
+nodes maps each selected node name to its metadata dictionary\&. batches is an ordered list of dictionaries:
+.TP
+\(bu
+time: the transient output point associated with this batch\&.
+.TP
+\(bu
+events: records in the form {node eventTime value last}\&. node is the original ngspice node name; eventTime is the time of that native event, which may differ from the batch time; value is its string\&.
+.TP
+\(bu
+last: 1 marks the last report in that particular node's native callback group; 0 means more reports for that node follow\&. It does not indicate that all nodes have been delivered, or that simulation has ended\&.
+.PP
+Empty batches are omitted\&. Native predecessor records, repeated timestamps and repeated values are
+preserved, so changes does not mean every row has a value different from the previous row\&. Records retain
+callback order; events from different nodes are not necessarily globally sorted by eventTime\&.
+.PP
+.RS 4n
+.nf
+foreach batch [dict get $data batches] {
+    foreach event [dict get $batch events] {
+        lassign $event node eventTime value last
+        puts "$node at $eventTime: $value"
+    }
+}
+.fi
+.RE
+.SS "SNAPSHOT: ALL SELECTED STATES AT EACH OUTPUT POINT"
+.PP
+.RS 4n
+.nf
+mode snapshot
+nodes {clk {type digital} out {type digital}}
+batches {
+    {time 1e-9 values {clk 1s out {}} known {clk}}
+    {time 2e-9 values {clk 1s out 0s} known {clk out}}
+}
+.fi
+.RE
+.PP
+Each batch contains time, values and known:
+.TP
+\(bu
+time: the accepted transient output time for this snapshot\&.
+.TP
+\(bu
+values: a dictionary containing every selected node and its latest received value\&. Nodes without a new report retain their previous value; a node with no report yet has an empty string\&.
+.TP
+\(bu
+known: the names of nodes whose values have actually been received\&. Consult this list to distinguish a missing initial value from an explicit unknown/high-impedance state reported by ngspice\&.
+.PP
+Registering a node does not force ngspice to report an initial value\&. In the first example snapshot, out has
+not reported yet; in the second it has reported 0s, while clk is carried forward as 1s\&. Snapshots record
+one batch per accepted output point, even if nothing changes\&. This can require much more memory than changes or
+pernode\&. The snapshot is a carried-forward state, not an interpolation of the digital history\&.
+.PP
+.RS 4n
+.nf
+foreach batch [dict get $data batches] {
+    set time [dict get $batch time]
+    if {{out} in [dict get $batch known]} {
+        puts "$time: [dict get $batch values out]"
+    }
+}
+.fi
+.RE
+.SS "PERNODE: IMMEDIATELY AVAILABLE NODE HISTORIES"
+.PP
+.RS 4n
+.nf
+mode pernode
+nodes {
+    clk {type digital events {{0\&.0 0s 0} {1e-9 1s 1}}}
+    out {type digital events {{1\&.5e-9 0s 1}}}
+}
+batches {}
+.fi
+.RE
+.PP
+Each node dictionary adds events, a list of {eventTime value last} records\&. The node name is already the
+dictionary key, so it is omitted from each record\&. These fields have the same meanings as in changes\&.
+batches is always empty\&. A selected node with no reports has events {}\&. Histories for different nodes
+can be at different stages of delivery during a run; this mode provides no all-nodes completion boundary\&.
+.PP
+.RS 4n
+.nf
+foreach event [dict get $data nodes clk events] {
+    lassign $event eventTime value last
+    puts "$eventTime: $value"
+}
+.fi
+.RE
+.SS "PUBLICATION, CLEARING AND REPEATED RUNS"
+.PP
+All modes receive data through the same raw callback\&. In changes and snapshot, the next analog sample
+callback publishes the preceding batch; completion or halt publishes the final batch\&. The raw callback's
+last flag alone cannot complete a batch across all nodes\&. Reading eventdata or calling flush does not
+publish a partial batch\&. Purely digital transient circuits use ngspice's time-only output for this boundary\&.
+These modes require normal transient output from time zero; there is no wall-clock sampling interval\&.
+.PP
+eventdata -clear discards committed and pending history, retaining node selection and latest known states\&.
+It returns the cleared result, not the discarded records\&. Later callbacks continue recording; snapshot can
+carry forward retained states\&. To consume history, read it before clearing it\&. Reads and clears are separate
+calls: pause the simulation first if records arriving between those calls must not be discarded\&.
+.PP
+A new plot clears history and known states\&. Halt/resume of the same plot preserves them\&. Numeric vectors
+-clear and command -clear do not clear digital history\&. Replacing a circuit through the circuit subcommand
+while idle clears history and explicit -nodes selection, retains the mode, and re-registers -all against the
+new nodes\&. Direct circuit-changing commands and scripts are unsupported once event collection is configured\&.
+.PP
+eventcounts exposes send_raw_evt (native callback invocations), event_init (bridge initialization) and
+event_batch (complete batch boundaries)\&. All support waitevent -since\&. event_batch includes boundaries
+with no changes, so it need not equal the number of stored changes batches\&. Disabled node registrations
+remain until circuit destruction and can still contribute to send_raw_evt\&. Clearing history does not reset
+these counters\&. Decoder errors are reported by eventdata until configuration or a new plot resets them\&.
+
+
+.SH SEE ALSO
+ngspicetclbridge(n) - package's main page
+.br
+ngspicetclbridge-examples(n) - examples of usage with detailed explanations
+.br
+ngspicetclbridge-troubleshooting(n) - solutions to common issues
+.br
+ngspicetclbridge-notes-and-internals(n) - information about implementation
+.br
+.sp 1
+Public commands documentation:
+.br
+ngspicetclbridge-rbcbindings(n)
+.br
+ngspicetclbridge-digitalevents(n)
+.br
+ngspicetclbridge-ngspicetclbridge(n)
