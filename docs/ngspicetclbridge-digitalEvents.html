@@ -1,49 +1,225 @@
+
+
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<html lang="en" data-content_root="./">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital events data &mdash; ngspicetclbridge  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/manual.css?v=00cdc845" />
 
-    <title>Digital events data &#8212; ngspicetclbridge  documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=f11ead97" />
-    
-    <script src="_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Examples" href="ngspicetclbridge-Examples.html" />
     <link rel="prev" title="RBC vectors support" href="ngspicetclbridge-rbcBindings.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-Examples.html" title="Examples"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Digital events data</a></li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ngspicetclbridge
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge.html">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#building-requirements">Building &amp; requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#documentation">Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#optional-rbc-vector-output">Optional RBC vector output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#digital-event-tests">Digital event tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#testing">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#installation-layout-and-removal">Installation layout and removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#installation-archives">Installation archives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#regenerating-documentation">Regenerating documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#notes-and-troubleshooting">Notes and troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge.html#interactive-help">Interactive help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html">RBC vectors support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#optional-rbc-vector-output">Optional RBC vector output</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#graph-integration-with-real-ngspice">Graph integration with real ngspice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#vector-destination-namespace">Vector destination namespace</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#read-only-destinations">Read-only destinations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#namespace-precedence-for-snapshots">Namespace precedence for snapshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#package-defaults">Package defaults</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Digital events data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#r-digitalevents-digital-events-data">Digital events data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#choosing-a-transient-mode">Choosing a transient mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#operating-point-and-dc-sweep">Operating point and DC sweep</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Examples.html#parametric-simulation">Parametric simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html">::ngspicetclbridge</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#commands">Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#configure"><code class="docutils literal notranslate"><span class="pre">configure</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getcircuit"><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getcircuittitle"><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getplotdate"><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getplotname"><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getscaleinfo"><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#new"><code class="docutils literal notranslate"><span class="pre">new</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#readvecsasync"><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim"><code class="docutils literal notranslate"><span class="pre">SIM</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-abort"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-asyncvector"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-circuit"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-command"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-destroy"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventcounts"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventdata"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventnodes"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-flush"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-initvectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-inputpath"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-isrunning"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-messages"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-plot"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-vectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-waitevent"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html">Notes and internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-instance-subcommands-are-implemented">How instance subcommands are implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-creation">Command creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#subcommand-dispatching">Subcommand dispatching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-and-state-transitions">Thread safety and state transitions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#deferred-command-queue">Deferred command queue</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#capture-mode">Capture mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-deletion-and-cleanup">Command deletion and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#instance-subcommands-summary">Instance subcommands summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-sync-callbacks-from-ngspice-is-implemented">How sync callbacks from Ngspice is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#registration-of-callbacks">Registration of callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#callback-invocation-model">Callback invocation model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-and-queueing-behavior">Thread safety and queueing behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#controlled-flow-of-data">Controlled flow of data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#background-thread-lifecycle-callbacks">Background thread lifecycle callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#generation-and-stale-event-handling">Generation and stale-event handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#controlled-exit-coordination">Controlled exit coordination</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#safety-and-teardown-integration">Safety and teardown integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-event-queue-interaction-is-implemented">How event queue interaction is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-structure-definition">Event structure definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-allocation-and-queuing">Event allocation and queuing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-processing">Event processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-deletion-and-resource-balancing">Event deletion and resource balancing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#generation-handling-and-safety">Generation handling and safety</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronization-guarantees">Synchronization guarantees</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-thread-safety-is-ensured">How thread safety is ensured</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-data-processing-is-implemented">How data processing is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#overview-of-the-data-flow">Overview of the data flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#asynchronous-access-structures">Asynchronous access structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-interpreter-storage">Command interpreter storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#digital-event-nodes">Digital event nodes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#raw-digital-event-storage">Raw digital event storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#data-lifecycle-and-cleanup">Data lifecycle and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-in-data-handling">Thread safety in data handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-message-queue-is-implemented">How message queue is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-production-ngspice-callbacks">Message production (ngspice callbacks)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-consumption-tcl-commands">Message consumption (Tcl commands)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#capture-mode-capture">Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#clearing-and-freeing-queues">Clearing and freeing queues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronization-and-safety-guarantees">Synchronization and safety guarantees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-queue-summary">Message queue summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-dynamic-library-loading-and-portability-is-implemented">How dynamic library loading and portability is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#abstracted-portability-layer">Abstracted portability layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#unicode-and-tcl-path-integration">Unicode and Tcl path integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#function-symbol-resolution">Function symbol resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#safe-unloading-and-crash-prevention">Safe unloading and crash prevention</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#platform-specific-nuances">Platform-specific nuances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#dynamic-library-loading-summary">Dynamic library loading summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ngspicetclbridge</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Digital events data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ngspicetclbridge-digitalEvents.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="digital-events-data">
-<span id="r-digital-events-data"></span><span id="r-digital20events20data"></span><span id="r-namespaceqz3a3adigitalevents"></span><h1>Digital events data<a class="headerlink" href="#digital-events-data" title="Link to this heading">¶</a></h1>
+<span id="r-digital-events-data"></span><span id="r-digital20events20data"></span><span id="r-namespaceqz3a3adigitalevents"></span><h1>Digital events data<a class="headerlink" href="#digital-events-data" title="Link to this heading"></a></h1>
 <section id="r-digitalevents-digital-events-data">
-<span id="r-3a3adigitaleventsqzdigital20events20data"></span><span id="id1"></span><h2>Digital events data<a class="headerlink" href="#r-digitalevents-digital-events-data" title="Link to this heading">¶</a></h2>
+<span id="r-3a3adigitaleventsqzdigital20events20data"></span><span id="id1"></span><h2>Digital events data<a class="headerlink" href="#r-digitalevents-digital-events-data" title="Link to this heading"></a></h2>
 <p>Digital XSPICE nodes produce string values rather than numeric vectors. Their data is collected separately
 from analog voltages/currents, regardless of the handle’s <code class="docutils literal notranslate"><span class="pre">-output</span></code> setting. The raw event API must be present
 in the loaded ngspice library, and the circuit’s XSPICE code models must be loaded.</p>
@@ -66,7 +242,7 @@ required to read the published data. Event output does not use RBC vectors or ve
 event result. AC/noise and other unsupported plots cause eventdata to report an error; their operating-point
 preparation is not presented as a frequency-dependent digital response.</p>
 <section id="choosing-a-transient-mode">
-<span id="r-digitalevents-choosing-a-transient-mode"></span><span id="r-3a3adigitaleventsqzchoosing20a20transient20mode"></span><h3>Choosing a transient mode<a class="headerlink" href="#choosing-a-transient-mode" title="Link to this heading">¶</a></h3>
+<span id="r-digitalevents-choosing-a-transient-mode"></span><span id="r-3a3adigitaleventsqzchoosing20a20transient20mode"></span><h3>Choosing a transient mode<a class="headerlink" href="#choosing-a-transient-mode" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">changes</span></code>: record native event reports grouped into complete sampling batches. Use it for transition logs.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: record all selected node states at each accepted transient output point. Use it for aligned state tables; unchanged values are carried forward.</p></li>
@@ -78,7 +254,7 @@ contain logic state and drive strength, such as <code class="docutils literal no
 types may use different representations. The type field names the native event type, such as digital.</p>
 </section>
 <section id="changes-complete-batches-of-event-reports">
-<span id="r-digitalevents-changes-complete-batches-of-event-reports"></span><span id="r-3a3adigitaleventsqz60changes603a20complete20batches20of20event20reports"></span><h3><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports<a class="headerlink" href="#changes-complete-batches-of-event-reports" title="Link to this heading">¶</a></h3>
+<span id="r-digitalevents-changes-complete-batches-of-event-reports"></span><span id="r-3a3adigitaleventsqz60changes603a20complete20batches20of20event20reports"></span><h3><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports<a class="headerlink" href="#changes-complete-batches-of-event-reports" title="Link to this heading"></a></h3>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>changes
 <span class="nv">analysis</span><span class="w"> </span>tran
 <span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}</span><span class="w"> </span>out<span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}}</span>
@@ -100,14 +276,14 @@ callback order; events from different nodes are not necessarily globally sorted 
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>batch<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$data</span><span class="w"> </span>batches<span class="k">]</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="k">foreach</span><span class="w"> </span>event<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$batch</span><span class="w"> </span>events<span class="k">]</span><span class="w"> </span><span class="k">{</span>
 <span class="w">        </span><span class="nb">lassign</span><span class="w"> </span><span class="nv">$event</span><span class="w"> </span>node<span class="w"> </span>eventTime<span class="w"> </span>value<span class="w"> </span>last
-<span class="w">        </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;</span><span class="o">$</span><span class="s2">node at </span><span class="o">$</span><span class="s2">eventTime: </span><span class="o">$</span><span class="s2">value&quot;</span>
+<span class="w">        </span><span class="nb">puts</span><span class="w"> </span><span class="s2">"</span><span class="o">$</span><span class="s2">node at </span><span class="o">$</span><span class="s2">eventTime: </span><span class="o">$</span><span class="s2">value"</span>
 <span class="w">    </span><span class="k">}</span>
 <span class="k">}</span>
 </pre></div>
 </div>
 </section>
 <section id="snapshot-all-selected-states-at-each-output-point">
-<span id="r-digitalevents-snapshot-all-selected-states-at-each-output-point"></span><span id="r-3a3adigitaleventsqz60snapshot603a20all20selected20states20at20each20output20point"></span><h3><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point<a class="headerlink" href="#snapshot-all-selected-states-at-each-output-point" title="Link to this heading">¶</a></h3>
+<span id="r-digitalevents-snapshot-all-selected-states-at-each-output-point"></span><span id="r-3a3adigitaleventsqz60snapshot603a20all20selected20states20at20each20output20point"></span><h3><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point<a class="headerlink" href="#snapshot-all-selected-states-at-each-output-point" title="Link to this heading"></a></h3>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>snapshot
 <span class="nv">analysis</span><span class="w"> </span>tran
 <span class="nv">nodes</span><span class="w"> </span><span class="k">{</span><span class="nv">clk</span><span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}</span><span class="w"> </span>out<span class="w"> </span><span class="k">{</span><span class="nv">type</span><span class="w"> </span>digital<span class="k">}}</span>
@@ -130,14 +306,14 @@ pernode. The snapshot is a carried-forward state, not an interpolation of the di
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>batch<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$data</span><span class="w"> </span>batches<span class="k">]</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="k">set</span><span class="w"> </span>time<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$batch</span><span class="w"> </span>time<span class="k">]</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="k">{{</span><span class="nv">out</span><span class="k">}</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$batch</span><span class="w"> </span>known<span class="k">]}</span><span class="w"> </span><span class="k">{</span>
-<span class="w">        </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;</span><span class="o">$</span><span class="s2">time: [dict get </span><span class="o">$</span><span class="s2">batch values out]&quot;</span>
+<span class="w">        </span><span class="nb">puts</span><span class="w"> </span><span class="s2">"</span><span class="o">$</span><span class="s2">time: [dict get </span><span class="o">$</span><span class="s2">batch values out]"</span>
 <span class="w">    </span><span class="k">}</span>
 <span class="k">}</span>
 </pre></div>
 </div>
 </section>
 <section id="pernode-immediately-available-node-histories">
-<span id="r-digitalevents-pernode-immediately-available-node-histories"></span><span id="r-3a3adigitaleventsqz60pernode603a20immediately20available20node20histories"></span><h3><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories<a class="headerlink" href="#pernode-immediately-available-node-histories" title="Link to this heading">¶</a></h3>
+<span id="r-digitalevents-pernode-immediately-available-node-histories"></span><span id="r-3a3adigitaleventsqz60pernode603a20immediately20available20node20histories"></span><h3><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories<a class="headerlink" href="#pernode-immediately-available-node-histories" title="Link to this heading"></a></h3>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">mode</span><span class="w"> </span>pernode
 <span class="nv">analysis</span><span class="w"> </span>tran
 <span class="nv">nodes</span><span class="w"> </span><span class="k">{</span>
@@ -153,13 +329,13 @@ batches is always empty. A selected node with no reports has events <code class=
 can be at different stages of delivery during a run; this mode provides no all-nodes completion boundary.</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>event<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$data</span><span class="w"> </span>nodes<span class="w"> </span>clk<span class="w"> </span>events<span class="k">]</span><span class="w"> </span><span class="k">{</span>
 <span class="w">    </span><span class="nb">lassign</span><span class="w"> </span><span class="nv">$event</span><span class="w"> </span>eventTime<span class="w"> </span>value<span class="w"> </span>last
-<span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;</span><span class="o">$</span><span class="s2">eventTime: </span><span class="o">$</span><span class="s2">value&quot;</span>
+<span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">"</span><span class="o">$</span><span class="s2">eventTime: </span><span class="o">$</span><span class="s2">value"</span>
 <span class="k">}</span>
 </pre></div>
 </div>
 </section>
 <section id="operating-point-and-dc-sweep">
-<span id="r-digitalevents-operating-point-and-dc-sweep"></span><span id="r-3a3adigitaleventsqzoperating20point20and20dc20sweep"></span><h3>Operating point and DC sweep<a class="headerlink" href="#operating-point-and-dc-sweep" title="Link to this heading">¶</a></h3>
+<span id="r-digitalevents-operating-point-and-dc-sweep"></span><span id="r-3a3adigitaleventsqzoperating20point20and20dc20sweep"></span><h3>Operating point and DC sweep<a class="headerlink" href="#operating-point-and-dc-sweep" title="Link to this heading"></a></h3>
 <p>The same <code class="docutils literal notranslate"><span class="pre">eventnodes</span></code> and <code class="docutils literal notranslate"><span class="pre">eventdata</span></code> commands support OP and DC. Selection, clear, ownership and circuit
 replacement rules are unchanged. The bridge samples settled node histories at each numeric output point,
 including internal subcircuit nodes. OP/DC points are available immediately after that callback, without
@@ -221,7 +397,7 @@ cannot reliably provide coordinate metadata and are outside this interface. A re
 There is no last flag in OP/DC records: these are settled states, not native transient callback groups.
 No transient delay, pulse width or glitch history can be inferred from a DC sweep.</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">foreach</span><span class="w"> </span>batch<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="nv">$sweep</span><span class="w"> </span>batches<span class="k">]</span><span class="w"> </span><span class="k">{</span>
-<span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">&quot;[dict get </span><span class="o">$</span><span class="s2">batch coordinates vin] V: [dict get </span><span class="o">$</span><span class="s2">batch values xlogic.d]&quot;</span>
+<span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">"[dict get </span><span class="o">$</span><span class="s2">batch coordinates vin] V: [dict get </span><span class="o">$</span><span class="s2">batch values xlogic.d]"</span>
 <span class="k">}</span>
 </pre></div>
 </div>
@@ -229,7 +405,7 @@ No transient delay, pulse width or glitch history can be inferred from a DC swee
 grows with stored history; this initial implementation favors correctness over large-sweep performance.</p>
 </section>
 <section id="publication-clearing-and-repeated-runs">
-<span id="r-digitalevents-publication-clearing-and-repeated-runs"></span><span id="r-3a3adigitaleventsqzpublication2c20clearing20and20repeated20runs"></span><h3>Publication, clearing and repeated runs<a class="headerlink" href="#publication-clearing-and-repeated-runs" title="Link to this heading">¶</a></h3>
+<span id="r-digitalevents-publication-clearing-and-repeated-runs"></span><span id="r-3a3adigitaleventsqzpublication2c20clearing20and20repeated20runs"></span><h3>Publication, clearing and repeated runs<a class="headerlink" href="#publication-clearing-and-repeated-runs" title="Link to this heading"></a></h3>
 <p>All transient modes receive data through the same raw callback. In changes and snapshot, the next analog sample
 callback publishes the preceding batch; completion or halt publishes the final batch. The raw callback’s
 last flag alone cannot complete a batch across all nodes. Reading eventdata or calling flush does not
@@ -256,80 +432,34 @@ until configuration or a new plot resets them.</p>
 </section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="Main">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">Digital events data</a><ul>
-<li><a class="reference internal" href="#r-digitalevents-digital-events-data">Digital events data</a><ul>
-<li><a class="reference internal" href="#choosing-a-transient-mode">Choosing a transient mode</a></li>
-<li><a class="reference internal" href="#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
-<li><a class="reference internal" href="#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
-<li><a class="reference internal" href="#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
-<li><a class="reference internal" href="#operating-point-and-dc-sweep">Operating point and DC sweep</a></li>
-<li><a class="reference internal" href="#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ngspicetclbridge-rbcBindings.html" class="btn btn-neutral float-left" title="RBC vectors support" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ngspicetclbridge-Examples.html" class="btn btn-neutral float-right" title="Examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright George Yashin.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-rbcBindings.html"
-                          title="previous chapter">RBC vectors support</a></p>
-  </div>
-  <div>
-    <h4>Next topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-Examples.html"
-                          title="next chapter">Examples</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/ngspicetclbridge-digitalEvents.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<search id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</search>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-Examples.html" title="Examples"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Digital events data</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-    &#169; Copyright George Yashin.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

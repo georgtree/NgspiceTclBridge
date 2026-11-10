@@ -42,16 +42,24 @@ ruff::document $namespaces -format nroff -outdir $docDir -outfile ngspicetclbrid
 
 
 ::fileutil::appendToFile [file join $docDir sphinx conf.py] {
-extensions = [
+extensions = list(dict.fromkeys(globals().get("extensions", []) + [
+    "sphinx_rtd_theme",
     "sphinx.ext.githubpages",
-]
+]))
 suppress_warnings = [
     "image.not_readable",
 ]
-html_theme = "classic"
+html_theme = "sphinx_rtd_theme"
 html_theme_options = {
-    "stickysidebar": True,
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": True,
+    "titles_only": False,
 }
+# Custom CSS is staged by doc_gen.tcl; the source lives inside the HTML outdir.
+html_static_path = []
+html_css_files = list(globals().get("html_css_files", [])) + ["manual.css"]
 from pygments.lexers.tcl import TclLexer
 from pygments.token import Operator
 
@@ -76,15 +84,62 @@ def setup(app):
     lexers["tcl"] = MyTclLexer()
 }
 
-catch {exec sphinx-build -E -a -b html [file join $docDir sphinx] [file join $docDir]} errorStr
-puts $errorStr
+# Use one Python environment for Sphinx and the RTD theme; propagate failures.
+set python python
+if {[info exists ::env(DOC_PYTHON)] && $::env(DOC_PYTHON) ne {}} {
+    set python $::env(DOC_PYTHON)
+}
+file mkdir [file join $docDir _static]
+file copy -force [file join $docDir theme manual.css] [file join $docDir _static manual.css]
+exec -- $python -m sphinx -E -a -b html [file join $docDir sphinx] $docDir >@stdout 2>@stderr
 
 # ticklechart graphs substitutions
+# Embed a standalone ticklecharts document without nesting HTML documents or
+# sharing chart IDs/globals with the manual. Assets travel with installed docs.
+proc chartFrame {filename} {
+    global docDir
+    set html [::fileutil::cat $filename]
+    set height 0
+    foreach {match pixels} [regexp -all -inline {height:\s*([0-9]+)px} $html] {
+        set height [expr {max($height, $pixels)}]
+    }
+    if {$height == 0} {
+        set height 500
+    }
+    # Keep ECharts' coordinate system in sync with the available RTD width.
+    set responsive {
+<style>
+html, body { margin: 0; padding: 0; }
+.chart-container { max-width: 100%; }
+</style>
+<script>
+window.addEventListener("load", function () {
+    document.querySelectorAll(".chart-container").forEach(function (element) {
+        function resize() {
+            const chart = window.echarts && echarts.getInstanceByDom(element);
+            if (chart) chart.resize();
+        }
+        resize();
+        if (window.ResizeObserver) new ResizeObserver(resize).observe(element);
+        else window.addEventListener("resize", resize);
+    });
+});
+</script>
+}
+    set html [string map [list </head> "$responsive</head>"] $html]
+    set destination [file join $docDir assets charts]
+    file mkdir $destination
+    set name [file tail $filename]
+    ::fileutil::writeFile [file join $destination $name] $html
+    set title [string map [list & &amp\; \" &quot\; < &lt\; > &gt\;] [file rootname $name]]
+    return "<iframe class=\"doc-chart\" src=\"assets/charts/$name\" title=\"$title\" height=\"$height\" loading=\"lazy\"></iframe>"
+}
+
 proc processContentsTutorial {fileContents} {
     global path chartsMap
     dict for {mark file} $chartsMap {
-        set fileData [fileutil::cat [file join $path $file]]
-        set fileContents [string map [list $mark $fileData] $fileContents]
+        set fileData [chartFrame [file join $path $file]]
+        set fileContents [string map [list "<p>$mark</p>" $fileData $mark $fileData] $fileContents]
     }
     return $fileContents
 }
@@ -98,8 +153,9 @@ foreach file [glob -directory $docDir *.n] {
     set old $file
     set tmp [file join $docDir __temp_rename__.n]
     set new [file join $docDir [string tolower [file tail $file]]]
-    file rename $old $tmp
-    file rename $tmp $new
+    if {$old eq $new} {continue}
+    file rename -force $old $tmp
+    file rename -force $tmp $new
 }
 set specialPages [list ngspicetclbridge-examples ngspicetclbridge-troubleshooting ngspicetclbridge-notes-and-internals]
 foreach namespacePath $namespaces {

@@ -1,51 +1,227 @@
+
+
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<html lang="en" data-content_root="./">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>::ngspicetclbridge &mdash; ngspicetclbridge  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/manual.css?v=00cdc845" />
 
-    <title>::ngspicetclbridge &#8212; ngspicetclbridge  documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=f11ead97" />
-    
-    <script src="_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Notes and internals" href="ngspicetclbridge-Notes-and-internals.html" />
     <link rel="prev" title="Troubleshooting" href="ngspicetclbridge-Troubleshooting.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-Notes-and-internals.html" title="Notes and internals"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="ngspicetclbridge-Troubleshooting.html" title="Troubleshooting"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">::ngspicetclbridge</a></li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ngspicetclbridge
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge.html">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#building-requirements">Building &amp; requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#documentation">Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#optional-rbc-vector-output">Optional RBC vector output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#digital-event-tests">Digital event tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#testing">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#installation-layout-and-removal">Installation layout and removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#installation-archives">Installation archives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#regenerating-documentation">Regenerating documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#notes-and-troubleshooting">Notes and troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge.html#interactive-help">Interactive help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html">RBC vectors support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#optional-rbc-vector-output">Optional RBC vector output</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#graph-integration-with-real-ngspice">Graph integration with real ngspice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#vector-destination-namespace">Vector destination namespace</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#read-only-destinations">Read-only destinations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#namespace-precedence-for-snapshots">Namespace precedence for snapshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#package-defaults">Package defaults</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html">Digital events data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#r-digitalevents-digital-events-data">Digital events data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#choosing-a-transient-mode">Choosing a transient mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#operating-point-and-dc-sweep">Operating point and DC sweep</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Examples.html#parametric-simulation">Parametric simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">::ngspicetclbridge</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#commands">Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#configure"><code class="docutils literal notranslate"><span class="pre">configure</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getcircuit"><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getcircuittitle"><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getplotdate"><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getplotname"><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getscaleinfo"><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#new"><code class="docutils literal notranslate"><span class="pre">new</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#readvecsasync"><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim"><code class="docutils literal notranslate"><span class="pre">SIM</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-abort"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-asyncvector"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-circuit"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-command"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-destroy"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-eventcounts"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-eventdata"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-eventnodes"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-flush"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-initvectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-inputpath"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-isrunning"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-messages"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-plot"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-vectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sim-waitevent"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html">Notes and internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-instance-subcommands-are-implemented">How instance subcommands are implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-creation">Command creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#subcommand-dispatching">Subcommand dispatching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-and-state-transitions">Thread safety and state transitions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#deferred-command-queue">Deferred command queue</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#capture-mode">Capture mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-deletion-and-cleanup">Command deletion and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#instance-subcommands-summary">Instance subcommands summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-sync-callbacks-from-ngspice-is-implemented">How sync callbacks from Ngspice is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#registration-of-callbacks">Registration of callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#callback-invocation-model">Callback invocation model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-and-queueing-behavior">Thread safety and queueing behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#controlled-flow-of-data">Controlled flow of data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#background-thread-lifecycle-callbacks">Background thread lifecycle callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#generation-and-stale-event-handling">Generation and stale-event handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#controlled-exit-coordination">Controlled exit coordination</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#safety-and-teardown-integration">Safety and teardown integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-event-queue-interaction-is-implemented">How event queue interaction is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-structure-definition">Event structure definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-allocation-and-queuing">Event allocation and queuing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-processing">Event processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-deletion-and-resource-balancing">Event deletion and resource balancing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#generation-handling-and-safety">Generation handling and safety</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronization-guarantees">Synchronization guarantees</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-thread-safety-is-ensured">How thread safety is ensured</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-data-processing-is-implemented">How data processing is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#overview-of-the-data-flow">Overview of the data flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#asynchronous-access-structures">Asynchronous access structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-interpreter-storage">Command interpreter storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#digital-event-nodes">Digital event nodes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#raw-digital-event-storage">Raw digital event storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#data-lifecycle-and-cleanup">Data lifecycle and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-in-data-handling">Thread safety in data handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-message-queue-is-implemented">How message queue is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-production-ngspice-callbacks">Message production (ngspice callbacks)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-consumption-tcl-commands">Message consumption (Tcl commands)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#capture-mode-capture">Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#clearing-and-freeing-queues">Clearing and freeing queues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronization-and-safety-guarantees">Synchronization and safety guarantees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-queue-summary">Message queue summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-dynamic-library-loading-and-portability-is-implemented">How dynamic library loading and portability is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#abstracted-portability-layer">Abstracted portability layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#unicode-and-tcl-path-integration">Unicode and Tcl path integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#function-symbol-resolution">Function symbol resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#safe-unloading-and-crash-prevention">Safe unloading and crash prevention</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#platform-specific-nuances">Platform-specific nuances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#dynamic-library-loading-summary">Dynamic library loading summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ngspicetclbridge</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">::ngspicetclbridge</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ngspicetclbridge-ngspicetclbridge.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="ngspicetclbridge">
-<span id="r-ngspicetclbridge"></span><span id="r-3a3angspicetclbridge"></span><h1>::ngspicetclbridge<a class="headerlink" href="#ngspicetclbridge" title="Link to this heading">¶</a></h1>
+<span id="r-ngspicetclbridge"></span><span id="r-3a3angspicetclbridge"></span><h1>::ngspicetclbridge<a class="headerlink" href="#ngspicetclbridge" title="Link to this heading"></a></h1>
 <section id="commands">
-<span id="r-ngspicetclbridge-commands"></span><span id="r-3a3angspicetclbridgeqzcommands"></span><h2>Commands<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
+<span id="r-ngspicetclbridge-commands"></span><span id="r-3a3angspicetclbridgeqzcommands"></span><h2>Commands<a class="headerlink" href="#commands" title="Link to this heading"></a></h2>
 <section id="configure">
-<span id="r-symbolqz3a3angspicetclbridge3a3aconfigure"></span><span id="index-1"></span><span id="index-0"></span><h3><code class="docutils literal notranslate"><span class="pre">configure</span></code><a class="headerlink" href="#configure" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3aconfigure"></span><span id="index-1"></span><span id="index-0"></span><h3><code class="docutils literal notranslate"><span class="pre">configure</span></code><a class="headerlink" href="#configure" title="Link to this heading"></a></h3>
 <p>Queries or changes package-wide representation and collision defaults in this Tcl interpreter.</p>
 <pre class="literal-block"><strong>configure</strong> <em>?option?</em>
 <strong>configure</strong> <em>?-output list|vector? ?-ifexists error|replace?</em></pre>
@@ -80,7 +256,7 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>selected option value for a single-option query; otherwise all settings as a dictionary.</p>
 </section>
 <section id="getcircuit">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuit"></span><span id="index-3"></span><span id="index-2"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code><a class="headerlink" href="#getcircuit" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuit"></span><span id="index-3"></span><span id="index-2"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code><a class="headerlink" href="#getcircuit" title="Link to this heading"></a></h3>
 <p>Gets list with currently loaded circuit (its listing) in the form specified by the switch.</p>
 <pre class="literal-block"><strong>getCircuit</strong> <em>?-logical|-physical|-deck|-expand|-runnable|-param? sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -111,7 +287,7 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>list with listing lines</p>
 </section>
 <section id="getcircuittitle">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuittitle"></span><span id="index-5"></span><span id="index-4"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code><a class="headerlink" href="#getcircuittitle" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetcircuittitle"></span><span id="index-5"></span><span id="index-4"></span><h3><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code><a class="headerlink" href="#getcircuittitle" title="Link to this heading"></a></h3>
 <p>Gets title of the current circuit (first line of circuits netlist).</p>
 <pre class="literal-block"><strong>getCircuitTitle</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -119,7 +295,7 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>title</p>
 </section>
 <section id="getplotdate">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetplotdate"></span><span id="index-7"></span><span id="index-6"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code><a class="headerlink" href="#getplotdate" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetplotdate"></span><span id="index-7"></span><span id="index-6"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code><a class="headerlink" href="#getplotdate" title="Link to this heading"></a></h3>
 <p>Gets time stamp of current plot generation.</p>
 <pre class="literal-block"><strong>getPlotDate</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -127,7 +303,7 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>time stamp</p>
 </section>
 <section id="getplotname">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetplotname"></span><span id="index-9"></span><span id="index-8"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code><a class="headerlink" href="#getplotname" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetplotname"></span><span id="index-9"></span><span id="index-8"></span><h3><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code><a class="headerlink" href="#getplotname" title="Link to this heading"></a></h3>
 <p>Gets name of the current plot, i.e. Operating Point, AC Analysis, etc.</p>
 <pre class="literal-block"><strong>getPlotName</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -135,7 +311,7 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>name of the plot</p>
 </section>
 <section id="getscaleinfo">
-<span id="r-symbolqz3a3angspicetclbridge3a3agetscaleinfo"></span><span id="index-11"></span><span id="index-10"></span><h3><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code><a class="headerlink" href="#getscaleinfo" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3agetscaleinfo"></span><span id="index-11"></span><span id="index-10"></span><h3><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code><a class="headerlink" href="#getscaleinfo" title="Link to this heading"></a></h3>
 <p>Gets dictionary with information about current scale vector.</p>
 <pre class="literal-block"><strong>getScaleInfo</strong> <em>sim</em></pre>
 <p class="rubric">Parameters</p>
@@ -143,7 +319,7 @@ Replacement still requires a compatible, writable destination. Namespace selecti
 <p>dictionary with the information</p>
 </section>
 <section id="new">
-<span id="r-symbolqz3a3angspicetclbridge3a3anew"></span><span id="index-13"></span><span id="index-12"></span><h3><code class="docutils literal notranslate"><span class="pre">new</span></code><a class="headerlink" href="#new" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3anew"></span><span id="index-13"></span><span id="index-12"></span><h3><code class="docutils literal notranslate"><span class="pre">new</span></code><a class="headerlink" href="#new" title="Link to this heading"></a></h3>
 <p>Load dynamic library, path should be provided in native form for target OS.  Every <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::new</span></code>
 returns a command (e.g. <code class="docutils literal notranslate"><span class="pre">::ngspicetclbridge::s1</span></code>). The following subcommands operate on that instance.
 Optionally the spinit and/or spiceinit initialization files could be forbidden for loading.</p>
@@ -192,7 +368,7 @@ Optionally the spinit and/or spiceinit initialization files could be forbidden f
 <p>command name to work with Ngspice instance, references as <code class="docutils literal notranslate"><span class="pre">SIM</span></code> later</p>
 </section>
 <section id="readvecsasync">
-<span id="r-symbolqz3a3angspicetclbridge3a3areadvecsasync"></span><span id="index-15"></span><span id="index-14"></span><h3><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code><a class="headerlink" href="#readvecsasync" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3areadvecsasync"></span><span id="index-15"></span><span id="index-14"></span><h3><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code><a class="headerlink" href="#readvecsasync" title="Link to this heading"></a></h3>
 <p>Reads all available vectors of the current plot as independent snapshots. Returns a dictionary with
 raw vector names as keys and lists or fully qualified RBC vector names as values.</p>
 <pre class="literal-block"><strong>readVecsAsync</strong> <em>?-info? ?-output list|vector? ?-namespace name? ?-ifexists error|replace? ?-names dictionary|#auto? sim</em></pre>
@@ -238,7 +414,7 @@ raw vector names as keys and lists or fully qualified RBC vector names as values
 <p>dictionary</p>
 </section>
 <section id="run">
-<span id="r-symbolqz3a3angspicetclbridge3a3arun"></span><span id="index-17"></span><span id="index-16"></span><h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3arun"></span><span id="index-17"></span><span id="index-16"></span><h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading"></a></h3>
 <p>Runs simulation in a background thread, waits for completion and flushes live data before returning.
 Does not service the Tcl event loop; GUI events and redraws remain pending.</p>
 <pre class="literal-block"><strong>run</strong> <em>?-nocleanup? sim</em></pre>
@@ -254,7 +430,7 @@ Does not service the Tcl event loop; GUI events and redraws remain pending.</p>
 <p class="rubric">Return value</p>
 </section>
 <section id="sim">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim"></span><span id="index-19"></span><span id="index-18"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span></code><a class="headerlink" href="#sim" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim"></span><span id="index-19"></span><span id="index-18"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span></code><a class="headerlink" href="#sim" title="Link to this heading"></a></h3>
 <p>A
 command
 ensemble.</p>
@@ -298,7 +474,7 @@ ensemble.</p>
 <p>Refer to the documentation of each subcommand for details.</p>
 </section>
 <section id="sim-abort">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20abort"></span><span id="index-21"></span><span id="index-20"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code><a class="headerlink" href="#sim-abort" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20abort"></span><span id="index-21"></span><span id="index-20"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code><a class="headerlink" href="#sim-abort" title="Link to this heading"></a></h3>
 <p>Sets an internal abort flag and wake any waiters (useful to force waitevent to return). This does <strong>not</strong> free
 the instance.</p>
 <pre class="literal-block"><strong>SIM abort</strong> <em>?-help?</em></pre>
@@ -314,7 +490,7 @@ the instance.</p>
 <p>nothing.</p>
 </section>
 <section id="sim-asyncvector">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20asyncvector"></span><span id="index-23"></span><span id="index-22"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code><a class="headerlink" href="#sim-asyncvector" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20asyncvector"></span><span id="index-23"></span><span id="index-22"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code><a class="headerlink" href="#sim-asyncvector" title="Link to this heading"></a></h3>
 <p>Fetches the current values of a named vector through ngspice’s ngGet_Vec_Info. Available once the simulation
 has produced data; the vector may still be incomplete.</p>
 <pre class="literal-block"><strong>SIM asyncvector</strong> <em>name ?-output list|vector? ?-ifexists error|replace? ?-name vectorName? ?-namespace name?</em>
@@ -376,7 +552,7 @@ has produced data; the vector may still be incomplete.</p>
 does not exists.</p>
 </section>
 <section id="sim-circuit">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20circuit"></span><span id="index-25"></span><span id="index-24"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code><a class="headerlink" href="#sim-circuit" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20circuit"></span><span id="index-25"></span><span id="index-24"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code><a class="headerlink" href="#sim-circuit" title="Link to this heading"></a></h3>
 <p>Sends an circuit to Ngspice in form of the Tcl list, each element is the line of the netlist. If switch
 <code class="docutils literal notranslate"><span class="pre">-string</span></code> is provided, the input netlists could be passed as ordinary string with newline character as a
 separator between netlists lines.</p>
@@ -417,7 +593,7 @@ registration fails, the new circuit remains loaded and this command reports an e
 <p>Ngspice result code</p>
 </section>
 <section id="sim-command">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20command"></span><span id="index-27"></span><span id="index-26"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code><a class="headerlink" href="#sim-command" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20command"></span><span id="index-27"></span><span id="index-26"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code><a class="headerlink" href="#sim-command" title="Link to this heading"></a></h3>
 <p>Sends an arbitrary Ngspice command line (e.g., <code class="docutils literal notranslate"><span class="pre">bg_run</span></code>, <code class="docutils literal notranslate"><span class="pre">circbyline</span></code> …, <code class="docutils literal notranslate"><span class="pre">.save</span></code>, <code class="docutils literal notranslate"><span class="pre">.tran</span></code>, <code class="docutils literal notranslate"><span class="pre">.dc</span></code>). If we provide
 <code class="docutils literal notranslate"><span class="pre">-capture</span></code> switch, it returns not only the result code, but also the next message from stdout of Ngspice. Also, if
 command is send in the moment background thread is starting or stopping, it will be deferred to the time is could
@@ -460,7 +636,7 @@ be safely sent, and in that case <code class="docutils literal notranslate"><spa
 <p>Ngspice result code, or dictionary with result code and the message</p>
 </section>
 <section id="sim-destroy">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20destroy"></span><span id="index-29"></span><span id="index-28"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code><a class="headerlink" href="#sim-destroy" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20destroy"></span><span id="index-29"></span><span id="index-28"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code><a class="headerlink" href="#sim-destroy" title="Link to this heading"></a></h3>
 <p>Deletes the instance command. In details:</p>
 <pre class="literal-block"><strong>SIM destroy</strong> <em>?-help?</em></pre>
 <p class="rubric">Parameters</p>
@@ -481,7 +657,7 @@ be safely sent, and in that case <code class="docutils literal notranslate"><spa
 <p>nothing.</p>
 </section>
 <section id="sim-eventcounts">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"></span><span id="index-31"></span><span id="index-30"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code><a class="headerlink" href="#sim-eventcounts" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventcounts"></span><span id="index-31"></span><span id="index-30"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code><a class="headerlink" href="#sim-eventcounts" title="Link to this heading"></a></h3>
 <p>Raw event counters: send_raw_evt counts native callbacks (including retained disabled registrations);
 event_init counts event-store initialization on configuration or a new plot; event_batch counts completed
 raw batches, including batches without changed selected nodes. The latter two are bridge-generated events.
@@ -508,7 +684,7 @@ Gets or reset the cumulative event counters for this simulator instance.</p>
 <p>returns a dict with keys as events names, and counts for each event as a value</p>
 </section>
 <section id="sim-eventdata">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventdata"></span><span id="index-33"></span><span id="index-32"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code><a class="headerlink" href="#sim-eventdata" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventdata"></span><span id="index-33"></span><span id="index-32"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code><a class="headerlink" href="#sim-eventdata" title="Link to this heading"></a></h3>
 <p>Reads an independent snapshot of published string-valued event data.</p>
 <pre class="literal-block"><strong>SIM eventdata</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -543,7 +719,7 @@ errors are retained and returned here until a new plot or configuration resets t
 <p>dictionary of published event data.</p>
 </section>
 <section id="sim-eventnodes">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventnodes"></span><span id="index-35"></span><span id="index-34"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code><a class="headerlink" href="#sim-eventnodes" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20eventnodes"></span><span id="index-35"></span><span id="index-34"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code><a class="headerlink" href="#sim-eventnodes" title="Link to this heading"></a></h3>
 <p>Discovers event nodes and selects raw event collection independently of numeric output mode.</p>
 <pre class="literal-block"><strong>SIM eventnodes</strong> <em>?-all|-nodes names? ?-mode changes|snapshot|pernode?</em></pre>
 <p class="rubric">Parameters</p>
@@ -580,7 +756,7 @@ batch. Pure digital transient circuits use ngspice’s time-only output. There i
 <p>dictionary describing support, available nodes, selected nodes and mode.</p>
 </section>
 <section id="sim-flush">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20flush"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code><a class="headerlink" href="#sim-flush" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20flush"></span><span id="index-37"></span><span id="index-36"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code><a class="headerlink" href="#sim-flush" title="Link to this heading"></a></h3>
 <p>Publishes pending initialization metadata and samples for this simulator into live storage.
 Works in both list and vector modes. Returns an empty result on success.</p>
 <pre class="literal-block"><strong>SIM flush</strong> <em>?-help?</em></pre>
@@ -610,7 +786,7 @@ during publication, except destruction. Graph redraws still require normal Tk ev
 <p>empty string</p>
 </section>
 <section id="sim-initvectors">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20initvectors"></span><span id="index-39"></span><span id="index-38"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code><a class="headerlink" href="#sim-initvectors" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20initvectors"></span><span id="index-39"></span><span id="index-38"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code><a class="headerlink" href="#sim-initvectors" title="Link to this heading"></a></h3>
 <p>Gets held <strong>initial vector metadata</strong> (built from send_init_data) in a dict.</p>
 <pre class="literal-block"><strong>SIM initvectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -635,7 +811,7 @@ in the storage.</p>
 <p>dict with initial vector metadata saved in internal structure</p>
 </section>
 <section id="sim-inputpath">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20inputpath"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code><a class="headerlink" href="#sim-inputpath" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20inputpath"></span><span id="index-41"></span><span id="index-40"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code><a class="headerlink" href="#sim-inputpath" title="Link to this heading"></a></h3>
 <p>Gets current path for XSPICE code models if <code class="docutils literal notranslate"><span class="pre">-current</span></code> switch is provided, or set current path to value
 provided.</p>
 <pre class="literal-block"><strong>SIM inputpath</strong> <em>-current</em>
@@ -658,7 +834,7 @@ provided.</p>
 <p>current path</p>
 </section>
 <section id="sim-isrunning">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-43"></span><span id="index-42"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20isrunning"></span><span id="index-43"></span><span id="index-42"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code><a class="headerlink" href="#sim-isrunning" title="Link to this heading"></a></h3>
 <p>Calls asynchronously to check if background thread is running.</p>
 <pre class="literal-block"><strong>SIM isrunning</strong> <em>?-help?</em></pre>
 <p class="rubric">Parameters</p>
@@ -673,7 +849,7 @@ provided.</p>
 <p><code class="docutils literal notranslate"><span class="pre">1</span></code> if thread is running, <code class="docutils literal notranslate"><span class="pre">0</span></code> otherwise.</p>
 </section>
 <section id="sim-messages">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20messages"></span><span id="index-45"></span><span id="index-44"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code><a class="headerlink" href="#sim-messages" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20messages"></span><span id="index-45"></span><span id="index-44"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code><a class="headerlink" href="#sim-messages" title="Link to this heading"></a></h3>
 <p>Queues of textual messages captured from Ngspice (stdout/stderr) and bridge status lines.</p>
 <pre class="literal-block"><strong>SIM messages</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -701,7 +877,7 @@ clear the data storage.</p>
 <p>list of messages</p>
 </section>
 <section id="sim-plot">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-47"></span><span id="index-46"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20plot"></span><span id="index-47"></span><span id="index-46"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code><a class="headerlink" href="#sim-plot" title="Link to this heading"></a></h3>
 <p>Gets current plot name if no arguments provided, names of all plots or all vectors names that belongs to
 name of the provided plot.</p>
 <pre class="literal-block"><strong>SIM plot</strong> <em>?-all?</em>
@@ -724,7 +900,7 @@ name of the provided plot.</p>
 <p>current plot, or list of all plots, or list of all vectors</p>
 </section>
 <section id="sim-vectors">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-49"></span><span id="index-48"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20vectors"></span><span id="index-49"></span><span id="index-48"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code><a class="headerlink" href="#sim-vectors" title="Link to this heading"></a></h3>
 <p>Gets data accumulated from send_data events through the Tcl event loop.</p>
 <pre class="literal-block"><strong>SIM vectors</strong> <em>?-clear?</em></pre>
 <p class="rubric">Parameters</p>
@@ -776,7 +952,7 @@ name of the provided plot.</p>
 <p>dict with vectors values accumulated up to this point in internal structure</p>
 </section>
 <section id="sim-waitevent">
-<span id="r-symbolqz3a3angspicetclbridge3a3asim20waitevent"></span><span id="index-51"></span><span id="index-50"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code><a class="headerlink" href="#sim-waitevent" title="Link to this heading">¶</a></h3>
+<span id="r-symbolqz3a3angspicetclbridge3a3asim20waitevent"></span><span id="index-51"></span><span id="index-50"></span><h3><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code><a class="headerlink" href="#sim-waitevent" title="Link to this heading"></a></h3>
 <p>Blocks until a named event is observed n number of times (or once), the instance is aborted/destroyed,
 or the timeout expires (if provided).</p>
 <pre class="literal-block"><strong>SIM waitevent</strong> <em>name ?-n N? ?-since count? ?timeout_ms?</em></pre>
@@ -969,100 +1145,34 @@ A timeout returns status timeout, not a Tcl error. This command does not process
 </section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="Main">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">::ngspicetclbridge</a><ul>
-<li><a class="reference internal" href="#commands">Commands</a><ul>
-<li><a class="reference internal" href="#configure"><code class="docutils literal notranslate"><span class="pre">configure</span></code></a></li>
-<li><a class="reference internal" href="#getcircuit"><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code></a></li>
-<li><a class="reference internal" href="#getcircuittitle"><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code></a></li>
-<li><a class="reference internal" href="#getplotdate"><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code></a></li>
-<li><a class="reference internal" href="#getplotname"><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code></a></li>
-<li><a class="reference internal" href="#getscaleinfo"><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code></a></li>
-<li><a class="reference internal" href="#new"><code class="docutils literal notranslate"><span class="pre">new</span></code></a></li>
-<li><a class="reference internal" href="#readvecsasync"><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code></a></li>
-<li><a class="reference internal" href="#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
-<li><a class="reference internal" href="#sim"><code class="docutils literal notranslate"><span class="pre">SIM</span></code></a></li>
-<li><a class="reference internal" href="#sim-abort"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code></a></li>
-<li><a class="reference internal" href="#sim-asyncvector"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code></a></li>
-<li><a class="reference internal" href="#sim-circuit"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code></a></li>
-<li><a class="reference internal" href="#sim-command"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code></a></li>
-<li><a class="reference internal" href="#sim-destroy"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code></a></li>
-<li><a class="reference internal" href="#sim-eventcounts"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code></a></li>
-<li><a class="reference internal" href="#sim-eventdata"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code></a></li>
-<li><a class="reference internal" href="#sim-eventnodes"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code></a></li>
-<li><a class="reference internal" href="#sim-flush"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code></a></li>
-<li><a class="reference internal" href="#sim-initvectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code></a></li>
-<li><a class="reference internal" href="#sim-inputpath"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code></a></li>
-<li><a class="reference internal" href="#sim-isrunning"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code></a></li>
-<li><a class="reference internal" href="#sim-messages"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code></a></li>
-<li><a class="reference internal" href="#sim-plot"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code></a></li>
-<li><a class="reference internal" href="#sim-vectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code></a></li>
-<li><a class="reference internal" href="#sim-waitevent"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ngspicetclbridge-Troubleshooting.html" class="btn btn-neutral float-left" title="Troubleshooting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ngspicetclbridge-Notes-and-internals.html" class="btn btn-neutral float-right" title="Notes and internals" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright George Yashin.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-Troubleshooting.html"
-                          title="previous chapter">Troubleshooting</a></p>
-  </div>
-  <div>
-    <h4>Next topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-Notes-and-internals.html"
-                          title="next chapter">Notes and internals</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/ngspicetclbridge-ngspicetclbridge.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<search id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</search>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-Notes-and-internals.html" title="Notes and internals"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="ngspicetclbridge-Troubleshooting.html" title="Troubleshooting"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">::ngspicetclbridge</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-    &#169; Copyright George Yashin.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

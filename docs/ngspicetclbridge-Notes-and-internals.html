@@ -1,52 +1,231 @@
+
+
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<html lang="en" data-content_root="./">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notes and internals &mdash; ngspicetclbridge  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/manual.css?v=00cdc845" />
 
-    <title>Notes and internals &#8212; ngspicetclbridge  documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=f11ead97" />
-    
-    <script src="_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="::ngspicetclbridge" href="ngspicetclbridge-ngspicetclbridge.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-ngspicetclbridge.html" title="::ngspicetclbridge"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Notes and internals</a></li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ngspicetclbridge
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge.html">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#building-requirements">Building &amp; requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#documentation">Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#optional-rbc-vector-output">Optional RBC vector output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#digital-event-tests">Digital event tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#testing">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#installation-layout-and-removal">Installation layout and removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#installation-archives">Installation archives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#regenerating-documentation">Regenerating documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge.html#notes-and-troubleshooting">Notes and troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge.html#interactive-help">Interactive help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html">RBC vectors support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#optional-rbc-vector-output">Optional RBC vector output</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#graph-integration-with-real-ngspice">Graph integration with real ngspice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#vector-destination-namespace">Vector destination namespace</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#read-only-destinations">Read-only destinations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#namespace-precedence-for-snapshots">Namespace precedence for snapshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#package-defaults">Package defaults</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html">Digital events data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#r-digitalevents-digital-events-data">Digital events data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#choosing-a-transient-mode">Choosing a transient mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#operating-point-and-dc-sweep">Operating point and DC sweep</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Examples.html#parametric-simulation">Parametric simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html">::ngspicetclbridge</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#commands">Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#configure"><code class="docutils literal notranslate"><span class="pre">configure</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getcircuit"><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getcircuittitle"><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getplotdate"><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getplotname"><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getscaleinfo"><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#new"><code class="docutils literal notranslate"><span class="pre">new</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#readvecsasync"><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim"><code class="docutils literal notranslate"><span class="pre">SIM</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-abort"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-asyncvector"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-circuit"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-command"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-destroy"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventcounts"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventdata"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventnodes"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-flush"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-initvectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-inputpath"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-isrunning"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-messages"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-plot"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-vectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-waitevent"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Notes and internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#how-instance-subcommands-are-implemented">How instance subcommands are implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#command-creation">Command creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#subcommand-dispatching">Subcommand dispatching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#thread-safety-and-state-transitions">Thread safety and state transitions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#deferred-command-queue">Deferred command queue</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#capture-mode">Capture mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#command-deletion-and-cleanup">Command deletion and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#instance-subcommands-summary">Instance subcommands summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#how-sync-callbacks-from-ngspice-is-implemented">How sync callbacks from Ngspice is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#registration-of-callbacks">Registration of callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#callback-invocation-model">Callback invocation model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#thread-safety-and-queueing-behavior">Thread safety and queueing behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#controlled-flow-of-data">Controlled flow of data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#background-thread-lifecycle-callbacks">Background thread lifecycle callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generation-and-stale-event-handling">Generation and stale-event handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#controlled-exit-coordination">Controlled exit coordination</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#safety-and-teardown-integration">Safety and teardown integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#how-event-queue-interaction-is-implemented">How event queue interaction is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#event-structure-definition">Event structure definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#event-allocation-and-queuing">Event allocation and queuing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#event-processing">Event processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#event-deletion-and-resource-balancing">Event deletion and resource balancing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generation-handling-and-safety">Generation handling and safety</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#synchronization-guarantees">Synchronization guarantees</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#how-thread-safety-is-ensured">How thread safety is ensured</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-data-processing-is-implemented">How data processing is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview-of-the-data-flow">Overview of the data flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#asynchronous-access-structures">Asynchronous access structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#command-interpreter-storage">Command interpreter storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#digital-event-nodes">Digital event nodes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#raw-digital-event-storage">Raw digital event storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-lifecycle-and-cleanup">Data lifecycle and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#thread-safety-in-data-handling">Thread safety in data handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#how-message-queue-is-implemented">How message queue is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#message-production-ngspice-callbacks">Message production (ngspice callbacks)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#message-consumption-tcl-commands">Message consumption (Tcl commands)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#capture-mode-capture">Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#clearing-and-freeing-queues">Clearing and freeing queues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#synchronization-and-safety-guarantees">Synchronization and safety guarantees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#message-queue-summary">Message queue summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#how-dynamic-library-loading-and-portability-is-implemented">How dynamic library loading and portability is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#abstracted-portability-layer">Abstracted portability layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#unicode-and-tcl-path-integration">Unicode and Tcl path integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#function-symbol-resolution">Function symbol resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#safe-unloading-and-crash-prevention">Safe unloading and crash prevention</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#platform-specific-nuances">Platform-specific nuances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dynamic-library-loading-summary">Dynamic library loading summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ngspicetclbridge</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Notes and internals</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ngspicetclbridge-Notes-and-internals.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="notes-and-internals">
-<span id="r-notes-and-internals"></span><span id="r-notes20and20internals"></span><span id="r-namespaceqz3a3anotes20and20internals"></span><h1>Notes and internals<a class="headerlink" href="#notes-and-internals" title="Link to this heading">¶</a></h1>
+<span id="r-notes-and-internals"></span><span id="r-notes20and20internals"></span><span id="r-namespaceqz3a3anotes20and20internals"></span><h1>Notes and internals<a class="headerlink" href="#notes-and-internals" title="Link to this heading"></a></h1>
 <p>This part is mostly for me (and other contributors) to quick recall many implementation details and decisions.
 All information provided here could be found in source code comments, but in more spreaded form.</p>
 <section id="how-instance-subcommands-are-implemented">
-<span id="r-notes-and-internals-how-instance-subcommands-are-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20instance20subcommands20are20implemented"></span><h2>How instance subcommands are implemented<a class="headerlink" href="#how-instance-subcommands-are-implemented" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-instance-subcommands-are-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20instance20subcommands20are20implemented"></span><h2>How instance subcommands are implemented<a class="headerlink" href="#how-instance-subcommands-are-implemented" title="Link to this heading"></a></h2>
 <p>Each simulator instance in ngspicetclbridge is represented by a dedicated Tcl command object that acts as a
 handle for interacting with that specific ngspice context. This provides natural Tcl semantics such as:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">set</span><span class="w"> </span>s<span class="w"> </span><span class="k">[</span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new<span class="w"> </span><span class="o">/</span>path<span class="o">/</span>to<span class="o">/</span>libngspice.so<span class="k">]</span>
 <span class="k">set</span><span class="w"> </span>baseline<span class="w"> </span><span class="k">[</span><span class="nb">dict</span><span class="w"> </span>get<span class="w"> </span><span class="k">[</span><span class="nv">$s</span><span class="w"> </span><span class="nv">eventcounts</span><span class="k">]</span><span class="w"> </span>bg_running<span class="k">]</span>
-<span class="nv">$s</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">&quot;bg_run&quot;</span>
+<span class="nv">$s</span><span class="w"> </span><span class="nv">command</span><span class="w"> </span><span class="s2">"bg_run"</span>
 <span class="nv">$s</span><span class="w"> </span><span class="nv">waitevent</span><span class="w"> </span>bg_running<span class="w"> </span><span class="o">-</span>since<span class="w"> </span><span class="nv">$baseline</span><span class="w"> </span><span class="o">-</span>n<span class="w"> </span><span class="mi">2</span>
 </pre></div>
 </div>
@@ -54,7 +233,7 @@ handle for interacting with that specific ngspice context. This provides natural
 to <code class="docutils literal notranslate"><span class="pre">InstObjCmd</span></code>, which dispatches individual
 subcommands.</p>
 <section id="command-creation">
-<span id="r-notes-and-internals-command-creation"></span><span id="r-3a3anotes20and20internalsqzcommand20creation"></span><h3>Command creation<a class="headerlink" href="#command-creation" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-command-creation"></span><span id="r-3a3anotes20and20internalsqzcommand20creation"></span><h3>Command creation<a class="headerlink" href="#command-creation" title="Link to this heading"></a></h3>
 <p>When the package initializes, <code class="docutils literal notranslate"><span class="pre">Ngspicetclbridge_Init()</span></code> registers the constructor command:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="o">::</span><span class="nv">ngspicetclbridge</span><span class="o">::</span>new
 </pre></div>
@@ -70,7 +249,7 @@ subcommands.</p>
 <p>The resulting Tcl command becomes the primary interface for controlling the simulator instance.</p>
 </section>
 <section id="subcommand-dispatching">
-<span id="r-notes-and-internals-subcommand-dispatching"></span><span id="r-3a3anotes20and20internalsqzsubcommand20dispatching"></span><h3>Subcommand dispatching<a class="headerlink" href="#subcommand-dispatching" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-subcommand-dispatching"></span><span id="r-3a3anotes20and20internalsqzsubcommand20dispatching"></span><h3>Subcommand dispatching<a class="headerlink" href="#subcommand-dispatching" title="Link to this heading"></a></h3>
 <p>The C entry point for instance methods is:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">InstObjCmd</span><span class="p">(</span><span class="n">ClientData</span><span class="w"> </span><span class="n">cdata</span><span class="p">,</span><span class="w"> </span><span class="n">Tcl_Interp</span><span class="w"> </span><span class="o">*</span><span class="n">interp</span><span class="p">,</span><span class="w"> </span><span class="n">Tcl_Size</span><span class="w"> </span><span class="n">objc</span><span class="p">,</span><span class="w"> </span><span class="n">Tcl_Obj</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">objv</span><span class="p">[])</span>
 </pre></div>
@@ -91,7 +270,7 @@ internal data structures. For example:</p>
 invoking any ngspice function, returning descriptive Tcl errors via <code class="docutils literal notranslate"><span class="pre">Tcl_SetObjResult()</span></code>.</p>
 </section>
 <section id="thread-safety-and-state-transitions">
-<span id="r-notes-and-internals-thread-safety-and-state-transitions"></span><span id="r-3a3anotes20and20internalsqzthread20safety20and20state20transitions"></span><h3>Thread safety and state transitions<a class="headerlink" href="#thread-safety-and-state-transitions" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-thread-safety-and-state-transitions"></span><span id="r-3a3anotes20and20internalsqzthread20safety20and20state20transitions"></span><h3>Thread safety and state transitions<a class="headerlink" href="#thread-safety-and-state-transitions" title="Link to this heading"></a></h3>
 <p>ngspice commands may not be executed safely during certain background-thread transitions. To prevent unsafe
 API access, the context maintains a state machine (<code class="docutils literal notranslate"><span class="pre">NgState</span></code>) with states such as:</p>
 <ul class="simple">
@@ -106,7 +285,7 @@ If ngspice is starting or stopping its background thread, commands are not execu
 for later execution once the state stabilizes.</p>
 </section>
 <section id="deferred-command-queue">
-<span id="r-notes-and-internals-deferred-command-queue"></span><span id="r-3a3anotes20and20internalsqzdeferred20command20queue"></span><h3>Deferred command queue<a class="headerlink" href="#deferred-command-queue" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-deferred-command-queue"></span><span id="r-3a3anotes20and20internalsqzdeferred20command20queue"></span><h3>Deferred command queue<a class="headerlink" href="#deferred-command-queue" title="Link to this heading"></a></h3>
 <p>Commands issued while ngspice is in a transitional state (<code class="docutils literal notranslate"><span class="pre">STARTING_BG</span></code> or <code class="docutils literal notranslate"><span class="pre">STOPPING_BG</span></code>) are enqueued through:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">EnqueuePending</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">cmd</span><span class="p">,</span><span class="w"> </span><span class="n">do_capture</span><span class="p">);</span>
 </pre></div>
@@ -121,13 +300,13 @@ Once ngspice reports that the background thread has started or stopped, <code cl
 eliminating race conditions between Tcl commands and asynchronous background transitions.</p>
 </section>
 <section id="capture-mode">
-<span id="r-notes-and-internals-capture-mode"></span><span id="r-3a3anotes20and20internalsqzcapture20mode"></span><h3>Capture mode<a class="headerlink" href="#capture-mode" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-capture-mode"></span><span id="r-3a3anotes20and20internalsqzcapture20mode"></span><h3>Capture mode<a class="headerlink" href="#capture-mode" title="Link to this heading"></a></h3>
 <p>For commands executed in capture mode, the bridge uses <code class="docutils literal notranslate"><span class="pre">ctx-&gt;cap_active</span></code> and <code class="docutils literal notranslate"><span class="pre">ctx-&gt;capq</span></code> to store output lines
 printed by ngspice’s <code class="docutils literal notranslate"><span class="pre">SendCharCallback</span></code> during the command’s lifetime. Once the command returns, captured lines
 are collected into a Tcl list and returned to the caller along with the return code.</p>
 </section>
 <section id="command-deletion-and-cleanup">
-<span id="r-notes-and-internals-command-deletion-and-cleanup"></span><span id="r-3a3anotes20and20internalsqzcommand20deletion20and20cleanup"></span><h3>Command deletion and cleanup<a class="headerlink" href="#command-deletion-and-cleanup" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-command-deletion-and-cleanup"></span><span id="r-3a3anotes20and20internalsqzcommand20deletion20and20cleanup"></span><h3>Command deletion and cleanup<a class="headerlink" href="#command-deletion-and-cleanup" title="Link to this heading"></a></h3>
 <p>When a user calls <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">destroy</span></code> or deletes the instance command, Tcl invokes the registered delete procedure:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">InstDeleteProc</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">cdata</span><span class="p">)</span>
 </pre></div>
@@ -145,7 +324,7 @@ are collected into a Tcl list and returned to the caller along with the return c
 mutexes, and optionally unloading the shared library if it’s safe to do so.</p>
 </section>
 <section id="instance-subcommands-summary">
-<span id="r-notes-and-internals-instance-subcommands-summary"></span><span id="r-3a3anotes20and20internalsqzinstance20subcommands20summary"></span><h3>Instance subcommands summary<a class="headerlink" href="#instance-subcommands-summary" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-instance-subcommands-summary"></span><span id="r-3a3anotes20and20internalsqzinstance20subcommands20summary"></span><h3>Instance subcommands summary<a class="headerlink" href="#instance-subcommands-summary" title="Link to this heading"></a></h3>
 <p>The combination of per-instance Tcl command objects, subcommand dispatching, and deferred command buffering
 provides a robust interface between Tcl and ngspice. Tcl scripts can issue commands synchronously while
 ngspice runs asynchronously in the background, and all interactions remain thread-safe and deterministic even
@@ -153,14 +332,14 @@ during start, stop, and teardown transitions.</p>
 </section>
 </section>
 <section id="how-sync-callbacks-from-ngspice-is-implemented">
-<span id="r-notes-and-internals-how-sync-callbacks-from-ngspice-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20sync20callbacks20from20ngspice20is20implemented"></span><h2>How sync callbacks from Ngspice is implemented<a class="headerlink" href="#how-sync-callbacks-from-ngspice-is-implemented" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-sync-callbacks-from-ngspice-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20sync20callbacks20from20ngspice20is20implemented"></span><h2>How sync callbacks from Ngspice is implemented<a class="headerlink" href="#how-sync-callbacks-from-ngspice-is-implemented" title="Link to this heading"></a></h2>
 <p>ngspicetclbridge connects the asynchronous world of ngspice with Tcl by registering a set of C callback
 functions that ngspice calls whenever important events occur during simulation. These callbacks serve as the
 bridge between ngspice’s internal simulation threads and Tcl’s cooperative event loop. Because Tcl is not
 thread-safe, none of these callbacks interact with the interpreter directly - instead, they enqueue Tcl events
 to be processed later on the main thread.</p>
 <section id="registration-of-callbacks">
-<span id="r-notes-and-internals-registration-of-callbacks"></span><span id="r-3a3anotes20and20internalsqzregistration20of20callbacks"></span><h3>Registration of callbacks<a class="headerlink" href="#registration-of-callbacks" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-registration-of-callbacks"></span><span id="r-3a3anotes20and20internalsqzregistration20of20callbacks"></span><h3>Registration of callbacks<a class="headerlink" href="#registration-of-callbacks" title="Link to this heading"></a></h3>
 <p>The binding between ngspice and our bridge is established by calling <code class="docutils literal notranslate"><span class="pre">ngSpice_Init()</span></code> with a set of function
 pointers and a user data pointer (<code class="docutils literal notranslate"><span class="pre">ctx</span></code>):</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="n">rc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngSpice_Init</span><span class="p">(</span>
@@ -191,7 +370,7 @@ carry a pointer to our <code class="docutils literal notranslate"><span class="p
 to, even when multiple instances are loaded simultaneously.</p>
 </section>
 <section id="callback-invocation-model">
-<span id="r-notes-and-internals-callback-invocation-model"></span><span id="r-3a3anotes20and20internalsqzcallback20invocation20model"></span><h3>Callback invocation model<a class="headerlink" href="#callback-invocation-model" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-callback-invocation-model"></span><span id="r-3a3anotes20and20internalsqzcallback20invocation20model"></span><h3>Callback invocation model<a class="headerlink" href="#callback-invocation-model" title="Link to this heading"></a></h3>
 <p>ngspice runs its own simulation threads internally, so callbacks can fire at any time - during steady-state
 DC/AC/transient analysis, at startup, or when shutting down. The order and timing depend entirely on the
 simulation type and ngspice’s internal scheduler. Common callback types include:</p>
@@ -228,7 +407,7 @@ simulation type and ngspice’s internal scheduler. Common callback types includ
 </table>
 </section>
 <section id="thread-safety-and-queueing-behavior">
-<span id="r-notes-and-internals-thread-safety-and-queueing-behavior"></span><span id="r-3a3anotes20and20internalsqzthread20safety20and20queueing20behavior"></span><h3>Thread safety and queueing behavior<a class="headerlink" href="#thread-safety-and-queueing-behavior" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-thread-safety-and-queueing-behavior"></span><span id="r-3a3anotes20and20internalsqzthread20safety20and20queueing20behavior"></span><h3>Thread safety and queueing behavior<a class="headerlink" href="#thread-safety-and-queueing-behavior" title="Link to this heading"></a></h3>
 <p>Each callback runs on a non-Tcl thread owned by ngspice, meaning direct interaction with Tcl objects or
 interpreter state would be unsafe. To handle this, each callback function performs the following steps:</p>
 <ol class="arabic simple">
@@ -247,7 +426,7 @@ interpreter state would be unsafe. To handle this, each callback function perfor
 </ol>
 </section>
 <section id="controlled-flow-of-data">
-<span id="r-notes-and-internals-controlled-flow-of-data"></span><span id="r-3a3anotes20and20internalsqzcontrolled20flow20of20data"></span><h3>Controlled flow of data<a class="headerlink" href="#controlled-flow-of-data" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-controlled-flow-of-data"></span><span id="r-3a3anotes20and20internalsqzcontrolled20flow20of20data"></span><h3>Controlled flow of data<a class="headerlink" href="#controlled-flow-of-data" title="Link to this heading"></a></h3>
 <p>Data-oriented callbacks (<code class="docutils literal notranslate"><span class="pre">SendInitDataCallback</span></code> and <code class="docutils literal notranslate"><span class="pre">SendDataCallback</span></code>) are slightly special:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">SendInitDataCallback</span></code> is invoked once per run, delivering metadata for all vectors. It allocates and fills an <code class="docutils literal notranslate"><span class="pre">InitSnap</span></code> structure inside the context, which contains vector names, indices, and type information (real/complex).</p></li>
@@ -257,7 +436,7 @@ interpreter state would be unsafe. To handle this, each callback function perfor
 into Tcl dictionaries and lists happens later, inside <code class="docutils literal notranslate"><span class="pre">NgSpiceEventProc()</span></code>, which runs safely on the Tcl thread.</p>
 </section>
 <section id="background-thread-lifecycle-callbacks">
-<span id="r-notes-and-internals-background-thread-lifecycle-callbacks"></span><span id="r-3a3anotes20and20internalsqzbackground20thread20lifecycle20callbacks"></span><h3>Background thread lifecycle callbacks<a class="headerlink" href="#background-thread-lifecycle-callbacks" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-background-thread-lifecycle-callbacks"></span><span id="r-3a3anotes20and20internalsqzbackground20thread20lifecycle20callbacks"></span><h3>Background thread lifecycle callbacks<a class="headerlink" href="#background-thread-lifecycle-callbacks" title="Link to this heading"></a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">BGThreadRunningCallback</span></code> provides reliable notification of when the simulation thread starts or stops. It
 updates <code class="docutils literal notranslate"><span class="pre">ctx-&gt;bg_started</span></code> and <code class="docutils literal notranslate"><span class="pre">ctx-&gt;bg_ended</span></code> under <code class="docutils literal notranslate"><span class="pre">ctx-&gt;bg_mu</span></code>, adjusts the <code class="docutils literal notranslate"><span class="pre">ctx-&gt;state</span></code> (<code class="docutils literal notranslate"><span class="pre">STARTING_BG</span></code>,
 <code class="docutils literal notranslate"><span class="pre">BG_ACTIVE</span></code>, <code class="docutils literal notranslate"><span class="pre">STOPPING_BG</span></code>, <code class="docutils literal notranslate"><span class="pre">IDLE</span></code>), and signals <code class="docutils literal notranslate"><span class="pre">ctx-&gt;bg_cv</span></code> so that other parts of the system can wait for
@@ -265,7 +444,7 @@ these transitions. If the state change makes it safe to execute deferred command
 to send any commands that were queued during startup or shutdown.</p>
 </section>
 <section id="generation-and-stale-event-handling">
-<span id="r-notes-and-internals-generation-and-stale-event-handling"></span><span id="r-3a3anotes20and20internalsqzgeneration20and20stale2devent20handling"></span><h3>Generation and stale-event handling<a class="headerlink" href="#generation-and-stale-event-handling" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-generation-and-stale-event-handling"></span><span id="r-3a3anotes20and20internalsqzgeneration20and20stale2devent20handling"></span><h3>Generation and stale-event handling<a class="headerlink" href="#generation-and-stale-event-handling" title="Link to this heading"></a></h3>
 <p>Each callback carries a generation number (<code class="docutils literal notranslate"><span class="pre">ctx-&gt;gen</span></code>) that uniquely identifies a simulation run. Every time a
 new <code class="docutils literal notranslate"><span class="pre">SendInitDataCallback</span></code> is fired, the generation counter increments. All subsequent callbacks within that
 run inherit the same generation value. When Tcl later processes events via <code class="docutils literal notranslate"><span class="pre">NgSpiceEventProc</span></code>, any event with a
@@ -273,14 +452,14 @@ mismatched generation number is ignored - protecting against stale callbacks fro
 reference freed memory.</p>
 </section>
 <section id="controlled-exit-coordination">
-<span id="r-notes-and-internals-controlled-exit-coordination"></span><span id="r-3a3anotes20and20internalsqzcontrolled20exit20coordination"></span><h3>Controlled exit coordination<a class="headerlink" href="#controlled-exit-coordination" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-controlled-exit-coordination"></span><span id="r-3a3anotes20and20internalsqzcontrolled20exit20coordination"></span><h3>Controlled exit coordination<a class="headerlink" href="#controlled-exit-coordination" title="Link to this heading"></a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">ControlledExitCallback</span></code> is the mechanism ngspice uses to indicate that it is shutting down cleanly. It
 sets <code class="docutils literal notranslate"><span class="pre">ctx-&gt;exited</span> <span class="pre">=</span> <span class="pre">1</span></code>, signals <code class="docutils literal notranslate"><span class="pre">ctx-&gt;exit_cv</span></code>, and queues a <code class="docutils literal notranslate"><span class="pre">CONTROLLED_EXIT</span></code> event. This synchronization is
 crucial for teardown safety: <code class="docutils literal notranslate"><span class="pre">InstDeleteProc()</span></code> waits on <code class="docutils literal notranslate"><span class="pre">ctx-&gt;exit_cv</span></code> to ensure all ngspice activity has
 ceased before freeing memory.</p>
 </section>
 <section id="safety-and-teardown-integration">
-<span id="r-notes-and-internals-safety-and-teardown-integration"></span><span id="r-3a3anotes20and20internalsqzsafety20and20teardown20integration"></span><h3>Safety and teardown integration<a class="headerlink" href="#safety-and-teardown-integration" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-safety-and-teardown-integration"></span><span id="r-3a3anotes20and20internalsqzsafety20and20teardown20integration"></span><h3>Safety and teardown integration<a class="headerlink" href="#safety-and-teardown-integration" title="Link to this heading"></a></h3>
 <p>All callbacks are designed to be idempotent and safe to call during teardown:</p>
 <ul class="simple">
 <li><p>If the global heap has been marked poisoned (<code class="docutils literal notranslate"><span class="pre">g_heap_poisoned</span></code>), callbacks return immediately.</p></li>
@@ -294,14 +473,14 @@ risking race conditions or double frees during instance shutdown.</p>
 </section>
 </section>
 <section id="how-event-queue-interaction-is-implemented">
-<span id="r-notes-and-internals-how-event-queue-interaction-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20event20queue20interaction20is20implemented"></span><h2>How event queue interaction is implemented<a class="headerlink" href="#how-event-queue-interaction-is-implemented" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-event-queue-interaction-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20event20queue20interaction20is20implemented"></span><h2>How event queue interaction is implemented<a class="headerlink" href="#how-event-queue-interaction-is-implemented" title="Link to this heading"></a></h2>
 <p>The interaction between ngspice’s asynchronous callbacks and Tcl’s single-threaded event loop is the core of
 how ngspicetclbridge maintains safe communication between both worlds. ngspice runs its own internal threads
 and can call back into user code at arbitrary times, so a direct call into Tcl would violate thread safety.
 Instead, every callback from ngspice queues a lightweight <code class="docutils literal notranslate"><span class="pre">Tcl_Event</span></code> that is later processed on the main
 Tcl thread.</p>
 <section id="event-structure-definition">
-<span id="r-notes-and-internals-event-structure-definition"></span><span id="r-3a3anotes20and20internalsqzevent20structure20definition"></span><h3>Event structure definition<a class="headerlink" href="#event-structure-definition" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-event-structure-definition"></span><span id="r-3a3anotes20and20internalsqzevent20structure20definition"></span><h3>Event structure definition<a class="headerlink" href="#event-structure-definition" title="Link to this heading"></a></h3>
 <p>Each pending event from ngspice is represented by a custom structure that embeds a Tcl event header:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Tcl_Event</span><span class="w"> </span><span class="n">header</span><span class="p">;</span><span class="w">          </span><span class="cm">/* must be first for Tcl to recognize it */</span>
@@ -317,7 +496,7 @@ ngspice instance and which callback the event corresponds to, and to ensure that
 (“generation”) are discarded safely once a new run starts.</p>
 </section>
 <section id="event-allocation-and-queuing">
-<span id="r-notes-and-internals-event-allocation-and-queuing"></span><span id="r-3a3anotes20and20internalsqzevent20allocation20and20queuing"></span><h3>Event allocation and queuing<a class="headerlink" href="#event-allocation-and-queuing" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-event-allocation-and-queuing"></span><span id="r-3a3anotes20and20internalsqzevent20allocation20and20queuing"></span><h3>Event allocation and queuing<a class="headerlink" href="#event-allocation-and-queuing" title="Link to this heading"></a></h3>
 <p>Whenever an ngspice callback is triggered (for example <code class="docutils literal notranslate"><span class="pre">SendDataCallback</span></code>, <code class="docutils literal notranslate"><span class="pre">SendInitDataCallback</span></code>,
 <code class="docutils literal notranslate"><span class="pre">ControlledExitCallback</span></code>, or <code class="docutils literal notranslate"><span class="pre">BGThreadRunningCallback</span></code>), it calls:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">NgSpiceQueueEvent</span><span class="p">(</span><span class="n">NgSpiceContext</span><span class="w"> </span><span class="o">*</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">callbackId</span><span class="p">,</span><span class="w"> </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">gen</span><span class="p">)</span>
@@ -339,7 +518,7 @@ using:</p>
 <p>which prevents Tcl from freeing <code class="docutils literal notranslate"><span class="pre">NgSpiceContext</span></code> until all events referencing it have been processed.</p>
 </section>
 <section id="event-processing">
-<span id="r-notes-and-internals-event-processing"></span><span id="r-3a3anotes20and20internalsqzevent20processing"></span><h3>Event processing<a class="headerlink" href="#event-processing" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-event-processing"></span><span id="r-3a3anotes20and20internalsqzevent20processing"></span><h3>Event processing<a class="headerlink" href="#event-processing" title="Link to this heading"></a></h3>
 <p>Once Tcl’s event loop reaches the queued item, it calls:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">NgSpiceEventProc</span><span class="p">(</span><span class="n">Tcl_Event</span><span class="w"> </span><span class="o">*</span><span class="n">ev</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">flags</span><span class="p">)</span>
 </pre></div>
@@ -360,7 +539,7 @@ publication reports errors through the background error handler; explicit flush 
 <p>Once processed, the event always returns 1 to indicate it should be removed from Tcl’s event queue.</p>
 </section>
 <section id="event-deletion-and-resource-balancing">
-<span id="r-notes-and-internals-event-deletion-and-resource-balancing"></span><span id="r-3a3anotes20and20internalsqzevent20deletion20and20resource20balancing"></span><h3>Event deletion and resource balancing<a class="headerlink" href="#event-deletion-and-resource-balancing" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-event-deletion-and-resource-balancing"></span><span id="r-3a3anotes20and20internalsqzevent20deletion20and20resource20balancing"></span><h3>Event deletion and resource balancing<a class="headerlink" href="#event-deletion-and-resource-balancing" title="Link to this heading"></a></h3>
 <p>Tcl supports an optional “delete procedure” for custom events, allowing cleanup of resources that were
 preserved when the event was queued. ngspicetclbridge uses:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">DeleteNgSpiceEventProc</span><span class="p">(</span><span class="n">Tcl_Event</span><span class="w"> </span><span class="o">*</span><span class="n">evPtr</span><span class="p">,</span><span class="w"> </span><span class="n">ClientData</span><span class="w"> </span><span class="n">cd</span><span class="p">)</span>
@@ -375,7 +554,7 @@ its events are gone from Tcl’s queue, even if they were never processed becaus
 instance was deleted early.</p>
 </section>
 <section id="generation-handling-and-safety">
-<span id="r-notes-and-internals-generation-handling-and-safety"></span><span id="r-3a3anotes20and20internalsqzgeneration20handling20and20safety"></span><h3>Generation handling and safety<a class="headerlink" href="#generation-handling-and-safety" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-generation-handling-and-safety"></span><span id="r-3a3anotes20and20internalsqzgeneration20handling20and20safety"></span><h3>Generation handling and safety<a class="headerlink" href="#generation-handling-and-safety" title="Link to this heading"></a></h3>
 <p>The generation number (<code class="docutils literal notranslate"><span class="pre">ctx-&gt;gen</span></code>) plays a critical role in keeping old events from corrupting state after a
 new run starts. Each time <code class="docutils literal notranslate"><span class="pre">SendInitDataCallback</span></code> fires, the bridge increments <code class="docutils literal notranslate"><span class="pre">ctx-&gt;gen</span></code>. Every event carries a
 snapshot of that number, and when <code class="docutils literal notranslate"><span class="pre">NgSpiceEventProc()</span></code> runs, it compares it to the current value. If they don’t
@@ -385,7 +564,7 @@ from a previously freed buffer (e.g., <code class="docutils literal notranslate"
 processed; all older generations are discarded.</p>
 </section>
 <section id="synchronization-guarantees">
-<span id="r-notes-and-internals-synchronization-guarantees"></span><span id="r-3a3anotes20and20internalsqzsynchronization20guarantees"></span><h3>Synchronization guarantees<a class="headerlink" href="#synchronization-guarantees" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-synchronization-guarantees"></span><span id="r-3a3anotes20and20internalsqzsynchronization20guarantees"></span><h3>Synchronization guarantees<a class="headerlink" href="#synchronization-guarantees" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Each event handler acquires and releases <code class="docutils literal notranslate"><span class="pre">ctx-&gt;mutex</span></code> as needed when touching shared data.</p></li>
 <li><p>Message and data queues are thread-safe thanks to this locking discipline.</p></li>
@@ -396,7 +575,7 @@ scheduler, without risking memory corruption, premature frees, or cross-thread T
 </section>
 </section>
 <section id="how-thread-safety-is-ensured">
-<span id="r-notes-and-internals-how-thread-safety-is-ensured"></span><span id="r-3a3anotes20and20internalsqzhow20thread20safety20is20ensured"></span><h2>How thread safety is ensured<a class="headerlink" href="#how-thread-safety-is-ensured" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-thread-safety-is-ensured"></span><span id="r-3a3anotes20and20internalsqzhow20thread20safety20is20ensured"></span><h2>How thread safety is ensured<a class="headerlink" href="#how-thread-safety-is-ensured" title="Link to this heading"></a></h2>
 <p>Thread safety in ngspicetclbridge is achieved through a combination of fine-grained mutexes, conditional
 variables, and a strict rule that all Tcl interactions happen only from the thread that created the
 <code class="docutils literal notranslate"><span class="pre">NgSpiceContext</span></code>.</p>
@@ -457,7 +636,7 @@ memory.</p>
 allowing asynchronous simulation and command queuing to coexist without locking the Tcl interpreter.</p>
 </section>
 <section id="how-data-processing-is-implemented">
-<span id="r-notes-and-internals-how-data-processing-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20data20processing20is20implemented"></span><h2>How data processing is implemented<a class="headerlink" href="#how-data-processing-is-implemented" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-data-processing-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20data20processing20is20implemented"></span><h2>How data processing is implemented<a class="headerlink" href="#how-data-processing-is-implemented" title="Link to this heading"></a></h2>
 <p>ngspicetclbridge maintains two complementary data paths for handling simulation results from ngspice:</p>
 <ul class="simple">
 <li><p><strong>Synchronous (event-driven)</strong> data, delivered through callbacks (<code class="docutils literal notranslate"><span class="pre">SendInitDataCallback</span></code> and <code class="docutils literal notranslate"><span class="pre">SendDataCallback</span></code>) and stored inside internal buffers (<code class="docutils literal notranslate"><span class="pre">DataBuf</span></code>, <code class="docutils literal notranslate"><span class="pre">InitSnap</span></code>).</p></li>
@@ -466,7 +645,7 @@ allowing asynchronous simulation and command queuing to coexist without locking 
 <p>Both paths ultimately present Tcl-side data in native structures - dictionaries and lists of numeric values —
 but their lifetimes, timing, and ownership differ.</p>
 <section id="overview-of-the-data-flow">
-<span id="r-notes-and-internals-overview-of-the-data-flow"></span><span id="r-3a3anotes20and20internalsqzoverview20of20the20data20flow"></span><h3>Overview of the data flow<a class="headerlink" href="#overview-of-the-data-flow" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-overview-of-the-data-flow"></span><span id="r-3a3anotes20and20internalsqzoverview20of20the20data20flow"></span><h3>Overview of the data flow<a class="headerlink" href="#overview-of-the-data-flow" title="Link to this heading"></a></h3>
 <ol class="arabic simple">
 <li><p>ngspice calls <code class="docutils literal notranslate"><span class="pre">SendInitDataCallback()</span></code> → bridge creates and fills <code class="docutils literal notranslate"><span class="pre">InitSnap</span></code> with vector metadata.</p></li>
 <li><p>Tcl event is queued (<code class="docutils literal notranslate"><span class="pre">SEND_INIT_DATA</span></code>) → later processed by <code class="docutils literal notranslate"><span class="pre">NgSpiceEventProc()</span></code>, which converts metadata into the Tcl dictionary <code class="docutils literal notranslate"><span class="pre">ctx-&gt;vectorInit</span></code>.</p></li>
@@ -478,7 +657,7 @@ but their lifetimes, timing, and ownership differ.</p>
 Tcl-managed memory, and Tcl to consume data safely on its main thread.</p>
 </section>
 <section id="asynchronous-access-structures">
-<span id="r-notes-and-internals-asynchronous-access-structures"></span><span id="r-3a3anotes20and20internalsqzasynchronous20access20structures"></span><h3>Asynchronous access structures<a class="headerlink" href="#asynchronous-access-structures" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-asynchronous-access-structures"></span><span id="r-3a3anotes20and20internalsqzasynchronous20access20structures"></span><h3>Asynchronous access structures<a class="headerlink" href="#asynchronous-access-structures" title="Link to this heading"></a></h3>
 <p>ngspice provides a runtime API for querying vector values at any point using <code class="docutils literal notranslate"><span class="pre">ngGet_Vec_Info()</span></code>. The structure
 returned is defined as:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">vector_info</span><span class="w"> </span><span class="p">{</span>
@@ -505,7 +684,7 @@ intermediate buffering. It is safe to call between runs, though the vector conte
 state at the time of the query.</p>
 </section>
 <section id="synchronous-access-structures-event-driven">
-<span id="r-notes-and-internals-synchronous-access-structures-event-driven"></span><span id="r-3a3anotes20and20internalsqzsynchronous20access20structures2028event2ddriven29"></span><h3>Synchronous access structures (event-driven)<a class="headerlink" href="#synchronous-access-structures-event-driven" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-synchronous-access-structures-event-driven"></span><span id="r-3a3anotes20and20internalsqzsynchronous20access20structures2028event2ddriven29"></span><h3>Synchronous access structures (event-driven)<a class="headerlink" href="#synchronous-access-structures-event-driven" title="Link to this heading"></a></h3>
 <p>When simulations run in the background (<code class="docutils literal notranslate"><span class="pre">bg_run</span></code>), ngspice periodically calls <code class="docutils literal notranslate"><span class="pre">SendDataCallback()</span></code> to deliver
 updated data for all vectors in the current plot. The callback receives a <code class="docutils literal notranslate"><span class="pre">vecvaluesall</span></code> structure:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">vecvalues</span><span class="w"> </span><span class="p">{</span>
@@ -542,7 +721,7 @@ corresponding <code class="docutils literal notranslate"><span class="pre">InitS
 <p>This snapshot serves as the source for <code class="docutils literal notranslate"><span class="pre">ctx-&gt;vectorInit</span></code> once the event is processed on the Tcl side.</p>
 </section>
 <section id="command-interpreter-storage">
-<span id="r-notes-and-internals-command-interpreter-storage"></span><span id="r-3a3anotes20and20internalsqzcommand20interpreter20storage"></span><h3>Command interpreter storage<a class="headerlink" href="#command-interpreter-storage" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-command-interpreter-storage"></span><span id="r-3a3anotes20and20internalsqzcommand20interpreter20storage"></span><h3>Command interpreter storage<a class="headerlink" href="#command-interpreter-storage" title="Link to this heading"></a></h3>
 <p>Ngspice retains parsed command/control structures independently of plots and bridge buffers. The public
 <code class="docutils literal notranslate"><span class="pre">command</span> <span class="pre">-clear</span></code> operation passes NULL to <code class="docutils literal notranslate"><span class="pre">ngSpice_Command</span></code>, which resets this storage. An empty command
 string does not perform the reset. Simulation data, plots, snapshots and message queues remain intact.</p>
@@ -560,7 +739,7 @@ API callers that can bypass this bookkeeping.</p>
 complete command sequences. The run helper leaves this operation explicit to preserve existing scripts.</p>
 </section>
 <section id="digital-event-nodes">
-<span id="r-notes-and-internals-digital-event-nodes"></span><span id="r-3a3anotes20and20internalsqzdigital20event20nodes"></span><h3>Digital event nodes<a class="headerlink" href="#digital-event-nodes" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-digital-event-nodes"></span><span id="r-3a3anotes20and20internalsqzdigital20event20nodes"></span><h3>Digital event nodes<a class="headerlink" href="#digital-event-nodes" title="Link to this heading"></a></h3>
 <p>String-valued XSPICE events are separate from numeric vectors. All three transient modes use the raw event API:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$sim</span><span class="w"> </span><span class="nv">circuit</span><span class="w"> </span><span class="o">-</span>string<span class="w"> </span><span class="nv">$netlist</span>
 <span class="nv">$sim</span><span class="w"> </span><span class="nv">eventnodes</span><span class="w"> </span><span class="o">-</span>all<span class="w"> </span><span class="o">-</span>mode<span class="w"> </span>changes
@@ -590,7 +769,7 @@ Older libraries lacking the raw symbols still load for analog use; <code class="
 and clear histories when consumed.</p>
 </section>
 <section id="raw-digital-event-storage">
-<span id="r-notes-and-internals-raw-digital-event-storage"></span><span id="r-3a3anotes20and20internalsqzraw20digital20event20storage"></span><h3>Raw digital event storage<a class="headerlink" href="#raw-digital-event-storage" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-raw-digital-event-storage"></span><span id="r-3a3anotes20and20internalsqzraw20digital20event20storage"></span><h3>Raw digital event storage<a class="headerlink" href="#raw-digital-event-storage" title="Link to this heading"></a></h3>
 <p>The optional ngSpice_Raw_Evt and ngSpice_Decode_Evt symbols supply string-valued event data for eventnodes
 and eventdata. Enumeration uses ngSpice_AllEvtNodes after circuit loading; ordinary event callbacks are
 not used as a data source. Node contexts are registered once and retained through clear and halt/resume.</p>
@@ -630,7 +809,7 @@ literal sweeps advance the outer coordinate at observed primary-scale rollover. 
 copied into Tcl only on read. See Digital events data for the public OP/DC layouts.</p>
 </section>
 <section id="native-worker-thread-cleanup">
-<span id="r-notes-and-internals-native-worker-thread-cleanup"></span><span id="r-3a3anotes20and20internalsqznative20worker20thread20cleanup"></span><h3>Native worker thread cleanup<a class="headerlink" href="#native-worker-thread-cleanup" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-native-worker-thread-cleanup"></span><span id="r-3a3anotes20and20internalsqznative20worker20thread20cleanup"></span><h3>Native worker thread cleanup<a class="headerlink" href="#native-worker-thread-cleanup" title="Link to this heading"></a></h3>
 <p>Ngspice creates native background threads. Tcl allocations made by the callbacks initialize thread-local
 allocator state, which is not automatically released when a native worker returns. At the end of the
 stopped <code class="docutils literal notranslate"><span class="pre">BGThreadRunningCallback</span></code>, the bridge calls <code class="docutils literal notranslate"><span class="pre">Tcl_FinalizeThread</span></code> on the worker after completing
@@ -641,7 +820,7 @@ and owner-thread shutdown do not finalize the interpreter thread. Halting releas
 live samples remain available for the next resume. Transferred buffers retain their normal ownership.</p>
 </section>
 <section id="internal-buffering-and-memory-layout">
-<span id="r-notes-and-internals-internal-buffering-and-memory-layout"></span><span id="r-3a3anotes20and20internalsqzinternal20buffering20and20memory20layout"></span><h3>Internal buffering and memory layout<a class="headerlink" href="#internal-buffering-and-memory-layout" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-internal-buffering-and-memory-layout"></span><span id="r-3a3anotes20and20internalsqzinternal20buffering20and20memory20layout"></span><h3>Internal buffering and memory layout<a class="headerlink" href="#internal-buffering-and-memory-layout" title="Link to this heading"></a></h3>
 <p>The in-memory storage for raw data uses nested structures designed for efficient append and event-driven
 transfer:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
@@ -671,7 +850,7 @@ the buffered rows into the Tcl dictionary, <code class="docutils literal notrans
 the counters.</p>
 </section>
 <section id="conversion-into-tcl-objects">
-<span id="r-notes-and-internals-conversion-into-tcl-objects"></span><span id="r-3a3anotes20and20internalsqzconversion20into20tcl20objects"></span><h3>Conversion into Tcl objects<a class="headerlink" href="#conversion-into-tcl-objects" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-conversion-into-tcl-objects"></span><span id="r-3a3anotes20and20internalsqzconversion20into20tcl20objects"></span><h3>Conversion into Tcl objects<a class="headerlink" href="#conversion-into-tcl-objects" title="Link to this heading"></a></h3>
 <p>When Tcl processes the <code class="docutils literal notranslate"><span class="pre">SEND_INIT_DATA</span></code> or <code class="docutils literal notranslate"><span class="pre">SEND_DATA</span></code> events, it transforms the internal C buffers into Tcl
 data structures:</p>
 <ul class="simple">
@@ -681,7 +860,7 @@ data structures:</p>
 <p>The conversion always occurs under <code class="docutils literal notranslate"><span class="pre">ctx-&gt;mutex</span></code> to prevent concurrent modification during background activity.</p>
 </section>
 <section id="data-lifecycle-and-cleanup">
-<span id="r-notes-and-internals-data-lifecycle-and-cleanup"></span><span id="r-3a3anotes20and20internalsqzdata20lifecycle20and20cleanup"></span><h3>Data lifecycle and cleanup<a class="headerlink" href="#data-lifecycle-and-cleanup" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-data-lifecycle-and-cleanup"></span><span id="r-3a3anotes20and20internalsqzdata20lifecycle20and20cleanup"></span><h3>Data lifecycle and cleanup<a class="headerlink" href="#data-lifecycle-and-cleanup" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>New plot initialization advances <code class="docutils literal notranslate"><span class="pre">ctx-&gt;gen</span></code> and discards pending samples from the previous plot. The Tcl initialization event replaces live lists or clears live RBC vectors and updates metadata.</p></li>
 <li><p>A resume initialization with the same plot identifier preserves the generation, pending samples and live storage. If the original initialization is still queued, its required reset is retained.</p></li>
@@ -694,7 +873,7 @@ data structures:</p>
 between Tcl and ngspice.</p>
 </section>
 <section id="thread-safety-in-data-handling">
-<span id="r-notes-and-internals-thread-safety-in-data-handling"></span><span id="r-3a3anotes20and20internalsqzthread20safety20in20data20handling"></span><h3>Thread safety in data handling<a class="headerlink" href="#thread-safety-in-data-handling" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-thread-safety-in-data-handling"></span><span id="r-3a3anotes20and20internalsqzthread20safety20in20data20handling"></span><h3>Thread safety in data handling<a class="headerlink" href="#thread-safety-in-data-handling" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">SendDataCallback()</span></code> and <code class="docutils literal notranslate"><span class="pre">SendInitDataCallback()</span></code> run on ngspice’s thread; they lock <code class="docutils literal notranslate"><span class="pre">ctx-&gt;mutex</span></code> while modifying shared buffers.</p></li>
 <li><p>Tcl-side handlers (<code class="docutils literal notranslate"><span class="pre">NgSpiceEventProc()</span></code>) also lock the same mutex when consuming the data.</p></li>
@@ -705,12 +884,12 @@ to Tcl-accessible variables, capable of handling both real-time streaming and po
 </section>
 </section>
 <section id="how-message-queue-is-implemented">
-<span id="r-notes-and-internals-how-message-queue-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20message20queue20is20implemented"></span><h2>How message queue is implemented<a class="headerlink" href="#how-message-queue-is-implemented" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-message-queue-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20message20queue20is20implemented"></span><h2>How message queue is implemented<a class="headerlink" href="#how-message-queue-is-implemented" title="Link to this heading"></a></h2>
 <p>ngspicetclbridge provides a unified and thread-safe mechanism for collecting text output and diagnostic messages
 emitted by ngspice during simulation. This includes lines printed to ngspice’s stdout/stderr streams, status
 messages, and optionally captured command output when <code class="docutils literal notranslate"><span class="pre">-capture</span></code> mode is active.</p>
 <section id="overview">
-<span id="r-notes-and-internals-overview"></span><span id="r-3a3anotes20and20internalsqzoverview"></span><h3>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-overview"></span><span id="r-3a3anotes20and20internalsqzoverview"></span><h3>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h3>
 <p>Each <code class="docutils literal notranslate"><span class="pre">NgSpiceContext</span></code> maintains two independent message queues:</p>
 <ul class="simple">
 <li><p><strong>``msgq``</strong> - the <strong>global asynchronous message queue</strong>, which accumulates all text lines and status messages emitted by ngspice during normal operation. These messages are accessible to Tcl via the <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">messages</span></code> subcommand and are used by commands such as <code class="docutils literal notranslate"><span class="pre">waitevent</span></code> or logging facilities to display simulation output.</p></li>
@@ -729,7 +908,7 @@ messages, and optionally captured command output when <code class="docutils lite
 capacity grows exponentially when needed.</p>
 </section>
 <section id="message-production-ngspice-callbacks">
-<span id="r-notes-and-internals-message-production-ngspice-callbacks"></span><span id="r-3a3anotes20and20internalsqzmessage20production2028ngspice20callbacks29"></span><h3>Message production (ngspice callbacks)<a class="headerlink" href="#message-production-ngspice-callbacks" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-message-production-ngspice-callbacks"></span><span id="r-3a3anotes20and20internalsqzmessage20production2028ngspice20callbacks29"></span><h3>Message production (ngspice callbacks)<a class="headerlink" href="#message-production-ngspice-callbacks" title="Link to this heading"></a></h3>
 <p>ngspice produces text output through callbacks <code class="docutils literal notranslate"><span class="pre">SendCharCallback</span></code> and <code class="docutils literal notranslate"><span class="pre">SendStatCallback</span></code>. These callbacks are
 invoked asynchronously from ngspice’s internal threads and may fire at any moment. To safely handle these
 messages:</p>
@@ -744,11 +923,11 @@ messages:</p>
 null-termination of the array. It performs no Tcl operations, keeping it completely thread-safe.</p>
 </section>
 <section id="message-consumption-tcl-commands">
-<span id="r-notes-and-internals-message-consumption-tcl-commands"></span><span id="r-3a3anotes20and20internalsqzmessage20consumption2028tcl20commands29"></span><h3>Message consumption (Tcl commands)<a class="headerlink" href="#message-consumption-tcl-commands" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-message-consumption-tcl-commands"></span><span id="r-3a3anotes20and20internalsqzmessage20consumption2028tcl20commands29"></span><h3>Message consumption (Tcl commands)<a class="headerlink" href="#message-consumption-tcl-commands" title="Link to this heading"></a></h3>
 <p>On the Tcl side, messages are retrieved by calling <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">messages</span></code>.
 This subcommand locks the same <code class="docutils literal notranslate"><span class="pre">ctx-&gt;mutex</span></code>, iterates over the <code class="docutils literal notranslate"><span class="pre">msgq</span></code> entries, and returns them as a Tcl list:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nv">$s</span><span class="w"> </span><span class="nv">messages</span>
-<span class="err">→</span><span class="w"> </span><span class="k">{</span><span class="w"> </span><span class="s2">&quot;# circuit initialized&quot;</span><span class="w"> </span><span class="s2">&quot;# transient analysis running&quot;</span><span class="w"> </span><span class="s2">&quot;# background thread running started&quot;</span><span class="w"> </span><span class="nv">...</span><span class="w"> </span><span class="k">}</span>
+<span class="err">→</span><span class="w"> </span><span class="k">{</span><span class="w"> </span><span class="s2">"# circuit initialized"</span><span class="w"> </span><span class="s2">"# transient analysis running"</span><span class="w"> </span><span class="s2">"# background thread running started"</span><span class="w"> </span><span class="nv">...</span><span class="w"> </span><span class="k">}</span>
 </pre></div>
 </div>
 <p>Optionally, <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">messages</span> <span class="pre">-clear</span></code> clears the message queue after reading, allowing the caller to poll for new
@@ -757,7 +936,7 @@ messages incrementally.</p>
 message production and consumption. Each message remains valid until explicitly cleared or freed.</p>
 </section>
 <section id="capture-mode-capture">
-<span id="r-notes-and-internals-capture-mode-capture"></span><span id="r-3a3anotes20and20internalsqzcapture20mode2028602dcapture6029"></span><h3>Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)<a class="headerlink" href="#capture-mode-capture" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-capture-mode-capture"></span><span id="r-3a3anotes20and20internalsqzcapture20mode2028602dcapture6029"></span><h3>Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)<a class="headerlink" href="#capture-mode-capture" title="Link to this heading"></a></h3>
 <p>The capture mechanism allows a single <code class="docutils literal notranslate"><span class="pre">$s</span> <span class="pre">command</span></code> call to return the exact lines ngspice printed while
 executing a specific command. This is handled transparently inside the command branch:</p>
 <ol class="arabic simple">
@@ -784,7 +963,7 @@ executing a specific command. This is handled transparently inside the command b
 <ol class="arabic simple">
 <li><p>The Tcl result is a dictionary:</p></li>
 </ol>
-<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">{</span><span class="w"> </span><span class="nv">rc</span><span class="w"> </span><span class="o">&lt;</span>integer<span class="o">&gt;</span><span class="w"> </span>output<span class="w"> </span><span class="k">{</span><span class="w"> </span><span class="s2">&quot;&lt;line1&gt;&quot;</span><span class="w"> </span><span class="s2">&quot;&lt;line2&gt;&quot;</span><span class="w"> </span><span class="nv">...</span><span class="w"> </span><span class="k">}</span><span class="w"> </span><span class="k">}</span>
+<div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="k">{</span><span class="w"> </span><span class="nv">rc</span><span class="w"> </span><span class="o">&lt;</span>integer<span class="o">&gt;</span><span class="w"> </span>output<span class="w"> </span><span class="k">{</span><span class="w"> </span><span class="s2">"&lt;line1&gt;"</span><span class="w"> </span><span class="s2">"&lt;line2&gt;"</span><span class="w"> </span><span class="nv">...</span><span class="w"> </span><span class="k">}</span><span class="w"> </span><span class="k">}</span>
 </pre></div>
 </div>
 <p>where <code class="docutils literal notranslate"><span class="pre">rc</span></code> is the return code from ngspice and <code class="docutils literal notranslate"><span class="pre">output</span></code> is the captured text.</p>
@@ -792,7 +971,7 @@ executing a specific command. This is handled transparently inside the command b
 while still providing deterministic per-command output isolation.</p>
 </section>
 <section id="clearing-and-freeing-queues">
-<span id="r-notes-and-internals-clearing-and-freeing-queues"></span><span id="r-3a3anotes20and20internalsqzclearing20and20freeing20queues"></span><h3>Clearing and freeing queues<a class="headerlink" href="#clearing-and-freeing-queues" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-clearing-and-freeing-queues"></span><span id="r-3a3anotes20and20internalsqzclearing20and20freeing20queues"></span><h3>Clearing and freeing queues<a class="headerlink" href="#clearing-and-freeing-queues" title="Link to this heading"></a></h3>
 <p>Both message queues can be cleared or destroyed via:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">MsgQ_Clear</span><span class="p">(</span><span class="n">MsgQueue</span><span class="w"> </span><span class="o">*</span><span class="n">q</span><span class="p">);</span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">MsgQ_Free</span><span class="p">(</span><span class="n">MsgQueue</span><span class="w"> </span><span class="o">*</span><span class="n">q</span><span class="p">);</span>
@@ -811,7 +990,7 @@ while still providing deterministic per-command output isolation.</p>
 </ul>
 </section>
 <section id="synchronization-and-safety-guarantees">
-<span id="r-notes-and-internals-synchronization-and-safety-guarantees"></span><span id="r-3a3anotes20and20internalsqzsynchronization20and20safety20guarantees"></span><h3>Synchronization and safety guarantees<a class="headerlink" href="#synchronization-and-safety-guarantees" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-synchronization-and-safety-guarantees"></span><span id="r-3a3anotes20and20internalsqzsynchronization20and20safety20guarantees"></span><h3>Synchronization and safety guarantees<a class="headerlink" href="#synchronization-and-safety-guarantees" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>All modifications of either <code class="docutils literal notranslate"><span class="pre">msgq</span></code> or <code class="docutils literal notranslate"><span class="pre">capq</span></code> occur under <code class="docutils literal notranslate"><span class="pre">ctx-&gt;mutex</span></code>.</p></li>
 <li><p>The queues store only heap-allocated strings - no Tcl objects or shared buffers - making them completely safe to access from ngspice threads.</p></li>
@@ -820,7 +999,7 @@ while still providing deterministic per-command output isolation.</p>
 </ul>
 </section>
 <section id="message-queue-summary">
-<span id="r-notes-and-internals-message-queue-summary"></span><span id="r-3a3anotes20and20internalsqzmessage20queue20summary"></span><h3>Message queue summary<a class="headerlink" href="#message-queue-summary" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-message-queue-summary"></span><span id="r-3a3anotes20and20internalsqzmessage20queue20summary"></span><h3>Message queue summary<a class="headerlink" href="#message-queue-summary" title="Link to this heading"></a></h3>
 <p>The message queue subsystem provides a clean, thread-safe bridge between ngspice’s asynchronous textual output
 and Tcl’s event-driven interface.
 It ensures:</p>
@@ -832,14 +1011,14 @@ It ensures:</p>
 </section>
 </section>
 <section id="how-dynamic-library-loading-and-portability-is-implemented">
-<span id="r-notes-and-internals-how-dynamic-library-loading-and-portability-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20dynamic20library20loading20and20portability20is20implemented"></span><h2>How dynamic library loading and portability is implemented<a class="headerlink" href="#how-dynamic-library-loading-and-portability-is-implemented" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-how-dynamic-library-loading-and-portability-is-implemented"></span><span id="r-3a3anotes20and20internalsqzhow20dynamic20library20loading20and20portability20is20implemented"></span><h2>How dynamic library loading and portability is implemented<a class="headerlink" href="#how-dynamic-library-loading-and-portability-is-implemented" title="Link to this heading"></a></h2>
 <p>ngspicetclbridge is designed to operate seamlessly across all major platforms supported by Tcl - primarily
 Linux, macOS, and Windows - using a unified abstraction layer for dynamic library management. Because the
 simulator backend (ngspice) is distributed as a shared library (<code class="docutils literal notranslate"><span class="pre">libngspice.so</span></code>, <code class="docutils literal notranslate"><span class="pre">libngspice.dylib</span></code>, or
 <code class="docutils literal notranslate"><span class="pre">ngspice.dll</span></code>), the bridge must dynamically load it at runtime, resolve function symbols, and safely unload it
 during shutdown.</p>
 <section id="abstracted-portability-layer">
-<span id="r-notes-and-internals-abstracted-portability-layer"></span><span id="r-3a3anotes20and20internalsqzabstracted20portability20layer"></span><h3>Abstracted portability layer<a class="headerlink" href="#abstracted-portability-layer" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-abstracted-portability-layer"></span><span id="r-3a3anotes20and20internalsqzabstracted20portability20layer"></span><h3>Abstracted portability layer<a class="headerlink" href="#abstracted-portability-layer" title="Link to this heading"></a></h3>
 <p>All platform differences in dynamic library handling are encapsulated in a small portability layer consisting
 of three functions and an opaque handle type:</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">PDlHandle</span><span class="p">;</span>
@@ -858,7 +1037,7 @@ of three functions and an opaque handle type:</p>
 The bridge never calls <code class="docutils literal notranslate"><span class="pre">dlopen</span></code> or <code class="docutils literal notranslate"><span class="pre">LoadLibrary</span></code> directly - only through this wrapper.</p>
 </section>
 <section id="unicode-and-tcl-path-integration">
-<span id="r-notes-and-internals-unicode-and-tcl-path-integration"></span><span id="r-3a3anotes20and20internalsqzunicode20and20tcl20path20integration"></span><h3>Unicode and Tcl path integration<a class="headerlink" href="#unicode-and-tcl-path-integration" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-unicode-and-tcl-path-integration"></span><span id="r-3a3anotes20and20internalsqzunicode20and20tcl20path20integration"></span><h3>Unicode and Tcl path integration<a class="headerlink" href="#unicode-and-tcl-path-integration" title="Link to this heading"></a></h3>
 <p>A key feature of the wrapper is that it accepts a Tcl path object (<code class="docutils literal notranslate"><span class="pre">Tcl_Obj</span> <span class="pre">*pathObj</span></code>) instead of a C string.
 This allows proper handling of Unicode and cross-platform path semantics:</p>
 <ul class="simple">
@@ -869,12 +1048,12 @@ This allows proper handling of Unicode and cross-platform path semantics:</p>
 platforms.</p>
 </section>
 <section id="function-symbol-resolution">
-<span id="r-notes-and-internals-function-symbol-resolution"></span><span id="r-3a3anotes20and20internalsqzfunction20symbol20resolution"></span><h3>Function symbol resolution<a class="headerlink" href="#function-symbol-resolution" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-function-symbol-resolution"></span><span id="r-3a3anotes20and20internalsqzfunction20symbol20resolution"></span><h3>Function symbol resolution<a class="headerlink" href="#function-symbol-resolution" title="Link to this heading"></a></h3>
 <p>After opening the shared library, <code class="docutils literal notranslate"><span class="pre">NgSpiceNewCmd()</span></code> uses <code class="docutils literal notranslate"><span class="pre">PDl_Sym()</span></code> to resolve all required function symbols
 dynamically. Each symbol pointer is stored in the instance’s <code class="docutils literal notranslate"><span class="pre">NgSpiceContext</span></code>:</p>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngSpice_Init</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="n">PDl_Sym</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ngSpice_Init&quot;</span><span class="p">);</span>
-<span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngSpice_Command</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">PDl_Sym</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ngSpice_Command&quot;</span><span class="p">);</span>
-<span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngGet_Vec_Info</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">PDl_Sym</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ngGet_Vec_Info&quot;</span><span class="p">);</span>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngSpice_Init</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="n">PDl_Sym</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="s">"ngSpice_Init"</span><span class="p">);</span>
+<span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngSpice_Command</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">PDl_Sym</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="s">"ngSpice_Command"</span><span class="p">);</span>
+<span class="n">ctx</span><span class="o">-&gt;</span><span class="n">ngGet_Vec_Info</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">PDl_Sym</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="s">"ngGet_Vec_Info"</span><span class="p">);</span>
 <span class="p">...</span>
 </pre></div>
 </div>
@@ -883,7 +1062,7 @@ preventing partially initialized instances. This allows compatibility with multi
 export slightly different symbol sets.</p>
 </section>
 <section id="safe-unloading-and-crash-prevention">
-<span id="r-notes-and-internals-safe-unloading-and-crash-prevention"></span><span id="r-3a3anotes20and20internalsqzsafe20unloading20and20crash20prevention"></span><h3>Safe unloading and crash prevention<a class="headerlink" href="#safe-unloading-and-crash-prevention" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-safe-unloading-and-crash-prevention"></span><span id="r-3a3anotes20and20internalsqzsafe20unloading20and20crash20prevention"></span><h3>Safe unloading and crash prevention<a class="headerlink" href="#safe-unloading-and-crash-prevention" title="Link to this heading"></a></h3>
 <p>When an instance is destroyed (<code class="docutils literal notranslate"><span class="pre">InstDeleteProc</span></code> → <code class="docutils literal notranslate"><span class="pre">InstFreeProc</span></code>), the bridge normally calls <code class="docutils literal notranslate"><span class="pre">PDl_Close()</span></code> to
 unload the ngspice library. However, under certain conditions (e.g., if ngspice has left background threads
 running or its shutdown callbacks are incomplete), unloading can cause segmentation faults. To handle this
@@ -895,7 +1074,7 @@ safely:</p>
 <p>This design sacrifices a small amount of memory for guaranteed stability during process termination.</p>
 </section>
 <section id="platform-specific-nuances">
-<span id="r-notes-and-internals-platform-specific-nuances"></span><span id="r-3a3anotes20and20internalsqzplatform2dspecific20nuances"></span><h3>Platform-specific nuances<a class="headerlink" href="#platform-specific-nuances" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-platform-specific-nuances"></span><span id="r-3a3anotes20and20internalsqzplatform2dspecific20nuances"></span><h3>Platform-specific nuances<a class="headerlink" href="#platform-specific-nuances" title="Link to this heading"></a></h3>
 <p><strong>Windows:</strong></p>
 <ul class="simple">
 <li><p>Uses <code class="docutils literal notranslate"><span class="pre">LoadLibraryW()</span></code> for Unicode safety.</p></li>
@@ -913,7 +1092,7 @@ safely:</p>
 </ul>
 </section>
 <section id="dynamic-library-loading-summary">
-<span id="r-notes-and-internals-dynamic-library-loading-summary"></span><span id="r-3a3anotes20and20internalsqzdynamic20library20loading20summary"></span><h3>Dynamic library loading summary<a class="headerlink" href="#dynamic-library-loading-summary" title="Link to this heading">¶</a></h3>
+<span id="r-notes-and-internals-dynamic-library-loading-summary"></span><span id="r-3a3anotes20and20internalsqzdynamic20library20loading20summary"></span><h3>Dynamic library loading summary<a class="headerlink" href="#dynamic-library-loading-summary" title="Link to this heading"></a></h3>
 <p>The DLL loading layer provides:</p>
 <ul class="simple">
 <li><p>Transparent, cross-platform dynamic linking without preprocessor ifdefs in the main code.</p></li>
@@ -926,7 +1105,7 @@ or path encoding, ensuring consistent behavior and portability across Tcl enviro
 </section>
 </section>
 <section id="tcl-and-c-interface-boundary">
-<span id="r-notes-and-internals-tcl-and-c-interface-boundary"></span><span id="r-3a3anotes20and20internalsqztcl20and20c20interface20boundary"></span><h2>Tcl and C interface boundary<a class="headerlink" href="#tcl-and-c-interface-boundary" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-internals-tcl-and-c-interface-boundary"></span><span id="r-3a3anotes20and20internalsqztcl20and20c20interface20boundary"></span><h2>Tcl and C interface boundary<a class="headerlink" href="#tcl-and-c-interface-boundary" title="Link to this heading"></a></h2>
 <p>Public argument parsing, interactive help and command documentation live in the package’s Tcl source. Wrappers
 pass normalized dictionaries to private native commands. The native engine keeps semantic checks, data buffers,
 event handling and RBC publication; numeric samples are not copied through Tcl merely to parse options.</p>
@@ -943,128 +1122,33 @@ helper is used.</p>
 </section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="Main">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">Notes and internals</a><ul>
-<li><a class="reference internal" href="#how-instance-subcommands-are-implemented">How instance subcommands are implemented</a><ul>
-<li><a class="reference internal" href="#command-creation">Command creation</a></li>
-<li><a class="reference internal" href="#subcommand-dispatching">Subcommand dispatching</a></li>
-<li><a class="reference internal" href="#thread-safety-and-state-transitions">Thread safety and state transitions</a></li>
-<li><a class="reference internal" href="#deferred-command-queue">Deferred command queue</a></li>
-<li><a class="reference internal" href="#capture-mode">Capture mode</a></li>
-<li><a class="reference internal" href="#command-deletion-and-cleanup">Command deletion and cleanup</a></li>
-<li><a class="reference internal" href="#instance-subcommands-summary">Instance subcommands summary</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#how-sync-callbacks-from-ngspice-is-implemented">How sync callbacks from Ngspice is implemented</a><ul>
-<li><a class="reference internal" href="#registration-of-callbacks">Registration of callbacks</a></li>
-<li><a class="reference internal" href="#callback-invocation-model">Callback invocation model</a></li>
-<li><a class="reference internal" href="#thread-safety-and-queueing-behavior">Thread safety and queueing behavior</a></li>
-<li><a class="reference internal" href="#controlled-flow-of-data">Controlled flow of data</a></li>
-<li><a class="reference internal" href="#background-thread-lifecycle-callbacks">Background thread lifecycle callbacks</a></li>
-<li><a class="reference internal" href="#generation-and-stale-event-handling">Generation and stale-event handling</a></li>
-<li><a class="reference internal" href="#controlled-exit-coordination">Controlled exit coordination</a></li>
-<li><a class="reference internal" href="#safety-and-teardown-integration">Safety and teardown integration</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#how-event-queue-interaction-is-implemented">How event queue interaction is implemented</a><ul>
-<li><a class="reference internal" href="#event-structure-definition">Event structure definition</a></li>
-<li><a class="reference internal" href="#event-allocation-and-queuing">Event allocation and queuing</a></li>
-<li><a class="reference internal" href="#event-processing">Event processing</a></li>
-<li><a class="reference internal" href="#event-deletion-and-resource-balancing">Event deletion and resource balancing</a></li>
-<li><a class="reference internal" href="#generation-handling-and-safety">Generation handling and safety</a></li>
-<li><a class="reference internal" href="#synchronization-guarantees">Synchronization guarantees</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#how-thread-safety-is-ensured">How thread safety is ensured</a></li>
-<li><a class="reference internal" href="#how-data-processing-is-implemented">How data processing is implemented</a><ul>
-<li><a class="reference internal" href="#overview-of-the-data-flow">Overview of the data flow</a></li>
-<li><a class="reference internal" href="#asynchronous-access-structures">Asynchronous access structures</a></li>
-<li><a class="reference internal" href="#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
-<li><a class="reference internal" href="#command-interpreter-storage">Command interpreter storage</a></li>
-<li><a class="reference internal" href="#digital-event-nodes">Digital event nodes</a></li>
-<li><a class="reference internal" href="#raw-digital-event-storage">Raw digital event storage</a></li>
-<li><a class="reference internal" href="#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
-<li><a class="reference internal" href="#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
-<li><a class="reference internal" href="#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>
-<li><a class="reference internal" href="#data-lifecycle-and-cleanup">Data lifecycle and cleanup</a></li>
-<li><a class="reference internal" href="#thread-safety-in-data-handling">Thread safety in data handling</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#how-message-queue-is-implemented">How message queue is implemented</a><ul>
-<li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#message-production-ngspice-callbacks">Message production (ngspice callbacks)</a></li>
-<li><a class="reference internal" href="#message-consumption-tcl-commands">Message consumption (Tcl commands)</a></li>
-<li><a class="reference internal" href="#capture-mode-capture">Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)</a></li>
-<li><a class="reference internal" href="#clearing-and-freeing-queues">Clearing and freeing queues</a></li>
-<li><a class="reference internal" href="#synchronization-and-safety-guarantees">Synchronization and safety guarantees</a></li>
-<li><a class="reference internal" href="#message-queue-summary">Message queue summary</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#how-dynamic-library-loading-and-portability-is-implemented">How dynamic library loading and portability is implemented</a><ul>
-<li><a class="reference internal" href="#abstracted-portability-layer">Abstracted portability layer</a></li>
-<li><a class="reference internal" href="#unicode-and-tcl-path-integration">Unicode and Tcl path integration</a></li>
-<li><a class="reference internal" href="#function-symbol-resolution">Function symbol resolution</a></li>
-<li><a class="reference internal" href="#safe-unloading-and-crash-prevention">Safe unloading and crash prevention</a></li>
-<li><a class="reference internal" href="#platform-specific-nuances">Platform-specific nuances</a></li>
-<li><a class="reference internal" href="#dynamic-library-loading-summary">Dynamic library loading summary</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>
-</ul>
-</li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ngspicetclbridge-ngspicetclbridge.html" class="btn btn-neutral float-left" title="::ngspicetclbridge" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright George Yashin.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-ngspicetclbridge.html"
-                          title="previous chapter">::ngspicetclbridge</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/ngspicetclbridge-Notes-and-internals.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<search id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</search>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-ngspicetclbridge.html" title="::ngspicetclbridge"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">Notes and internals</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-    &#169; Copyright George Yashin.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

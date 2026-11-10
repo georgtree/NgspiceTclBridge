@@ -1,53 +1,229 @@
+
+
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<html lang="en" data-content_root="./">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NgspiceTclBridge - drive ngspice (shared library) from Tcl &mdash; ngspicetclbridge  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/manual.css?v=00cdc845" />
 
-    <title>NgspiceTclBridge - drive ngspice (shared library) from Tcl &#8212; ngspicetclbridge  documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=f11ead97" />
-    
-    <script src="_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="RBC vectors support" href="ngspicetclbridge-rbcBindings.html" />
     <link rel="prev" title="&lt;no title&gt;" href="index.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="index.html" title="&lt;no title&gt;"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a></li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ngspicetclbridge
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-requirements">Building &amp; requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-rbc-vector-output">Optional RBC vector output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#digital-event-tests">Digital event tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation-layout-and-removal">Installation layout and removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation-archives">Installation archives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#regenerating-documentation">Regenerating documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#notes-and-troubleshooting">Notes and troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#interactive-help">Interactive help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html">RBC vectors support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#optional-rbc-vector-output">Optional RBC vector output</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#graph-integration-with-real-ngspice">Graph integration with real ngspice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#vector-destination-namespace">Vector destination namespace</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#read-only-destinations">Read-only destinations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#automatic-snapshot-vector-names">Automatic snapshot vector names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#namespace-precedence-for-snapshots">Namespace precedence for snapshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-rbcBindings.html#package-defaults">Package defaults</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html">Digital events data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#r-digitalevents-digital-events-data">Digital events data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#choosing-a-transient-mode">Choosing a transient mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#changes-complete-batches-of-event-reports"><code class="docutils literal notranslate"><span class="pre">changes</span></code>: complete batches of event reports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#snapshot-all-selected-states-at-each-output-point"><code class="docutils literal notranslate"><span class="pre">snapshot</span></code>: all selected states at each output point</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#pernode-immediately-available-node-histories"><code class="docutils literal notranslate"><span class="pre">pernode</span></code>: immediately available node histories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#operating-point-and-dc-sweep">Operating point and DC sweep</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-digitalEvents.html#publication-clearing-and-repeated-runs">Publication, clearing and repeated runs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Examples.html#parametric-simulation">Parametric simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html">::ngspicetclbridge</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#commands">Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#configure"><code class="docutils literal notranslate"><span class="pre">configure</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getcircuit"><code class="docutils literal notranslate"><span class="pre">getCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getcircuittitle"><code class="docutils literal notranslate"><span class="pre">getCircuitTitle</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getplotdate"><code class="docutils literal notranslate"><span class="pre">getPlotDate</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getplotname"><code class="docutils literal notranslate"><span class="pre">getPlotName</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#getscaleinfo"><code class="docutils literal notranslate"><span class="pre">getScaleInfo</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#new"><code class="docutils literal notranslate"><span class="pre">new</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#readvecsasync"><code class="docutils literal notranslate"><span class="pre">readVecsAsync</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim"><code class="docutils literal notranslate"><span class="pre">SIM</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-abort"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">abort</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-asyncvector"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">asyncvector</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-circuit"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">circuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-command"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">command</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-destroy"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">destroy</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventcounts"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventcounts</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventdata"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventdata</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-eventnodes"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">eventnodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-flush"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">flush</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-initvectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">initvectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-inputpath"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">inputpath</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-isrunning"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">isrunning</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-messages"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">messages</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-plot"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">plot</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-vectors"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">vectors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-ngspicetclbridge.html#sim-waitevent"><code class="docutils literal notranslate"><span class="pre">SIM</span> <span class="pre">waitevent</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html">Notes and internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-instance-subcommands-are-implemented">How instance subcommands are implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-creation">Command creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#subcommand-dispatching">Subcommand dispatching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-and-state-transitions">Thread safety and state transitions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#deferred-command-queue">Deferred command queue</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#capture-mode">Capture mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-deletion-and-cleanup">Command deletion and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#instance-subcommands-summary">Instance subcommands summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-sync-callbacks-from-ngspice-is-implemented">How sync callbacks from Ngspice is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#registration-of-callbacks">Registration of callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#callback-invocation-model">Callback invocation model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-and-queueing-behavior">Thread safety and queueing behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#controlled-flow-of-data">Controlled flow of data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#background-thread-lifecycle-callbacks">Background thread lifecycle callbacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#generation-and-stale-event-handling">Generation and stale-event handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#controlled-exit-coordination">Controlled exit coordination</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#safety-and-teardown-integration">Safety and teardown integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-event-queue-interaction-is-implemented">How event queue interaction is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-structure-definition">Event structure definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-allocation-and-queuing">Event allocation and queuing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-processing">Event processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#event-deletion-and-resource-balancing">Event deletion and resource balancing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#generation-handling-and-safety">Generation handling and safety</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronization-guarantees">Synchronization guarantees</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-thread-safety-is-ensured">How thread safety is ensured</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-data-processing-is-implemented">How data processing is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#overview-of-the-data-flow">Overview of the data flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#asynchronous-access-structures">Asynchronous access structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronous-access-structures-event-driven">Synchronous access structures (event-driven)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#command-interpreter-storage">Command interpreter storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#digital-event-nodes">Digital event nodes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#raw-digital-event-storage">Raw digital event storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#native-worker-thread-cleanup">Native worker thread cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#internal-buffering-and-memory-layout">Internal buffering and memory layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#conversion-into-tcl-objects">Conversion into Tcl objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#data-lifecycle-and-cleanup">Data lifecycle and cleanup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#thread-safety-in-data-handling">Thread safety in data handling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-message-queue-is-implemented">How message queue is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-production-ngspice-callbacks">Message production (ngspice callbacks)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-consumption-tcl-commands">Message consumption (Tcl commands)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#capture-mode-capture">Capture mode (<code class="docutils literal notranslate"><span class="pre">-capture</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#clearing-and-freeing-queues">Clearing and freeing queues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#synchronization-and-safety-guarantees">Synchronization and safety guarantees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#message-queue-summary">Message queue summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#how-dynamic-library-loading-and-portability-is-implemented">How dynamic library loading and portability is implemented</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#abstracted-portability-layer">Abstracted portability layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#unicode-and-tcl-path-integration">Unicode and Tcl path integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#function-symbol-resolution">Function symbol resolution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#safe-unloading-and-crash-prevention">Safe unloading and crash prevention</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#platform-specific-nuances">Platform-specific nuances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#dynamic-library-loading-summary">Dynamic library loading summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ngspicetclbridge-Notes-and-internals.html#tcl-and-c-interface-boundary">Tcl and C interface boundary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ngspicetclbridge</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">NgspiceTclBridge - drive ngspice (shared library) from Tcl</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ngspicetclbridge.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <section id="ngspicetclbridge-drive-ngspice-shared-library-from-tcl">
-<span id="r-ngspicetclbridge-drive-ngspice-shared-library-from-tcl"></span><span id="r-ngspicetclbridge202d20drive20ngspice2028shared20library2920from20tcl"></span><h1>NgspiceTclBridge - drive ngspice (shared library) from Tcl<a class="headerlink" href="#ngspicetclbridge-drive-ngspice-shared-library-from-tcl" title="Link to this heading">¶</a></h1>
+<span id="r-ngspicetclbridge-drive-ngspice-shared-library-from-tcl"></span><span id="r-ngspicetclbridge202d20drive20ngspice2028shared20library2920from20tcl"></span><h1>NgspiceTclBridge - drive ngspice (shared library) from Tcl<a class="headerlink" href="#ngspicetclbridge-drive-ngspice-shared-library-from-tcl" title="Link to this heading"></a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">ngspicetclbridge</span></code> is a Tcl C extension that embeds ngspice as a shared library. It provides commands for loading
 circuits, running analyses in ngspice’s background thread, and receiving data, messages and events through Tcl’s event
 loop.</p>
 <p>The package targets Tcl 9 and includes a dynamic-loading portability layer for Linux, macOS and Windows.</p>
 <section id="what-it-gives-you-at-a-glance">
-<span id="r-what-it-gives-you-at-a-glance"></span><span id="r-what20it20gives20you2028at20a20glance29"></span><h2>What it gives you (at a glance)<a class="headerlink" href="#what-it-gives-you-at-a-glance" title="Link to this heading">¶</a></h2>
+<span id="r-what-it-gives-you-at-a-glance"></span><span id="r-what20it20gives20you2028at20a20glance29"></span><h2>What it gives you (at a glance)<a class="headerlink" href="#what-it-gives-you-at-a-glance" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>Create simulator handles and issue ngspice commands.</p></li>
 <li><p>Load circuits, run analyses and wait for events with optional timeouts.</p></li>
@@ -60,7 +236,7 @@ updates, or call <code class="docutils literal notranslate"><span class="pre">$s
 <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::run</span></code> helper waits for completion and flushes automatically before returning.</p>
 </section>
 <section id="building-requirements">
-<span id="r-building-requirements"></span><span id="r-building202620requirements"></span><h2>Building &amp; requirements<a class="headerlink" href="#building-requirements" title="Link to this heading">¶</a></h2>
+<span id="r-building-requirements"></span><span id="r-building202620requirements"></span><h2>Building &amp; requirements<a class="headerlink" href="#building-requirements" title="Link to this heading"></a></h2>
 <p>For building, you need Tcl development files, a C compiler and make. The ngspice shared-library interface header is
 included in the source tree. At runtime, you need:</p>
 <ul class="simple">
@@ -81,7 +257,7 @@ simulator handle; it is loaded at runtime.</p>
 <p>For Windows, build from an <a class="reference external" href="https://www.msys2.org/">MSYS2 UCRT64</a> shell with a compatible Tcl and ngspice DLL.</p>
 </section>
 <section id="documentation">
-<span id="r-documentation"></span><h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
+<span id="r-documentation"></span><h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h2>
 <p>See the <a class="reference external" href="https://georgtree.github.io/NgspiceTclBridge/">online documentation</a> for the command reference, examples,
 troubleshooting and implementation notes.</p>
 <p>The detailed RBC guide is maintained in <a class="reference external" href="docs/rbcBindings.ruff">docs/rbcBindings.ruff</a> and included in the generated
@@ -91,7 +267,7 @@ read-only destinations and graph tests.</p>
 as <code class="docutils literal notranslate"><span class="pre">ngspicetclbridge::run</span> <span class="pre">$sim</span></code>, are higher-level helpers.</p>
 </section>
 <section id="quick-start-synchronous-operation">
-<span id="r-quick-start-synchronous-operation"></span><span id="r-quick20start2028synchronous20operation29"></span><h2>Quick start (synchronous operation)<a class="headerlink" href="#quick-start-synchronous-operation" title="Link to this heading">¶</a></h2>
+<span id="r-quick-start-synchronous-operation"></span><span id="r-quick20start2028synchronous20operation29"></span><h2>Quick start (synchronous operation)<a class="headerlink" href="#quick-start-synchronous-operation" title="Link to this heading"></a></h2>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nb">package</span><span class="w"> </span>require<span class="w"> </span>ngspicetclbridge
 
 <span class="c"># Use the full filename of your ngspice shared library.</span>
@@ -125,7 +301,7 @@ needed:</p>
 use <code class="docutils literal notranslate"><span class="pre">run</span> <span class="pre">-nocleanup</span> <span class="pre">$sim</span></code> to retain them.</p>
 </section>
 <section id="optional-rbc-vector-output">
-<span id="r-optional-rbc-vector-output"></span><span id="r-optional20rbc20vector20output"></span><h2>Optional RBC vector output<a class="headerlink" href="#optional-rbc-vector-output" title="Link to this heading">¶</a></h2>
+<span id="r-optional-rbc-vector-output"></span><span id="r-optional20rbc20vector20output"></span><h2>Optional RBC vector output<a class="headerlink" href="#optional-rbc-vector-output" title="Link to this heading"></a></h2>
 <p>Enable RBC support when configuring:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./configure<span class="w"> </span>--with-tcl<span class="o">=</span>/path/to/tcl/lib<span class="w"> </span>--with-rbc<span class="o">=</span>/path/to/rbc
 make
@@ -153,9 +329,9 @@ creates fresh vectors in the selected namespace. Live vectors and snapshots have
 guide</a> for the full ownership and naming rules.</p>
 </section>
 <section id="digital-event-tests">
-<span id="r-digital-event-tests"></span><span id="r-digital20event20tests"></span><h2>Digital event tests<a class="headerlink" href="#digital-event-tests" title="Link to this heading">¶</a></h2>
+<span id="r-digital-event-tests"></span><span id="r-digital20event20tests"></span><h2>Digital event tests<a class="headerlink" href="#digital-event-tests" title="Link to this heading"></a></h2>
 <p>Headless deterministic tests and real-ngspice tests:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-events<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/argparse /path/to/tcllib&quot;</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-events<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">"/path/to/argparse /path/to/tcllib"</span>
 make<span class="w"> </span>test-events-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_CODEMODEL_DIR</span><span class="o">=</span>/path/to/ngspice/models
 </pre></div>
 </div>
@@ -175,7 +351,7 @@ RBC and Tk are not required.</p>
 for cleanup policy, platform support, and the upstream plot-name reuse fix required by the new real regressions.</p>
 </section>
 <section id="testing">
-<span id="r-testing"></span><h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">¶</a></h2>
+<span id="r-testing"></span><h2>Testing<a class="headerlink" href="#testing" title="Link to this heading"></a></h2>
 <p>The ordinary Tcl suite requires <code class="docutils literal notranslate"><span class="pre">argparse</span></code>, <code class="docutils literal notranslate"><span class="pre">extexpr</span></code> and a real ngspice shared library.  Set <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to its
 <strong>directory</strong>, not its filename:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Linux: directory containing libngspice.so</span>
@@ -211,7 +387,7 @@ The <code class="docutils literal notranslate"><span class="pre">run</span></cod
 <p>The fixture suite checks NULL dispatch, invalid combinations, active-run rejection, halt/clear/resume, and data
 preservation in list/vector modes. For the actual library, a separate headless test changes diode parameters,
 reuses snapshots, and verifies that cleanup preserves values, plots and messages:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-command-memory-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_MEMORY_RUNS</span><span class="o">=</span><span class="m">10000</span><span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/argparse /path/to/rbc&quot;</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-command-memory-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_MEMORY_RUNS</span><span class="o">=</span><span class="m">10000</span><span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">"/path/to/argparse /path/to/rbc"</span>
 <span class="c1"># No RBC dependency for this variant:</span>
 make<span class="w"> </span>test-command-memory-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_MEMORY_OUTPUT</span><span class="o">=</span>list
 </pre></div>
@@ -223,7 +399,7 @@ fixture behavior and real-library configuration are documented in <a class="refe
 part of ordinary <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code>.</p>
 </section>
 <section id="installation-layout-and-removal">
-<span id="r-installation-layout-and-removal"></span><span id="r-installation20layout20and20removal"></span><h2>Installation layout and removal<a class="headerlink" href="#installation-layout-and-removal" title="Link to this heading">¶</a></h2>
+<span id="r-installation-layout-and-removal"></span><span id="r-installation20layout20and20removal"></span><h2>Installation layout and removal<a class="headerlink" href="#installation-layout-and-removal" title="Link to this heading"></a></h2>
 <p>Install and uninstall targets honor <code class="docutils literal notranslate"><span class="pre">--prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">--exec-prefix</span></code>, standard directory options and <code class="docutils literal notranslate"><span class="pre">DESTDIR</span></code>. The default
 layout is:</p>
 <table class="docutils align-default">
@@ -267,7 +443,7 @@ configured build directory, and use the same path overrides and <code class="doc
 include the staging directory when staging an installation.</p>
 </section>
 <section id="installation-archives">
-<span id="r-installation-archives"></span><span id="r-installation20archives"></span><h2>Installation archives<a class="headerlink" href="#installation-archives" title="Link to this heading">¶</a></h2>
+<span id="r-installation-archives"></span><span id="r-installation20archives"></span><h2>Installation archives<a class="headerlink" href="#installation-archives" title="Link to this heading"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist</span></code> builds the package, stages <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> and creates <code class="docutils literal notranslate"><span class="pre">dist/ngspicetclbridge0.5.tar.gz</span></code> in the build
 directory. <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dist-zip</span></code> also creates <code class="docutils literal notranslate"><span class="pre">dist/ngspicetclbridge0.5.zip</span></code> with the same payload.</p>
 <p>These are platform-specific installation archives, not source archives. Extract their contents into the desired
@@ -280,12 +456,12 @@ staging/output directory and <code class="docutils literal notranslate"><span cl
 parallel make invocation.</p>
 </section>
 <section id="regenerating-documentation">
-<span id="r-regenerating-documentation"></span><span id="r-regenerating20documentation"></span><h2>Regenerating documentation<a class="headerlink" href="#regenerating-documentation" title="Link to this heading">¶</a></h2>
+<span id="r-regenerating-documentation"></span><span id="r-regenerating20documentation"></span><h2>Regenerating documentation<a class="headerlink" href="#regenerating-documentation" title="Link to this heading"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">doc</span></code> regenerates documentation explicitly. Install and archive targets use the existing files in <code class="docutils literal notranslate"><span class="pre">docs</span></code> and do not
 require documentation tools.</p>
 <p>Generation requires Ruff!, Tcllib (<code class="docutils literal notranslate"><span class="pre">fileutil</span></code>), argparse and Sphinx (<code class="docutils literal notranslate"><span class="pre">sphinx-build</span></code> on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>).  Diagram generation uses
 ditaa. Use <code class="docutils literal notranslate"><span class="pre">TCLLIBPATH</span></code> to locate Tcl dependencies and <code class="docutils literal notranslate"><span class="pre">DOCFLAGS</span></code> to pass Ruff options:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>doc<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">&quot;/path/to/ruff /path/to/tcllib /path/to/argparse&quot;</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>doc<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">"/path/to/ruff /path/to/tcllib /path/to/argparse"</span>
 ./config.status<span class="w"> </span>--recheck<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./config.status
 </pre></div>
 </div>
@@ -294,7 +470,7 @@ configuration after generation, as shown above, so newly generated HTML and stat
 install list. Check the generation output for errors before installing or creating archives.</p>
 </section>
 <section id="notes-and-troubleshooting">
-<span id="r-notes-and-troubleshooting"></span><span id="r-notes20and20troubleshooting"></span><h2>Notes and troubleshooting<a class="headerlink" href="#notes-and-troubleshooting" title="Link to this heading">¶</a></h2>
+<span id="r-notes-and-troubleshooting"></span><span id="r-notes20and20troubleshooting"></span><h2>Notes and troubleshooting<a class="headerlink" href="#notes-and-troubleshooting" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><strong>Library lifetime:</strong> repeated unloading and reloading of ngspice has historically exposed possible memory corruption. Prefer reusing a simulator handle where practical.</p></li>
 <li><p><strong>Circuit replacement:</strong> the <code class="docutils literal notranslate"><span class="pre">circuit</span></code> subcommand removes the previous circuit automatically.  If you load lines yourself through <code class="docutils literal notranslate"><span class="pre">command</span> <span class="pre">circbyline</span></code>, issue <code class="docutils literal notranslate"><span class="pre">command</span> <span class="pre">remcirc</span></code> before loading a replacement circuit. Always include <code class="docutils literal notranslate"><span class="pre">.end</span></code>.</p></li>
@@ -305,7 +481,7 @@ install list. Check the generation output for errors before installing or creati
 </section>
 </section>
 <section id="interactive-help">
-<span id="r-interactive-help"></span><span id="r-interactive20help"></span><h1>Interactive help<a class="headerlink" href="#interactive-help" title="Link to this heading">¶</a></h1>
+<span id="r-interactive-help"></span><span id="r-interactive20help"></span><h1>Interactive help<a class="headerlink" href="#interactive-help" title="Link to this heading"></a></h1>
 <p>All public methods have interactive help. To get information about command and its arguments call it with <code class="docutils literal notranslate"><span class="pre">-help</span></code>
 switch:</p>
 <div class="highlight-tcl notranslate"><div class="highlight"><pre><span></span><span class="nb">package</span><span class="w"> </span>require<span class="w"> </span>ngspicetclbridge
@@ -330,83 +506,34 @@ instead of switches names. Allows switches to appear after parameters.
 <strong>Copyright (c) George Yashin</strong></p></section>
 
 
-            <div class="clearer"></div>
+           </div>
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="Main">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="index.html">Table of Contents</a></h3>
-    <ul>
-<li><a class="reference internal" href="#">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
-<li><a class="reference internal" href="#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
-<li><a class="reference internal" href="#building-requirements">Building &amp; requirements</a></li>
-<li><a class="reference internal" href="#documentation">Documentation</a></li>
-<li><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
-<li><a class="reference internal" href="#optional-rbc-vector-output">Optional RBC vector output</a></li>
-<li><a class="reference internal" href="#digital-event-tests">Digital event tests</a></li>
-<li><a class="reference internal" href="#testing">Testing</a></li>
-<li><a class="reference internal" href="#installation-layout-and-removal">Installation layout and removal</a></li>
-<li><a class="reference internal" href="#installation-archives">Installation archives</a></li>
-<li><a class="reference internal" href="#regenerating-documentation">Regenerating documentation</a></li>
-<li><a class="reference internal" href="#notes-and-troubleshooting">Notes and troubleshooting</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#interactive-help">Interactive help</a></li>
-</ul>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="&lt;no title&gt;" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ngspicetclbridge-rbcBindings.html" class="btn btn-neutral float-right" title="RBC vectors support" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright George Yashin.</p>
   </div>
-  <div>
-    <h4>Previous topic</h4>
-    <p class="topless"><a href="index.html"
-                          title="previous chapter">&lt;no title&gt;</a></p>
-  </div>
-  <div>
-    <h4>Next topic</h4>
-    <p class="topless"><a href="ngspicetclbridge-rbcBindings.html"
-                          title="next chapter">RBC vectors support</a></p>
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/ngspicetclbridge.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<search id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</search>
-<script>document.getElementById('searchbox').style.display = "block"</script>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="Related">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="ngspicetclbridge-rbcBindings.html" title="RBC vectors support"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="index.html" title="&lt;no title&gt;"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">ngspicetclbridge  documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-    &#169; Copyright George Yashin.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
-    </div>
-  </body>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

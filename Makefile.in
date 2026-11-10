@@ -229,7 +229,7 @@ install-doc:
 	done
 	@$(INSTALL_DATA_DIR) "$(DOC_INSTALL_DIR)"
 	@echo "Installing html documentation in $(DOC_INSTALL_DIR)"
-	@set -e; list='$(DOC_HTML_FILES)'; for p in $$list; do \
+	@set -e; list='$(DOC_HTML_FILES) .nojekyll'; for p in $$list; do \
 	  if test -f "$(srcdir)/docs/$$p"; then \
 	    d=`dirname "$$p"`; \
 	    if test "x$$d" != "x."; then \
@@ -239,7 +239,7 @@ install-doc:
 	    $(INSTALL_DATA) "$(srcdir)/docs/$$p" "$(DOC_INSTALL_DIR)/$$p"; \
 	  fi; \
 	done
-	@set -e; for directory in images _images; do \
+	@set -e; for directory in _static assets images _images; do \
 	  if test -d "$(srcdir)/docs/$$directory"; then \
 	    (cd "$(srcdir)/docs" && find "$$directory" -type f -print) | \
 	    while IFS= read -r file; do \
@@ -426,10 +426,10 @@ uninstall-doc:
 	  name=`basename "$$p"`; \
 	  rm -f "$(DESTDIR)$(mandir)/mann/$$name"; \
 	done
-	@set -e; list='$(DOC_HTML_FILES) LICENSE'; for p in $$list; do \
+	@set -e; list='$(DOC_HTML_FILES) .nojekyll LICENSE'; for p in $$list; do \
 	  rm -f "$(DOC_INSTALL_DIR)/$$p"; \
 	done
-	@set -e; for directory in images _images; do \
+	@set -e; for directory in _static assets images _images; do \
 	  if test -d "$(srcdir)/docs/$$directory"; then \
 	    (cd "$(srcdir)/docs" && find "$$directory" -type f -print) | \
 	    while IFS= read -r file; do \
