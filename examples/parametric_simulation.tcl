@@ -63,6 +63,8 @@ foreach data $dataList n $ns {
 }
 set fbasename [file rootname [file tail [info script]]]
 
-$chart Render -outfile [file normalize [file join html_charts $fbasename.html]] -width 800px -height 500px\
+set chartDir [file normalize [file join [file dirname [info script]] .. docs assets charts]]
+file mkdir $chartDir
+$chart Render -outfile [file join $chartDir $fbasename.html] -width 800px -height 500px\
         -divid $fbasename -jschartvar chart_$fbasename -jsvar option_$fbasename
 # docs-end plot-ticklecharts

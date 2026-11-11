@@ -57,7 +57,8 @@ html_theme_options = {
     "includehidden": True,
     "titles_only": False,
 }
-# Custom CSS is staged by doc_gen.tcl; the source lives inside the HTML outdir.
+# manual.css is maintained directly in the published _static directory.
+# Do not ask Sphinx to copy that directory onto itself.
 html_static_path = []
 html_css_files = list(globals().get("html_css_files", [])) + ["manual.css"]
 from pygments.lexers.tcl import TclLexer
@@ -89,15 +90,18 @@ set python python
 if {[info exists ::env(DOC_PYTHON)] && $::env(DOC_PYTHON) ne {}} {
     set python $::env(DOC_PYTHON)
 }
-file mkdir [file join $docDir _static]
-file copy -force [file join $docDir theme manual.css] [file join $docDir _static manual.css]
+if {![file readable [file join $docDir _static manual.css]]} {
+    error "missing documentation stylesheet: [file join $docDir _static manual.css]"
+}
 exec -- $python -m sphinx -E -a -b html [file join $docDir sphinx] $docDir >@stdout 2>@stderr
 
 # ticklechart graphs substitutions
-# Embed a standalone ticklecharts document without nesting HTML documents or
-# sharing chart IDs/globals with the manual. Assets travel with installed docs.
-proc chartFrame {filename} {
+# Embed the chart already written by its example into docs/assets/charts.
+# relativePath is relative to docs, including the simulator subdirectory if any.
+# Keep the responsive addition idempotent; never copy the chart to another file.
+proc chartFrame {relativePath} {
     global docDir
+    set filename [file join $docDir $relativePath]
     set html [::fileutil::cat $filename]
     set height 0
     foreach {match pixels} [regexp -all -inline {height:\s*([0-9]+)px} $html] {
@@ -126,13 +130,13 @@ window.addEventListener("load", function () {
 });
 </script>
 }
-    set html [string map [list </head> "$responsive</head>"] $html]
-    set destination [file join $docDir assets charts]
-    file mkdir $destination
+    if {[string first $responsive $html] < 0} {
+        set html [string map [list </head> "$responsive</head>"] $html]
+        ::fileutil::writeFile $filename $html
+    }
     set name [file tail $filename]
-    ::fileutil::writeFile [file join $destination $name] $html
     set title [string map [list & &amp\; \" &quot\; < &lt\; > &gt\;] [file rootname $name]]
-    return "<iframe class=\"doc-chart\" src=\"assets/charts/$name\" title=\"$title\" height=\"$height\" loading=\"lazy\"></iframe>"
+    return "<iframe class=\"doc-chart\" src=\"$relativePath\" title=\"$title\" height=\"$height\" loading=\"lazy\"></iframe>"
 }
 
 proc processContentsTutorial {fileContents} {
@@ -145,7 +149,7 @@ proc processContentsTutorial {fileContents} {
 }
 
 set chartsMap [dict create !ticklechart_parametric_simulation! parametric_simulation.html]
-set path [file join $docDir .. examples html_charts]
+set path assets/charts
 fileutil::updateInPlace [file join $docDir ngspicetclbridge-Examples.html] processContentsTutorial
 
 # nroff pages names processing
