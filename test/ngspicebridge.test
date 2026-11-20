@@ -673,15 +673,20 @@ test test-32 {check if unknown command hits ngspice during run of background thr
     unset s1
 }
 
-test test-33 {check quit command sending that triggers controlled exit of ngspice} -match glob -setup {
+test test-33 {quit triggers one controlled exit after a background run} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
-    $s1 circuit $fourBitAdderCircuit
+    $s1 circuit $resDivCircuit
 } -body {
+    set baseline [dict get [$s1 eventcounts] bg_running]
     $s1 command bg_run
+    set ended [$s1 waitevent bg_running -since $baseline -n 2 5000]
+    if {[dict get $ended status] ne "ok"} {
+        error "background run did not finish: $ended"
+    }
+    set before [dict get [$s1 eventcounts] controlled_exit]
     $s1 command quit
-    update
-    $s1 eventcounts
-} -result {send_char * send_stat * controlled_exit 0 send_data 0 send_init_data 0 bg_running 0 send_raw_evt 0 event_init 0 event_batch 0} -cleanup {
+    expr {[dict get [$s1 eventcounts] controlled_exit] - $before}
+} -result 1 -cleanup {
     $s1 destroy
     unset s1
 }
