@@ -23,7 +23,7 @@ records while a native worker remains active, flushing queued Tcl events after c
 the plot, and repeated transient/OP/DC transitions. The worker waits at a controlled point; these tests do not depend
 on a sleep being long enough for the simulation to run.
 
-`make test-events-real` runs both transient fixtures through two breakpoint halts and resumes in every mode. Node
+With `NGSPICE_EVENT_PLOT_REUSE=1` in the environment, `make test-events-real` runs both transient fixtures through two breakpoint halts and resumes in every mode. Node
 histories must match an uninterrupted run. Snapshot times must match the current native time vector: ngspice can
 change its accepted-point grid after resume. It also clears at a halted boundary and verifies the resumed suffix,
 replaces mixed/digital/analog circuits, and cycles transient/OP/DC/transient with an explicit node selection.
@@ -32,9 +32,9 @@ replaces mixed/digital/analog circuits, and cycles transient/OP/DC/transient wit
 
 The analysis-cycle and stress tests deliberately reuse numeric plot names after `destroy all`. Ngspice at `a80f6e3`
 can reconnect an old event job during creation of a replacement plot, producing stale OP/DC values or missing
-transient callbacks. `ngspice-event-plot-reuse-fix.patch` fixes selection of the latest matching job and restores the
-new job's data after plot initialization. These regressions fail on that unpatched version; do not weaken their
-expected values to accommodate it. This native patch is separate from the bridge patch.
+transient callbacks. The required ngspice fix selects the latest matching job and restores the new job's data after
+plot initialization. Until it is available upstream, the 13 real event tests use the default-off
+`ngspiceEventPlotReuse` constraint. The nine optional stress cases still run when explicitly requested.
 
 For long OP/DC runs, also apply the previously supplied `ngspice-event-query-cleanup.patch` (or its upstream
 replacement). That patch fixes allocations in `ngGet_Evt_NodeInfo`; it does not fix plot-name reuse.

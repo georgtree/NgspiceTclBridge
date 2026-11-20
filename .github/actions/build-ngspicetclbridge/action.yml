@@ -1,0 +1,103 @@
+name: Build and test ngspicetclbridge
+description: Test RBC vector support with Tcl 9.1.0
+inputs:
+  toolchain:
+    description: linux-gcc, windows-ucrt64, or windows-msvc
+    required: true
+  packages:
+    description: Resolved RBC and argparse release assets for this toolchain
+    required: true
+  make-dist:
+    description: Create a distribution archive after tests pass
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: tcltk/tcl
+        ref: core-9-1-0
+        path: _ci/tcl
+    - uses: actions/checkout@v4
+      with:
+        repository: tcltk/tcllib
+        ref: tcllib-2-0
+        path: _ci/tcllib
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Cache rbc release
+      id: rbc
+      uses: actions/cache@v4
+      with:
+        path: _ci/rbc
+        key: ngspicetclbridge-release-v1-rbc-${{ inputs.toolchain }}-${{ fromJSON(inputs.packages).rbc.key }}
+    - if: steps.rbc.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: python .github/scripts/release-deps.py rbc
+    - name: Cache argparse release
+      id: argparse
+      uses: actions/cache@v4
+      with:
+        path: _ci/argparse
+        key: ngspicetclbridge-release-v1-argparse-${{ inputs.toolchain }}-${{ fromJSON(inputs.packages).argparse.key }}
+    - if: steps.argparse.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: python .github/scripts/release-deps.py argparse
+    - if: runner.os == 'Windows'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: make zip tar git diffutils bison flex mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
+    - name: Identify ngspice build inputs
+      id: spice-key
+      shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      run: |
+        if [[ ${MSYSTEM:-} == UCRT64 ]]; then
+          packages=$(pacman -Q mingw-w64-ucrt-x86_64-{gcc,crt,headers,binutils,libwinpthread} make flex bison)
+        else
+          packages=$(dpkg-query -W gcc binutils libc6-dev make)
+        fi
+        digest=$(printf '%s\n' "$ImageOS" "$RUNNER_ARCH" "$GITHUB_WORKSPACE" "$(gcc -dumpfullversion)" "$packages" | sha256sum)
+        echo "digest=${digest%% *}" >> "$GITHUB_OUTPUT"
+    - name: Cache shared ngspice
+      id: spice
+      uses: actions/cache@v4
+      with:
+        path: _ci/ngspice
+        key: ngshared-${{ steps.spice-key.outputs.digest }}-${{ hashFiles('.github/scripts/build-ngspice.sh') }}
+    - name: Build shared ngspice with XSPICE
+      if: steps.spice.outputs.cache-hit != 'true'
+      shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      run: bash .github/scripts/build-ngspice.sh
+    - if: inputs.toolchain == 'windows-msvc'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+    - name: Identify Tcl cache inputs
+      id: key
+      shell: ${{ inputs.toolchain == 'windows-ucrt64' && 'msys2 {0}' || 'bash' }}
+      run: python .github/scripts/tcl-cache-key.py '${{ inputs.toolchain }}'
+    - name: Restore Tcl runtime
+      id: runtime
+      uses: actions/cache@v4
+      with:
+        path: _ci/runtime
+        key: ${{ steps.key.outputs.runtime }}
+    - if: inputs.toolchain != 'windows-msvc'
+      shell: ${{ inputs.toolchain == 'windows-ucrt64' && 'msys2 {0}' || 'bash' }}
+      env:
+        RUNTIME_CACHE_HIT: ${{ steps.runtime.outputs.cache-hit }}
+        MAKE_DIST: ${{ inputs.make-dist }}
+      run: bash .github/scripts/build-tea.sh
+    - if: inputs.toolchain == 'windows-msvc'
+      shell: pwsh
+      env:
+        RUNTIME_CACHE_HIT: ${{ steps.runtime.outputs.cache-hit }}
+        MAKE_DIST: ${{ inputs.make-dist }}
+      run: ./.github/scripts/build-msvc.ps1

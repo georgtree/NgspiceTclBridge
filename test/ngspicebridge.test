@@ -621,18 +621,18 @@ test test-29 {run long simulation and exit with error due to wrong subcommand be
     unset s1 errorStr
 }
 
-test test-30 {check if unknown command hits ngspice during thread state transition} -setup {
+test test-30 {unknown command is rejected once a background analysis initializes} -setup {
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
+    set baseline [dict get [$s1 eventcounts] send_init_data]
     $s1 command -capture bg_run
-    set result [$s1 command -capture kolp]
-    if {$result eq {background thread is starting, command kolp is deffered}} {
-        set valid 1
-    } else {
-        set valid [expr {([dict get $result rc] == 0) &&\
-                                 ([dict get $result output] eq {{stderr kolp: no such command available in ngspice}})}]
+    if {[dict get [$s1 waitevent send_init_data -since $baseline 5000] status] ne "ok"} {
+        error "ngspice analysis did not initialize"
     }
+    set result [$s1 command -capture kolp]
+    expr {[dict get $result rc] == 0 &&
+          {stderr Warning: cannot execute "kolp", type "bg_halt" first} in [dict get $result output]}
 } -result 1 -cleanup {
     $s1 destroy
     unset s1
@@ -642,11 +642,15 @@ test test-31 {check if unknown command hits ngspice during thread state transiti
     set s1 [ngspicetclbridge::new $ngspiceLibPath]
     $s1 circuit $fourBitAdderCircuit
 } -body {
+    set baseline [dict get [$s1 eventcounts] bg_running]
     $s1 command bg_run
+    if {[dict get [$s1 waitevent bg_running -since $baseline 5000] status] ne "ok"} {
+        error "ngspice worker did not start"
+    }
     $s1 command bg_halt
     update
     set result [$s1 command -capture kolp]
-    if {$result eq {background thread is starting, command kolp is deffered}} {
+    if {$result eq {background thread is stopping, command kolp is deffered}} {
         set valid 1
     } else {
         set valid [expr {([dict get $result rc] == 0) &&\

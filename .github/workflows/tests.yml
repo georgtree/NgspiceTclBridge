@@ -1,0 +1,37 @@
+name: Tests
+on: push
+permissions:
+  contents: read
+jobs:
+  dependencies:
+    name: Resolve rolling dependencies
+    runs-on: ubuntu-24.04
+    outputs:
+      packages: ${{ steps.resolve.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/release-deps.py resolve
+  build:
+    needs: dependencies
+    name: ${{ matrix.toolchain }} / Tcl 9.1.0 / RBC vectors
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: linux-gcc
+          - os: windows-2022
+            toolchain: windows-ucrt64
+          - os: windows-2022
+            toolchain: windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-ngspicetclbridge
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          packages: ${{ toJSON(fromJSON(needs.dependencies.outputs.packages)[matrix.toolchain]) }}

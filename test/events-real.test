@@ -12,21 +12,26 @@ if {$stressRuns eq {}} {
 if {![string is integer -strict $stressRuns] || $stressRuns < 0} {
     error {stressRuns must be a nonnegative integer}
 }
-if {$ngspiceLibrary eq {}} {
-    if {![info exists ::env(NGSPICE_DLL)]} {
-        error {set NGSPICE_LIBRARY or NGSPICE_DLL}
-    }
-    set filename [expr {$::tcl_platform(platform) eq {windows} ? {ngspice.dll} : {libngspice.so}}]
-    set ngspiceLibrary [file join $::env(NGSPICE_DLL) $filename]
-}
-if {![file isfile $ngspiceLibrary]} {
-    error "ngspice library not found: $ngspiceLibrary"
-}
-load [file normalize $bridgeLibrary] Ngspicetclbridge
-source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
 package require tcltest
 namespace import ::tcltest::*
 set argv {}
+testConstraint ngspiceEventPlotReuse [expr {
+    [info exists ::env(NGSPICE_EVENT_PLOT_REUSE)] && $::env(NGSPICE_EVENT_PLOT_REUSE)
+}]
+if {[testConstraint ngspiceEventPlotReuse] || $stressRuns > 0} {
+    if {$ngspiceLibrary eq {}} {
+        if {![info exists ::env(NGSPICE_DLL)]} {
+            error {set NGSPICE_LIBRARY or NGSPICE_DLL}
+        }
+        set filename [expr {$::tcl_platform(platform) eq {windows} ? {ngspice.dll} : {libngspice.so}}]
+        set ngspiceLibrary [file join $::env(NGSPICE_DLL) $filename]
+    }
+    if {![file isfile $ngspiceLibrary]} {
+        error "ngspice library not found: $ngspiceLibrary"
+    }
+    load [file normalize $bridgeLibrary] Ngspicetclbridge
+    source [file join [file dirname [info script]] .. ngspicetclbridge.tcl]
+}
 set fixtureDir [file normalize [file join [file dirname [info script]] events]]
 
 proc realEventSim {circuit} {
@@ -102,7 +107,7 @@ foreach {circuit nodeCount stopTime numericCount} {
     digital-source.cir 11 30e-9 pure
 } {
     test events-real-$circuit {all modes use raw events; complete snapshots, strings, counters, rerun and ownership}\
-            -body {
+            -constraints ngspiceEventPlotReuse -body {
         set reference {}
         foreach mode {changes snapshot pernode} {
             set s [realEventSim $circuit]
@@ -172,7 +177,8 @@ foreach {circuit nodeCount stopTime numericCount} {
 # Compare node histories with an uninterrupted run and snapshots with native accepted points.
 foreach {circuit stopTime} {mixed-invert.cir 1e-6 digital-source.cir 30e-9} {
     foreach mode {changes snapshot pernode} {
-        test events-real-resume-$circuit-$mode {two halt/resume cycles match an uninterrupted run} -body {
+        test events-real-resume-$circuit-$mode {two halt/resume cycles match an uninterrupted run}\
+            -constraints ngspiceEventPlotReuse -body {
             set s [realEventSim $circuit]
             $s eventnodes -all -mode $mode
             completeRun $s
@@ -255,7 +261,8 @@ foreach {circuit stopTime} {mixed-invert.cir 1e-6 digital-source.cir 30e-9} {
     }
 }
 
-test events-real-replace {one handle replaces mixed, digital and analog circuits in both input forms} -body {
+test events-real-replace {one handle replaces mixed, digital and analog circuits in both input forms}\
+            -constraints ngspiceEventPlotReuse -body {
     set s [realEventSim mixed-invert.cir]
     foreach mode {changes snapshot pernode} {
         $s eventnodes -all -mode $mode
@@ -303,7 +310,8 @@ test events-real-replace {one handle replaces mixed, digital and analog circuits
     }
 } -result ok
 
-test events-real-static {OP/DC all modes, subcircuit nodes, nested coordinates, rerun and transient recovery} -body {
+test events-real-static {OP/DC all modes, subcircuit nodes, nested coordinates, rerun and transient recovery}\
+            -constraints ngspiceEventPlotReuse -body {
     set s [realEventSim op-dc.cir]
     foreach mode {snapshot changes pernode} {
         $s eventnodes -all -mode $mode
@@ -371,7 +379,7 @@ test events-real-static {OP/DC all modes, subcircuit nodes, nested coordinates, 
 
 foreach mode {changes snapshot pernode} {
     test events-real-analysis-cycle-$mode {same circuit cycles transient OP DC transient with explicit selection}\
-            -body {
+            -constraints ngspiceEventPlotReuse -body {
         set s [realEventSim op-dc.cir]
         $s eventnodes -nodes xlogic.d -mode $mode
         set reference {}

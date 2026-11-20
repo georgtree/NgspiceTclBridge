@@ -13,3 +13,4 @@ configure~
 /docs/sphinx
 /docs/.doctrees
 /docs/*.bak
+/_ci/

@@ -60,6 +60,45 @@ are discoverable through auto_path or TCLLIBPATH\&. Pass the ngspice shared libr
 simulator handle; it is loaded at runtime\&.
 .PP
 For Windows, build from an \fIMSYS2 UCRT64\fP [URL: https://www\&.msys2\&.org/] shell with a compatible Tcl and ngspice DLL\&.
+.SH "CONTINUOUS INTEGRATION AND BINARY PACKAGES"
+.PP
+Pushes build and test with Tcl 9\&.1\&.0 and RBC vector support on Linux GCC, Windows UCRT64 and Windows MSVC (x64)\&.
+CI verifies the matching native RBC and argparse binaries from their rolling releases\&. Moving either dependency's
+latest tag refreshes its cache\&.
+.PP
+CI builds ngspice 47 from the SHA-256-verified release tarball with --with-ngshared and XSPICE\&. Both Windows jobs can reuse the
+same UCRT64-built simulator DLL through the ngspice C API\&. Each builds the bridge and Tcl with its own compiler\&.
+Each runner checks a real voltage divider with RBC vector output, runs the ordinary test suite and C memory test,
+and exercises the mock vector/event suites\&.
+.PP
+Run \fBActions → Build packages → Run workflow\fP to publish the three tested bridge archives and their SHA-256
+checksums to the \fIrolling release\fP [URL: https://github\&.com/georgtree/NgspiceTclBridge/releases/tag/latest]\&.
+Install the simulator, Tcl, Tcllib, argparse and RBC separately\&. The application selects the simulator library
+when it creates a handle\&.
+.SS "LOCAL MSVC BUILD"
+.PP
+Use an x64 Native Tools Command Prompt for Visual Studio 2022\&. Set INSTALLDIR to a Tcl 9\&.1 development
+installation, RBC_DIR to the extracted MSVC RBC prefix, and NGSPICE_DLL to the folder containing ngspice\&.dll\&.
+The repository bundles Tcl's Nmake rules\&. For example:
+.PP
+.RS 4n
+.nf
+cd win
+set "INSTALLDIR=C:\\Tcl91"
+set "RBC_DIR=C:\\deps\\rbc"
+set "NGSPICE_DLL=C:\\Spice64\\bin"
+set "PATH=%INSTALLDIR%\\bin;%PATH%"
+set "TCLLIBPATH={C:/deps/argparse/lib/argparse0\&.70} {C:/deps/rbc/lib/rbc0\&.8\&.5} {C:/deps/tcllib/modules}"
+nmake /f makefile\&.vc
+nmake /f makefile\&.vc test
+nmake /f makefile\&.vc test-fixtures
+nmake /f makefile\&.vc install
+nmake /f makefile\&.vc dist-zip
+.fi
+.RE
+.PP
+To run nmake /f makefile\&.vc test-events-real, also set NGSPICE_CODEMODEL_DIR to the directory containing
+the matching analog\&.cm and digital\&.cm files\&.
 .SH DOCUMENTATION
 .PP
 See the \fIonline documentation\fP [URL: https://georgtree\&.github\&.io/NgspiceTclBridge/] for the command reference, examples,
@@ -149,12 +188,13 @@ creates fresh vectors in the selected namespace\&. Live vectors and snapshots ha
 guide\fP [URL: docs/rbcBindings\&.ruff] for the full ownership and naming rules\&.
 .SH "DIGITAL EVENT TESTS"
 .PP
-Headless deterministic tests and real-ngspice tests:
+The 13 real XSPICE tests are skipped by default pending the upstream event plot reuse fix\&. To enable them with
+a fixed simulator, set the environment variable NGSPICE_EVENT_PLOT_REUSE=1\&.
 .PP
 .RS 4n
 .nf
 make test-events TCLLIBPATH="/path/to/argparse /path/to/tcllib"
-make test-events-real NGSPICE_LIBRARY=/path/to/libngspice\&.so NGSPICE_CODEMODEL_DIR=/path/to/ngspice/models
+NGSPICE_EVENT_PLOT_REUSE=1 make test-events-real NGSPICE_LIBRARY=/path/to/libngspice\&.so NGSPICE_CODEMODEL_DIR=/path/to/ngspice/models
 .fi
 .RE
 .PP
@@ -180,7 +220,7 @@ The default is 200 iterations per circuit/mode combination\&. See \fItest/events
 for cleanup policy, platform support, and the upstream plot-name reuse fix required by the new real regressions\&.
 .SH TESTING
 .PP
-The ordinary Tcl suite requires argparse, extexpr and a real ngspice shared library\&.  Set NGSPICE_DLL to its
+The ordinary Tcl suite requires argparse, its Tcllib dependency and a real ngspice shared library\&.  Set NGSPICE_DLL to its
 \fBdirectory\fP, not its filename:
 .PP
 .RS 4n

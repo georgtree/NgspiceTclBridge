@@ -1,0 +1,65 @@
+name: Build packages
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: ngspicetclbridge-rolling-latest
+  cancel-in-progress: false
+jobs:
+  dependencies:
+    name: Resolve rolling dependencies
+    runs-on: ubuntu-24.04
+    outputs:
+      packages: ${{ steps.resolve.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/release-deps.py resolve
+  build:
+    needs: dependencies
+    name: ${{ matrix.toolchain }} / Tcl 9.1.0 / RBC vectors
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: linux-gcc
+          - os: windows-2022
+            toolchain: windows-ucrt64
+          - os: windows-2022
+            toolchain: windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-ngspicetclbridge
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          packages: ${{ toJSON(fromJSON(needs.dependencies.outputs.packages)[matrix.toolchain]) }}
+          make-dist: 'true'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ngspicetclbridge-${{ matrix.toolchain }}-tcl9.1.0
+          path: _ci/package/
+          if-no-files-found: error
+  release:
+    name: Publish latest
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ngspicetclbridge-*-tcl9.1.0
+          path: _ci/release
+          merge-multiple: true
+      - name: Update rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/publish-release.py _ci/release

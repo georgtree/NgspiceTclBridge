@@ -1,0 +1,79 @@
+# From win/ in a Visual Studio developer prompt:
+# nmake /f makefile.vc INSTALLDIR=C:\Tcl91 RBC_DIR=C:\rbc
+PROJECT = ngspicetclbridge
+TESTDIR = $(ROOT)\test
+COMPILERFLAGS = $(COMPILERFLAGS) /std:c11
+DISABLE_TARGET_test = 1
+all: $(PROJECT)
+
+!if !exist("$(RBC_DIR)\include\rbcStubLib.c")
+!error Set RBC_DIR to the extracted RBC installation prefix
+!endif
+!include "rules-ext.vc"
+
+PRJ_OBJS = $(TMP_DIR)\ngspicetclbridge.obj $(TMP_DIR)\ngspicetclbridgeRbc.obj
+PRJ_HEADERS = $(GENERICDIR)\ngspicetclbridge.h $(GENERICDIR)\sharedspice.h $(GENERICDIR)\portable_dl.h
+PRJ_HEADERS_PUBLIC = $(PRJ_HEADERS)
+PRJ_DEFINES = /DHAVE_RBC /DUSE_RBC_STUBS
+PRJ_INCLUDES = /I"$(RBC_DIR)\include"
+!include "$(_RULESDIR)\targets.vc"
+
+pkgindex: default-pkgindex-tea
+	@copy /Y "$(ROOT)\ngspicetclbridge.tcl" "$(OUT_DIR)\" >nul
+
+MEMTEST = $(OUT_DIR)\bridge-memory-test.exe
+MOCK = $(OUT_DIR)\mockngspice.dll
+MOCK_NO_RAW = $(OUT_DIR)\mock-no-raw.dll
+
+$(MEMTEST): $(TESTDIR)\memory.c $(GENERICDIR)\ngspicetclbridge.c $(GENERICDIR)\ngspicetclbridgeRbc.c $(PRJ_HEADERS)
+	$(cc32) $(appcflags_nostubs) $(PKGNAMEFLAGS) /Fo"$(TMP_DIR)\memory-test.obj" "$(TESTDIR)\memory.c"
+	$(cc32) $(appcflags_nostubs) $(PKGNAMEFLAGS) /Fo"$(TMP_DIR)\memory-rbc.obj" "$(GENERICDIR)\ngspicetclbridgeRbc.c"
+	link /nologo /out:"$@" "$(TMP_DIR)\memory-test.obj" "$(TMP_DIR)\memory-rbc.obj" "$(TCLIMPLIB)"
+
+$(MOCK): $(TESTDIR)\mockngspice.c $(GENERICDIR)\sharedspice.h
+	$(cc32) $(appcflags_nostubs) /Fo"$(TMP_DIR)\mock.obj" "$(TESTDIR)\mockngspice.c"
+	link /nologo /dll /out:"$@" "$(TMP_DIR)\mock.obj" "$(TCLIMPLIB)"
+
+$(MOCK_NO_RAW): $(TESTDIR)\mockngspice.c $(GENERICDIR)\sharedspice.h
+	$(cc32) $(appcflags_nostubs) /DMOCK_NO_RAW_EVENTS /Fo"$(TMP_DIR)\mock-no-raw.obj" "$(TESTDIR)\mockngspice.c"
+	link /nologo /dll /out:"$@" "$(TMP_DIR)\mock-no-raw.obj" "$(TCLIMPLIB)"
+
+test-fixtures: $(PROJECT) $(MOCK) $(MOCK_NO_RAW)
+	"$(TCLSH)" "$(TESTDIR)\rbc.test" --rbc-fixture "$(PRJLIB)" "$(MOCK)"
+	"$(TCLSH)" "$(TESTDIR)\events.test" --rbc-fixture "$(PRJLIB)" "$(MOCK)"
+	"$(TCLSH)" "$(TESTDIR)\events-optional.test" --rbc-fixture "$(PRJLIB)" "$(MOCK_NO_RAW)"
+
+test-events-real: $(PROJECT)
+	"$(TCLSH)" "$(TESTDIR)\events-real.test" --real-events "$(PRJLIB)" "$(NGSPICE_DLL)\ngspice.dll" "$(NGSPICE_CODEMODEL_DIR)"
+
+test: $(PROJECT) $(MEMTEST)
+	"$(MEMTEST)"
+	@cmd.exe /d /s /c "set "TCLLIBPATH={$(OUT_DIR:\=/)} $(TCLLIBPATH)" && "$(TCLSH)" "$(TESTDIR)\all.tcl" $(TESTFLAGS)"
+
+install: install-script
+install-script: default-install
+	@$(COPY) "$(ROOT)\ngspicetclbridge.tcl" "$(SCRIPT_INSTALL_DIR)"
+
+!ifndef DIST_ROOT
+DIST_ROOT = $(OUT_DIR)\dist
+!endif
+DIST_NAME = $(PROJECT)$(DOTVERSION)
+STAGE = $(DIST_ROOT)\$(DIST_NAME)
+DIST_LIB = $(STAGE)\lib\$(DIST_NAME)
+DIST_DOC = $(STAGE)\share\$(DIST_NAME)\doc
+
+dist-zip: $(PROJECT)
+	@if exist "$(STAGE)" rmdir /s /q "$(STAGE)"
+	@cmd.exe /d /e:on /c mkdir "$(DIST_LIB)"
+	@cmd.exe /d /e:on /c mkdir "$(DIST_DOC)"
+	@cmd.exe /d /e:on /c mkdir "$(STAGE)\share\man\mann"
+	@cmd.exe /d /e:on /c mkdir "$(STAGE)\include"
+	@$(COPY) "$(GENERICDIR)\*.h" "$(STAGE)\include\"
+	@$(COPY) "$(PRJLIB)" "$(DIST_LIB)\"
+	@$(COPY) "$(OUT_DIR)\pkgIndex.tcl" "$(DIST_LIB)\"
+	@$(COPY) "$(ROOT)\ngspicetclbridge.tcl" "$(DIST_LIB)\"
+	@$(COPY) "$(ROOT)\LICENSE" "$(DIST_DOC)\"
+	@for %f in ("$(ROOT)\docs\*.html" "$(ROOT)\docs\*.js" "$(ROOT)\docs\*.inv" "$(ROOT)\docs\.nojekyll") do @if exist "%f" ($(COPY) "%f" "$(DIST_DOC)\" || exit /b 1)
+	@for %d in (_static assets images _images) do @if exist "$(ROOT)\docs\%d\" (xcopy /E /I /Y "$(ROOT)\docs\%d" "$(DIST_DOC)\%d" >nul || exit /b 1)
+	@$(COPY) "$(ROOT)\docs\*.n" "$(STAGE)\share\man\mann\"
+	@cmd.exe /d /s /c ""%SystemRoot%\System32\tar.exe" -a -cf "$(DIST_ROOT)\$(DIST_NAME).zip" -C "$(STAGE)" ."

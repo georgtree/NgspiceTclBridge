@@ -48,6 +48,10 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">NgspiceTclBridge - drive ngspice (shared library) from Tcl</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#what-it-gives-you-at-a-glance">What it gives you (at a glance)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#building-requirements">Building &amp; requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#continuous-integration-and-binary-packages">Continuous integration and binary packages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#local-msvc-build">Local MSVC build</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#quick-start-synchronous-operation">Quick start (synchronous operation)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#optional-rbc-vector-output">Optional RBC vector output</a></li>
@@ -256,6 +260,41 @@ are discoverable through <code class="docutils literal notranslate"><span class=
 simulator handle; it is loaded at runtime.</p>
 <p>For Windows, build from an <a class="reference external" href="https://www.msys2.org/">MSYS2 UCRT64</a> shell with a compatible Tcl and ngspice DLL.</p>
 </section>
+<section id="continuous-integration-and-binary-packages">
+<span id="r-continuous-integration-and-binary-packages"></span><span id="r-continuous20integration20and20binary20packages"></span><h2>Continuous integration and binary packages<a class="headerlink" href="#continuous-integration-and-binary-packages" title="Link to this heading"></a></h2>
+<p>Pushes build and test with Tcl 9.1.0 and RBC vector support on Linux GCC, Windows UCRT64 and Windows MSVC (x64).
+CI verifies the matching native RBC and argparse binaries from their rolling releases. Moving either dependency’s
+<code class="docutils literal notranslate"><span class="pre">latest</span></code> tag refreshes its cache.</p>
+<p>CI builds ngspice 47 from the SHA-256-verified release tarball with <code class="docutils literal notranslate"><span class="pre">--with-ngshared</span></code> and XSPICE. Both Windows jobs can reuse the
+same UCRT64-built simulator DLL through the ngspice C API. Each builds the bridge and Tcl with its own compiler.
+Each runner checks a real voltage divider with RBC vector output, runs the ordinary test suite and C memory test,
+and exercises the mock vector/event suites.</p>
+<p>Run <strong>Actions → Build packages → Run workflow</strong> to publish the three tested bridge archives and their SHA-256
+checksums to the <a class="reference external" href="https://github.com/georgtree/NgspiceTclBridge/releases/tag/latest">rolling release</a>.
+Install the simulator, Tcl, Tcllib, argparse and RBC separately. The application selects the simulator library
+when it creates a handle.</p>
+<section id="local-msvc-build">
+<span id="r-local-msvc-build"></span><span id="r-local20msvc20build"></span><h3>Local MSVC build<a class="headerlink" href="#local-msvc-build" title="Link to this heading"></a></h3>
+<p>Use an x64 Native Tools Command Prompt for Visual Studio 2022. Set <code class="docutils literal notranslate"><span class="pre">INSTALLDIR</span></code> to a Tcl 9.1 development
+installation, <code class="docutils literal notranslate"><span class="pre">RBC_DIR</span></code> to the extracted MSVC RBC prefix, and <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to the folder containing <code class="docutils literal notranslate"><span class="pre">ngspice.dll</span></code>.
+The repository bundles Tcl’s Nmake rules. For example:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="k">cd</span> win
+<span class="k">set</span> <span class="s2">"INSTALLDIR=C:\Tcl91"</span>
+<span class="k">set</span> <span class="s2">"RBC_DIR=C:\deps\rbc"</span>
+<span class="k">set</span> <span class="s2">"NGSPICE_DLL=C:\Spice64\bin"</span>
+<span class="k">set</span> <span class="s2">"PATH=</span><span class="nv">%INSTALLDIR%</span><span class="s2">\bin;</span><span class="nv">%PATH%</span><span class="s2">"</span>
+<span class="k">set</span> <span class="s2">"TCLLIBPATH={C:/deps/argparse/lib/argparse0.70} {C:/deps/rbc/lib/rbc0.8.5} {C:/deps/tcllib/modules}"</span>
+nmake /f makefile.vc
+nmake /f makefile.vc test
+nmake /f makefile.vc test-fixtures
+nmake /f makefile.vc install
+nmake /f makefile.vc dist-zip
+</pre></div>
+</div>
+<p>To run <code class="docutils literal notranslate"><span class="pre">nmake</span> <span class="pre">/f</span> <span class="pre">makefile.vc</span> <span class="pre">test-events-real</span></code>, also set <code class="docutils literal notranslate"><span class="pre">NGSPICE_CODEMODEL_DIR</span></code> to the directory containing
+the matching <code class="docutils literal notranslate"><span class="pre">analog.cm</span></code> and <code class="docutils literal notranslate"><span class="pre">digital.cm</span></code> files.</p>
+</section>
+</section>
 <section id="documentation">
 <span id="r-documentation"></span><h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h2>
 <p>See the <a class="reference external" href="https://georgtree.github.io/NgspiceTclBridge/">online documentation</a> for the command reference, examples,
@@ -330,9 +369,10 @@ guide</a> for the full ownership and naming rules.</p>
 </section>
 <section id="digital-event-tests">
 <span id="r-digital-event-tests"></span><span id="r-digital20event20tests"></span><h2>Digital event tests<a class="headerlink" href="#digital-event-tests" title="Link to this heading"></a></h2>
-<p>Headless deterministic tests and real-ngspice tests:</p>
+<p>The 13 real XSPICE tests are skipped by default pending the upstream event plot reuse fix. To enable them with
+a fixed simulator, set the environment variable <code class="docutils literal notranslate"><span class="pre">NGSPICE_EVENT_PLOT_REUSE=1</span></code>.</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>test-events<span class="w"> </span><span class="nv">TCLLIBPATH</span><span class="o">=</span><span class="s2">"/path/to/argparse /path/to/tcllib"</span>
-make<span class="w"> </span>test-events-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_CODEMODEL_DIR</span><span class="o">=</span>/path/to/ngspice/models
+<span class="nv">NGSPICE_EVENT_PLOT_REUSE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>make<span class="w"> </span>test-events-real<span class="w"> </span><span class="nv">NGSPICE_LIBRARY</span><span class="o">=</span>/path/to/libngspice.so<span class="w"> </span><span class="nv">NGSPICE_CODEMODEL_DIR</span><span class="o">=</span>/path/to/ngspice/models
 </pre></div>
 </div>
 <p>On Windows supply the full DLL path; <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> is also supported as a library-directory fallback. The model
@@ -352,7 +392,7 @@ for cleanup policy, platform support, and the upstream plot-name reuse fix requi
 </section>
 <section id="testing">
 <span id="r-testing"></span><h2>Testing<a class="headerlink" href="#testing" title="Link to this heading"></a></h2>
-<p>The ordinary Tcl suite requires <code class="docutils literal notranslate"><span class="pre">argparse</span></code>, <code class="docutils literal notranslate"><span class="pre">extexpr</span></code> and a real ngspice shared library.  Set <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to its
+<p>The ordinary Tcl suite requires <code class="docutils literal notranslate"><span class="pre">argparse</span></code>, its Tcllib dependency and a real ngspice shared library.  Set <code class="docutils literal notranslate"><span class="pre">NGSPICE_DLL</span></code> to its
 <strong>directory</strong>, not its filename:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># Linux: directory containing libngspice.so</span>
 <span class="nv">NGSPICE_DLL</span><span class="o">=</span>/usr/local/lib<span class="w"> </span>make<span class="w"> </span><span class="nb">test</span>
